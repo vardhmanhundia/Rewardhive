@@ -15,6 +15,8 @@ services:
         condition: service_healthy
     volumes:
       - ./apps/backend/src:/app/src
+      # Persist SONAR / HuggingFace model weights across rebuilds (~1GB download).
+      - model_cache:/root/.cache
 
   web:
     build:
@@ -58,3 +60,4 @@ services:
 volumes:
   postgres_data:
   redis_data:
+  model_cache:

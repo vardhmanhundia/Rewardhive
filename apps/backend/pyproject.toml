@@ -25,9 +25,24 @@ dependencies = [
     "PyJWT==2.15.1",
     "bcrypt==5.0.0",
     "python-multipart==0.0.32",
+    # Self-hosted embeddings for RAG retrieval, behind EmbeddingService. Default
+    # provider is sentence-transformers (bge-large-en-v1.5, 1024-dim): native
+    # wheels on arm64 / Python 3.13, no emulation. torch is pinned because its
+    # cp313 linux-aarch64 wheel is what lets the container build natively.
+    "sentence-transformers==6.2.0",
+    "torch==2.14.1",
 ]
 
 [project.optional-dependencies]
+# Meta's SONAR text encoder, selectable at runtime via EMBEDDING_PROVIDER=sonar.
+# Kept OUT of the default deps because fairseq2n ships no cp313 or linux-arm64
+# wheel, so this extra installs only on x86_64 + Python<=3.12. sonar-space is
+# tightly coupled to specific fairseq2/torch builds, so we pin sonar-space and
+# let it resolve its own compatible triple (it may override the torch pin above
+# on that host). Install with:  pip install -e ".[sonar]"
+sonar = [
+    "sonar-space==0.5.0",
+]
 dev = [
     "pytest==8.3.4",
     "pytest-asyncio==0.24.0",

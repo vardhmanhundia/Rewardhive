@@ -26,5 +26,25 @@ class Settings:
 
     SQL_ECHO: bool = os.getenv("SQL_ECHO", "false").lower() == "true"
 
+    # Embeddings. One EmbeddingService is the shared seam for both ingestion
+    # (seed) and retrieval (query time); both sides must use the same provider
+    # and model so vectors are comparable. EMBEDDING_DIM must match the
+    # Vector(...) size in the card_chunks model and migration.
+    #
+    # Default provider is sentence-transformers: native wheels on arm64 /
+    # Python 3.13, no emulation. SONAR (Meta's model) is selectable via
+    # EMBEDDING_PROVIDER=sonar but needs the [sonar] extra on an x86_64,
+    # Python<=3.12 host (fairseq2n ships no cp313 or linux-arm64 wheel).
+    EMBEDDING_PROVIDER: str = os.getenv("EMBEDDING_PROVIDER", "sentence_transformers")
+    EMBEDDING_DIM: int = int(os.getenv("EMBEDDING_DIM", "1024"))
+    # sentence-transformers model; must emit EMBEDDING_DIM-sized vectors.
+    # bge-large-en-v1.5 is 1024-dim, matching the default EMBEDDING_DIM.
+    ST_MODEL: str = os.getenv("ST_MODEL", "BAAI/bge-large-en-v1.5")
+    # SONAR settings (used only when EMBEDDING_PROVIDER=sonar).
+    SONAR_ENCODER: str = os.getenv("SONAR_ENCODER", "text_sonar_basic_encoder")
+    SONAR_SOURCE_LANG: str = os.getenv("SONAR_SOURCE_LANG", "eng_Latn")
+    # Card catalog seed file, relative to the backend working directory.
+    SEED_PATH: str = os.getenv("SEED_PATH", "seed/cards.json")
+
 
 settings = Settings()

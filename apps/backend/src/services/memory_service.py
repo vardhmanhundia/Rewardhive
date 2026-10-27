@@ -6,9 +6,11 @@ user-profiling agent reads from and writes to; it replaces the LangGraph
 asyncpg access (Alembic owns the schema).
 """
 
+from typing import cast
 from uuid import UUID
 
 from sqlalchemy import delete, select
+from sqlalchemy.engine import CursorResult
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.db.models import UserMemory
@@ -44,16 +46,22 @@ class MemoryService:
         memory_id: UUID,
     ) -> bool:
         """Delete one memory, scoped to its owner. Returns True if a row was removed."""
-        result = await session.execute(
-            delete(UserMemory).where(
-                UserMemory.id == memory_id,
-                UserMemory.user_id == user_id,
-            )
+        result = cast(
+            CursorResult,
+            await session.execute(
+                delete(UserMemory).where(
+                    UserMemory.id == memory_id,
+                    UserMemory.user_id == user_id,
+                )
+            ),
         )
         return result.rowcount > 0
 
     @staticmethod
     async def clear_memories(session: AsyncSession, user_id: UUID) -> int:
         """Delete all memories for a user. Returns the number removed."""
-        result = await session.execute(delete(UserMemory).where(UserMemory.user_id == user_id))
+        result = cast(
+            CursorResult,
+            await session.execute(delete(UserMemory).where(UserMemory.user_id == user_id)),
+        )
         return result.rowcount

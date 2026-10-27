@@ -69,7 +69,7 @@ export const LoginPage = () => {
     setIsLoading(true);
     try {
       await login(formData.email, formData.password);
-      navigate('/');
+      navigate('/user_profile');
     } catch (error) {
       console.error('Login error:', error);
     } finally {

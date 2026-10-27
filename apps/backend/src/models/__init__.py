@@ -1,4 +1,5 @@
 """Pydantic schemas for request/response validation"""
+
 from pydantic import BaseModel, EmailStr, Field
 from datetime import datetime
 from uuid import UUID
@@ -60,6 +61,28 @@ class UserProfileResponse(BaseModel):
 
     class Config:
         from_attributes = True
-    
-    
-        
+
+
+class UserMemorySchema(BaseModel):
+    id: UUID
+    content: str
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class ProfilingTurnMessage(BaseModel):
+    role: str = Field(..., pattern="^(user|assistant)$")
+    content: str
+
+
+class ProfilingTurnRequest(BaseModel):
+    message: str = Field(..., min_length=1)
+    history: list[ProfilingTurnMessage] = Field(default_factory=list)
+
+
+class ProfilingTurnResponse(BaseModel):
+    reply: str
+    suggestions: list[str]
+    new_memories: list[str]

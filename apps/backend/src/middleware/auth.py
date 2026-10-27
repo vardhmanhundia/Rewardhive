@@ -1,4 +1,5 @@
 """Authentication middleware for protected routes"""
+
 from fastapi import HTTPException, status, Request
 from uuid import UUID
 from src.utils.jwt_handler import verify_token, extract_token_from_header

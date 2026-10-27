@@ -1,4 +1,5 @@
 """JWT token generation and validation utilities"""
+
 import jwt
 from datetime import datetime, timedelta, timezone
 from typing import Optional

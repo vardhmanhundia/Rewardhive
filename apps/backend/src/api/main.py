@@ -1,9 +1,16 @@
 """FastAPI application"""
+
 # pyright: reportMissingImports=false
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from src.config import settings
+from src.agents.commons import configure_langsmith
 from src.api.auth import router as auth_router
+from src.api.profiling import router as profiling_router
+
+# Enable LangSmith tracing (no-op unless LANGSMITH_TRACING=true) before any
+# graph runs, so all LLM/graph calls are logged.
+configure_langsmith()
 
 
 app = FastAPI(
@@ -22,6 +29,7 @@ app.add_middleware(
 
 # Include routers
 app.include_router(auth_router)
+app.include_router(profiling_router)
 
 
 @app.get("/health")

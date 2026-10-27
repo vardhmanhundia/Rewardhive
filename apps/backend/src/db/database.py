@@ -1,4 +1,5 @@
 """Async database configuration"""
+
 from collections.abc import AsyncGenerator
 from sqlalchemy.ext.asyncio import (
     AsyncSession,
@@ -21,6 +22,7 @@ SessionLocal = async_sessionmaker(
     expire_on_commit=False,
     autoflush=False,
 )
+
 
 class Base(DeclarativeBase):
     pass

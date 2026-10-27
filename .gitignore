@@ -70,3 +70,5 @@ apps/backend/uv.lock
 .mypy_cache/
 # Ephemeral test database
 apps/backend/tests/*.db
+
+.ruff_cache/

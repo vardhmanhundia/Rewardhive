@@ -111,12 +111,16 @@ def get_chat_model(
         return _FakeChat(structured)
 
     # Meta Model API is OpenAI-compatible: point ChatOpenAI at its base URL.
-    # An empty api_key keeps import-time construction working; real calls fail
-    # until MODEL_API_KEY is set. reasoning_effort=None is a no-op (not sent).
+    # The OpenAI client rejects an empty api_key at construction, so when
+    # MODEL_API_KEY is unset we pass a placeholder: this keeps import-time
+    # construction working (models are built once at import), while real calls
+    # still fail until a valid MODEL_API_KEY is set. reasoning_effort=None is a
+    # no-op (not sent).
+    api_key = settings.MODEL_API_KEY or "not-set"
     llm = ChatOpenAI(  # type: ignore[call-arg]
         model=model,
         base_url=settings.MUSE_BASE_URL or None,
-        api_key=SecretStr(settings.MODEL_API_KEY),
+        api_key=SecretStr(api_key),
         max_completion_tokens=max_tokens,
         reasoning_effort=reasoning_effort,
     )

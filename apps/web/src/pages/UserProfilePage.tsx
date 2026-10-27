@@ -49,6 +49,28 @@ export const UserProfilePage = () => {
 
   const scrollRef = useRef<HTMLDivElement>(null);
 
+  // Load the user's persisted conversation on mount so chats survive login.
+  useEffect(() => {
+    let cancelled = false;
+    profilingService
+      .getHistory()
+      .then((history) => {
+        if (cancelled || history.length === 0) {
+          return;
+        }
+        setMessages((prev) => [
+          ...prev,
+          ...history.map((m) => makeMessage(m.role === 'assistant' ? 'ai' : 'user', m.content)),
+        ]);
+      })
+      .catch(() => {
+        // Persistence may be off or unreachable; start with the greeting only.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   // Keep the newest message in view.
   useEffect(() => {
     scrollRef.current?.scrollTo({top: scrollRef.current.scrollHeight, behavior: 'smooth'});
@@ -124,7 +146,7 @@ export const UserProfilePage = () => {
             </h1>
             <p className="text-xs text-muted-foreground">Chat with your assistant</p>
           </div>
-          <Button onClick={handleLogout} variant="outline" size="sm" className="gap-2">
+          <Button onClick={handleLogout} size="sm" className="gap-2">
             <LogOut className="w-4 h-4" />
             Logout
           </Button>

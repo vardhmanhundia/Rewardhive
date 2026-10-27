@@ -86,3 +86,7 @@ class ProfilingTurnResponse(BaseModel):
     reply: str
     suggestions: list[str]
     new_memories: list[str]
+
+
+class ChatHistoryResponse(BaseModel):
+    messages: list[ProfilingTurnMessage]

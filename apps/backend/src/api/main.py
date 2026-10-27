@@ -1,10 +1,13 @@
 """FastAPI application"""
 
 # pyright: reportMissingImports=false
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from src.config import settings
-from src.agents.commons import configure_langsmith
+from src.agents.commons import close_checkpointer, configure_langsmith, init_checkpointer
+from src.agents.user_profiling import set_checkpointer
 from src.api.auth import router as auth_router
 from src.api.profiling import router as profiling_router
 
@@ -13,9 +16,23 @@ from src.api.profiling import router as profiling_router
 configure_langsmith()
 
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Open the chat-persistence checkpointer on startup, close it on shutdown.
+
+    If the checkpointer can't be opened, persistence is disabled and the app
+    still runs (set_checkpointer(None) keeps chats non-persistent).
+    """
+    checkpointer = await init_checkpointer()
+    set_checkpointer(checkpointer)
+    yield
+    await close_checkpointer()
+
+
 app = FastAPI(
     title="Card Agent API",
     version="0.1.0",
+    lifespan=lifespan,
 )
 
 # CORS middleware

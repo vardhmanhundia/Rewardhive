@@ -13,10 +13,19 @@ from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.agents.user_profiling import run_profiling_turn, stream_profiling_turn
+from src.agents.user_profiling import (
+    load_history,
+    run_profiling_turn,
+    stream_profiling_turn,
+)
 from src.db.database import get_db
 from src.middleware.auth import get_current_user_id, verify_user_auth
-from src.models import ProfilingTurnRequest, ProfilingTurnResponse
+from src.models import (
+    ChatHistoryResponse,
+    ProfilingTurnMessage,
+    ProfilingTurnRequest,
+    ProfilingTurnResponse,
+)
 
 router = APIRouter(prefix="/profiling", tags=["profiling"])
 
@@ -60,6 +69,24 @@ async def chat(
         reply=result.reply,
         suggestions=result.suggestions,
         new_memories=result.new_memories,
+    )
+
+
+@router.get("/history", response_model=ChatHistoryResponse)
+async def history(
+    payload: dict = Depends(verify_user_auth),
+) -> ChatHistoryResponse:
+    """Return the authenticated user's persisted conversation.
+
+    Requires:
+        Authorization header with Bearer token.
+
+    Empty if persistence is disabled or the user has no stored chat yet.
+    """
+    user_id = get_current_user_id(payload)
+    messages = await load_history(user_id)
+    return ChatHistoryResponse(
+        messages=[ProfilingTurnMessage(role=m["role"], content=m["content"]) for m in messages]
     )
 
 

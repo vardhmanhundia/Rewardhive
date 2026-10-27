@@ -8,8 +8,10 @@ in :mod:`src.agents.user_profiling.graph` from the ``prompts``, ``models``,
 from src.agents.user_profiling.graph import (
     chat_node,
     compiled_graph,
+    load_history,
     remember_node,
     run_profiling_turn,
+    set_checkpointer,
     stream_profiling_turn,
 )
 from src.agents.user_profiling.models import (
@@ -30,7 +32,9 @@ __all__ = [
     "SuggestionList",
     "chat_node",
     "compiled_graph",
+    "load_history",
     "remember_node",
     "run_profiling_turn",
+    "set_checkpointer",
     "stream_profiling_turn",
 ]

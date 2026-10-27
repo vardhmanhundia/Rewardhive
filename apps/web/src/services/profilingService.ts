@@ -61,6 +61,28 @@ class ProfilingService {
   }
 
   /**
+   * Load the user's persisted conversation (empty if none / persistence off).
+   */
+  async getHistory(): Promise<ProfilingTurnMessage[]> {
+    const token = authService.getToken();
+    if (!token) {
+      throw new Error('Not authenticated');
+    }
+
+    const response = await fetch(`${API_URL}/profiling/history`, {
+      headers: {Authorization: `Bearer ${token}`},
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.detail || 'Failed to load history');
+    }
+
+    const data = await response.json();
+    return (data.messages ?? []) as ProfilingTurnMessage[];
+  }
+
+  /**
    * Stream one chat turn as Server-Sent Events. Reply text arrives via
    * `onToken` as it's generated; `onMemories` and `onSuggestions` fire once at
    * the end. Routed through the Vite `/api` proxy so chunks aren't buffered.

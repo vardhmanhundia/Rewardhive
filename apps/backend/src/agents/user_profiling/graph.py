@@ -25,7 +25,7 @@ from collections.abc import AsyncIterator
 from typing import Any, cast
 from uuid import UUID
 
-from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langchain_core.runnables import RunnableConfig
 from langgraph.graph import END, START, StateGraph
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -117,18 +117,68 @@ async def chat_node(state: ProfilingState, config: RunnableConfig) -> ProfilingS
 # ----------------------------------------------------------------------------
 # Graph assembly
 # ----------------------------------------------------------------------------
-def _build_graph():
+def _build_graph(checkpointer: Any = None) -> Any:
     builder = StateGraph(ProfilingState)
     builder.add_node("remember", remember_node)
     builder.add_node("chat", chat_node)
     builder.add_edge(START, "remember")
     builder.add_edge("remember", "chat")
     builder.add_edge("chat", END)
-    return builder.compile()
+    return builder.compile(checkpointer=checkpointer)
 
 
-# Compiled once (stateless); the session is injected per invocation.
+# Compiled once for generation (stateless); the session is injected per call.
 compiled_graph = _build_graph()
+
+# A second compile bound to the Postgres checkpointer, used only as a per-user
+# conversation store (via aget_state/aupdate_state) — never invoked. Set at
+# startup once persistence is available; None means persistence is disabled.
+_persist_graph: Any = None
+
+
+def set_checkpointer(checkpointer: Any) -> None:
+    """Enable persistence by binding a checkpointer (called at app startup)."""
+    global _persist_graph
+    _persist_graph = _build_graph(checkpointer) if checkpointer is not None else None
+
+
+def _message_role(message: Any) -> str:
+    return "assistant" if message.type == "ai" else "user"
+
+
+async def load_history(user_id: UUID) -> list[dict[str, str]]:
+    """Return the user's persisted conversation as ``[{role, content}, ...]``.
+
+    Empty if persistence is disabled or the user has no stored chat. Best-effort:
+    never raises — a storage error yields an empty history.
+    """
+    if _persist_graph is None:
+        return []
+    try:
+        config: RunnableConfig = {"configurable": {"thread_id": str(user_id)}}
+        snapshot = await _persist_graph.aget_state(config)
+        stored = snapshot.values.get("messages", []) if snapshot else []
+        return [{"role": _message_role(m), "content": _chunk_text(m.content)} for m in stored]
+    except Exception:  # noqa: BLE001 — persistence is best-effort
+        return []
+
+
+async def persist_turn(user_id: UUID, user_message: str, ai_message: str) -> None:
+    """Append one (user, assistant) turn to the user's persisted conversation.
+
+    No-op when persistence is disabled. Best-effort: a storage error is swallowed
+    so it never breaks the chat response.
+    """
+    if _persist_graph is None:
+        return
+    try:
+        config: RunnableConfig = {"configurable": {"thread_id": str(user_id)}}
+        await _persist_graph.aupdate_state(
+            config,
+            {"messages": [HumanMessage(content=user_message), AIMessage(content=ai_message)]},
+        )
+    except Exception:  # noqa: BLE001 — persistence is best-effort
+        pass
 
 
 # ----------------------------------------------------------------------------
@@ -157,8 +207,10 @@ async def run_profiling_turn(
     state: ProfilingState = {"message": message, "history": history or []}
     config: RunnableConfig = {"configurable": {"session": session, "user_id": user_id}}
     final = await compiled_graph.ainvoke(state, config)
+    reply = final.get("reply", "")
+    await persist_turn(user_id, message, reply)
     return ProfilingResult(
-        reply=final.get("reply", ""),
+        reply=reply,
         suggestions=final.get("suggestions", []),
         new_memories=final.get("new_memories", []),
     )
@@ -236,7 +288,10 @@ async def stream_profiling_turn(
 
         reply = "".join(reply_parts)
 
-        # 3. Terminal metadata events.
+        # 3. Persist the turn so the conversation survives logout/login.
+        await persist_turn(user_id, message, reply)
+
+        # 4. Terminal metadata events.
         yield {"type": "memories", "items": new_memories}
         yield {"type": "suggestions", "items": await _generate_suggestions(message, reply)}
         yield {"type": "done"}

@@ -1,4 +1,5 @@
 """Redis session management for JWT tokens"""
+
 import json
 from datetime import datetime, timedelta
 from typing import Any, Optional
@@ -27,9 +28,7 @@ class RedisSessionManager:
             print(f"Redis connection failed: {e}. Using in-memory storage.")
             self.redis_client = None
 
-    def store_token(
-        self, token: str, user_id: UUID, email: str
-    ) -> bool:
+    def store_token(self, token: str, user_id: UUID, email: str) -> bool:
         """
         Store JWT token in Redis with 30-day expiration.
 
@@ -43,12 +42,14 @@ class RedisSessionManager:
         """
         try:
             key = f"session:{user_id}:{token[:20]}"
-            value = json.dumps({
-                "token": token,
-                "user_id": str(user_id),
-                "email": email,
-                "created_at": datetime.utcnow().isoformat(),
-            })
+            value = json.dumps(
+                {
+                    "token": token,
+                    "user_id": str(user_id),
+                    "email": email,
+                    "created_at": datetime.utcnow().isoformat(),
+                }
+            )
             expiry = timedelta(days=TOKEN_EXPIRY_DAYS)
 
             if self.redis_client:
@@ -143,7 +144,9 @@ class RedisSessionManager:
                 if keys:
                     self.redis_client.delete(*keys)
             else:
-                keys_to_delete = [k for k in self.in_memory_store if k.startswith(f"session:{user_id}:")]
+                keys_to_delete = [
+                    k for k in self.in_memory_store if k.startswith(f"session:{user_id}:")
+                ]
                 for key in keys_to_delete:
                     del self.in_memory_store[key]
 

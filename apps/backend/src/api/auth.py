@@ -1,4 +1,5 @@
 """Authentication endpoints"""
+
 from fastapi import APIRouter, HTTPException, status, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.db.database import get_db

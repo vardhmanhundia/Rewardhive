@@ -1,4 +1,5 @@
 """SQLAlchemy ORM models for database tables"""
+
 import uuid
 from datetime import datetime
 from sqlalchemy import (
@@ -68,6 +69,33 @@ class Card(Base):
 
     def __repr__(self) -> str:
         return f"<Card(id={self.id}, title={self.title})>"
+
+
+class UserMemory(Base):
+    """A single atomic long-term memory about a user (user profiling LTM).
+
+    One row = one fact the user stated (identity, stable preference, ongoing
+    project/goal). The user-profiling agent reads all rows for a user to
+    personalize responses and writes new rows when it learns something new.
+    """
+
+    __tablename__ = "user_memories"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4,
+        nullable=False,
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
+    )
+
+    def __repr__(self) -> str:
+        return f"<UserMemory(id={self.id}, user_id={self.user_id})>"
 
 
 class CardProduct(Base):

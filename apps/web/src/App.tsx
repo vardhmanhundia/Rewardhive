@@ -1,13 +1,14 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider } from './context/AuthContext';
-import { ProtectedRoute } from './components/ProtectedRoute';
-import { HomePage } from './pages/HomePage';
-import { SignupPage } from './pages/SignupPage';
-import { LoginPage } from './pages/LoginPage';
-import { ProfilePage } from './pages/ProfilePage';
-import { CardsPage } from './pages/CardsPage';
-import { CardDetailPage } from './pages/CardDetailPage';
-import { RecommendPage } from './pages/RecommendPage';
+import {BrowserRouter, Routes, Route, Navigate} from "react-router-dom";
+import {AuthProvider} from "./context/AuthContext";
+import {ProtectedRoute} from "./components/ProtectedRoute";
+import {HomePage} from "./pages/HomePage";
+import {SignupPage} from "./pages/SignupPage";
+import {LoginPage} from "./pages/LoginPage";
+import {ProfilePage} from "./pages/ProfilePage";
+import {UserProfilePage} from "./pages/UserProfilePage";
+import {CardsPage} from "./pages/CardsPage";
+import {CardDetailPage} from "./pages/CardDetailPage";
+import {RecommendPage} from "./pages/RecommendPage";
 
 function App() {
   return (
@@ -25,6 +26,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <ProfilePage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/user_profile"
+            element={
+              <ProtectedRoute>
+                <UserProfilePage />
               </ProtectedRoute>
             }
           />

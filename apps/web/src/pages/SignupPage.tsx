@@ -91,7 +91,7 @@ export const SignupPage = () => {
         formData.last_name,
         formData.password
       );
-      navigate('/');
+      navigate('/user_profile');
     } catch (error) {
       console.error('Signup error:', error);
     } finally {

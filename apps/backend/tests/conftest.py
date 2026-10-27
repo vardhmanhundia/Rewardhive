@@ -1,4 +1,5 @@
 """Pytest configuration and fixtures"""
+
 import asyncio
 import os
 
@@ -23,9 +24,7 @@ TEST_DATABASE_URL = f"sqlite+aiosqlite:///{TEST_DB_PATH}"
 def test_db():
     """Create a fresh async test database and override the get_db dependency."""
     engine = create_async_engine(TEST_DATABASE_URL, poolclass=NullPool)
-    TestSessionLocal = async_sessionmaker(
-        bind=engine, expire_on_commit=False, autoflush=False
-    )
+    TestSessionLocal = async_sessionmaker(bind=engine, expire_on_commit=False, autoflush=False)
 
     async def _create_schema():
         async with engine.begin() as conn:

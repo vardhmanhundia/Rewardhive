@@ -1,4 +1,5 @@
 """Password hashing and verification utilities"""
+
 import bcrypt
 
 # bcrypt only uses the first 72 bytes of a password and raises if given more,

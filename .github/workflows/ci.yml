@@ -31,6 +31,10 @@ jobs:
           mypy src
 
       - name: Run tests
+        env:
+          # Never call a real LLM in CI: the shared factory returns a fake
+          # replay model, so no MODEL_API_KEY is needed.
+          LLM_FAKE_MODE: "true"
         run: |
           cd apps/backend
           pytest tests/

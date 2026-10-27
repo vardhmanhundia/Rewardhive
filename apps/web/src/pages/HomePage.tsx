@@ -3,10 +3,14 @@
  */
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
+import { Navbar } from '@/components/Navbar';
+import { useAuth } from '@/context/AuthContext';
 
 export const HomePage = () => {
+  const { isAuthenticated } = useAuth();
   return (
     <div className="min-h-screen bg-glow text-foreground">
+      <Navbar />
       {/* Hero Section */}
       <div className="max-w-7xl mx-auto px-4 py-20 sm:py-28">
         <div className="grid lg:grid-cols-2 gap-12 items-center mb-24">
@@ -29,16 +33,33 @@ export const HomePage = () => {
             </div>
 
             <div className="flex flex-col sm:flex-row gap-3 justify-center lg:justify-start">
-              <Link to="/signup">
-                <Button size="lg" className="w-full sm:w-auto shadow-lg shadow-primary/30">
-                  Get Started →
-                </Button>
-              </Link>
-              <Link to="/login">
-                <Button size="lg" variant="outline" className="w-full sm:w-auto border-white/15 bg-white/5 hover:bg-white/10">
-                  Log in
-                </Button>
-              </Link>
+              {isAuthenticated ? (
+                <>
+                  <Link to="/recommend">
+                    <Button size="lg" className="w-full sm:w-auto shadow-lg shadow-primary/30">
+                      Get a recommendation →
+                    </Button>
+                  </Link>
+                  <Link to="/cards">
+                    <Button size="lg" variant="outline" className="w-full sm:w-auto border-white/15 bg-white/5 hover:bg-white/10">
+                      Browse cards
+                    </Button>
+                  </Link>
+                </>
+              ) : (
+                <>
+                  <Link to="/signup">
+                    <Button size="lg" className="w-full sm:w-auto shadow-lg shadow-primary/30">
+                      Get Started →
+                    </Button>
+                  </Link>
+                  <Link to="/login">
+                    <Button size="lg" variant="outline" className="w-full sm:w-auto border-white/15 bg-white/5 hover:bg-white/10">
+                      Log in
+                    </Button>
+                  </Link>
+                </>
+              )}
             </div>
           </div>
 

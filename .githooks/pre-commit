@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+# Pre-commit hook: run ruff on the backend before every commit, matching CI
+# (.github/workflows/ci.yml -> "Lint with ruff"). Blocks the commit on failure.
+#
+# Enable in a fresh clone with:  git config core.hooksPath .githooks
+set -euo pipefail
+
+repo_root="$(git rev-parse --show-toplevel)"
+cd "$repo_root"
+
+# Prefer the pinned ruff in the local tooling venv, then any ruff on PATH.
+if [ -x ".lint-venv/bin/ruff" ]; then
+  ruff_bin=".lint-venv/bin/ruff"
+elif command -v ruff >/dev/null 2>&1; then
+  ruff_bin="ruff"
+else
+  echo "pre-commit: ruff not found. Set it up with:"
+  echo "    python3 -m venv .lint-venv && ./.lint-venv/bin/pip install 'ruff==0.8.4'"
+  exit 1
+fi
+
+echo "pre-commit: ruff check apps/backend/src"
+if ! "$ruff_bin" check apps/backend/src; then
+  echo
+  echo "pre-commit: ruff found issues. Fix them, or run:"
+  echo "    $ruff_bin check --fix apps/backend/src"
+  echo "(to bypass this hook once: git commit --no-verify)"
+  exit 1
+fi

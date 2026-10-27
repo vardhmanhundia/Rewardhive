@@ -1,0 +1,23 @@
+# Keep host-built artifacts out of image build contexts.
+# Critical: never copy host node_modules into the image — the host (macOS/arm64)
+# native binaries (e.g. Tailwind 4 oxide) are wrong for the Linux container, and
+# a stray copy shadows the deps installed by `npm install` in the Dockerfile.
+**/node_modules
+**/dist
+**/build
+
+# Python / tooling
+**/__pycache__
+**/*.pyc
+**/.mypy_cache
+**/.pytest_cache
+**/.ruff_cache
+.lint-venv
+**/venv
+**/.venv
+
+# VCS / local
+.git
+.gitignore
+**/.env
+**/.DS_Store

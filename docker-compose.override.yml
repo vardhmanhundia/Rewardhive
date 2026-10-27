@@ -1,0 +1,15 @@
+services:
+  backend:
+    command: sh -c "alembic upgrade head && uvicorn src.api.main:app --host 0.0.0.0 --port 8000 --reload"
+    volumes:
+      - ./apps/backend/alembic:/app/alembic
+
+  web:
+    command: npm run dev
+    environment:
+      - VITE_PROXY_TARGET=http://backend:8000
+    volumes:
+      - ./apps/web/src:/app/src
+      - ./apps/web/vite.config.ts:/app/vite.config.ts
+      - ./apps/web/tsconfig.json:/app/tsconfig.json
+      - ./shared:/app/shared

@@ -7,8 +7,15 @@
  * (`npm run gen:api`) — then prefer those generated types over the ones below.
  */
 import { mockCards } from '@/data/mockCards';
+import authService from './authService';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+
+/** Auth header for the recommendation endpoints, which read the user's profile. */
+function authHeaders(): Record<string, string> {
+  const token = authService.getToken();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
 const USE_MOCK = import.meta.env.VITE_USE_MOCK_CARDS !== 'false';
 
 export interface CardReward {
@@ -89,7 +96,7 @@ class CardService {
     }
     const res = await fetch(`${API_URL}/recommendations`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
       body: JSON.stringify({ query }),
     });
     if (!res.ok) throw new Error('Recommendation failed');
@@ -112,7 +119,7 @@ class CardService {
 
     const res = await fetch(`${API_URL}/recommendations/stream`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
       body: JSON.stringify({ query }),
       signal: handlers.signal,
     });

@@ -20,6 +20,43 @@ class UserCardSchema(BaseModel):
     card: CardSchema
 
 
+class CardRewardSchema(BaseModel):
+    """One earn rate, e.g. {"category": "Dining", "rate": "3x"}."""
+
+    category: str
+    rate: str
+
+    class Config:
+        from_attributes = True
+
+
+class CardProductSchema(BaseModel):
+    """A catalog card as the frontend consumes it (mirrors web CardProduct)."""
+
+    id: str
+    name: str
+    issuer: str
+    network: str | None = None
+    card_type: str | None = None
+    annual_fee: int
+    apr: str | None = None
+    foreign_transaction_fee: float | None = None
+    credit_score_required: str | None = None
+    intro_offer: str | None = None
+    rewards: list[CardRewardSchema] = []
+    benefits: list[str] = []
+    summary: str | None = None
+
+    class Config:
+        from_attributes = True
+
+
+class CardListResponse(BaseModel):
+    """Envelope for the catalog list endpoint."""
+
+    cards: list[CardProductSchema]
+
+
 class UserSchema(BaseModel):
     id: UUID
     email: str
@@ -90,3 +127,17 @@ class ProfilingTurnResponse(BaseModel):
 
 class ChatHistoryResponse(BaseModel):
     messages: list[ProfilingTurnMessage]
+
+
+class RecommendationRequest(BaseModel):
+    """A recommendation ask. The query is blended with the user's stored
+    profile preferences on the server."""
+
+    query: str = Field(..., min_length=1)
+
+
+class RecommendationResponse(BaseModel):
+    """Non-streaming recommendation: Muse's prose plus the cards it drew on."""
+
+    answer: str
+    cards: list[CardProductSchema]

@@ -1,13 +1,5 @@
 """API tests"""
 
-import pytest
-from fastapi.testclient import TestClient
-from src.api.main import app
-
-
-@pytest.fixture
-def client():
-    return TestClient(app)
 
 
 def test_health(client):
@@ -16,6 +8,8 @@ def test_health(client):
     assert response.json()["status"] == "ok"
 
 
-def test_get_cards(client):
+def test_get_cards_empty(client):
+    """A fresh catalog returns an empty list under the `cards` envelope."""
     response = client.get("/cards")
     assert response.status_code == 200
+    assert response.json() == {"cards": []}

@@ -1,17 +1,20 @@
-"""Card management service"""
+"""Card catalog service: read access to the products the assistant recommends from."""
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from src.db.models import CardProduct
 
 
 class CardService:
-    """Service for managing cards"""
+    """Read access to the seeded card catalog (card_products)."""
 
-    async def get_all_cards(self):
-        """Get all cards"""
-        return []
+    @staticmethod
+    async def get_all_cards(session: AsyncSession) -> list[CardProduct]:
+        """Return every catalog card, ordered by name."""
+        result = await session.execute(select(CardProduct).order_by(CardProduct.name))
+        return list(result.scalars().all())
 
-    async def create_card(self, card_data):
-        """Create a new card"""
-        return card_data
-
-    async def delete_card(self, card_id):
-        """Delete a card"""
-        return {"id": card_id, "deleted": True}
+    @staticmethod
+    async def get_card(session: AsyncSession, card_id: str) -> CardProduct | None:
+        """Return one catalog card by id, or None if it does not exist."""
+        return await session.get(CardProduct, card_id)

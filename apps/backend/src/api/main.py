@@ -10,6 +10,8 @@ from src.agents.commons import close_checkpointer, configure_langsmith, init_che
 from src.agents.user_profiling import set_checkpointer
 from src.api.auth import router as auth_router
 from src.api.profiling import router as profiling_router
+from src.api.cards import router as cards_router
+from src.api.recommendations import router as recommendations_router
 
 # Enable LangSmith tracing (no-op unless LANGSMITH_TRACING=true) before any
 # graph runs, so all LLM/graph calls are logged.
@@ -47,6 +49,8 @@ app.add_middleware(
 # Include routers
 app.include_router(auth_router)
 app.include_router(profiling_router)
+app.include_router(cards_router)
+app.include_router(recommendations_router)
 
 
 @app.get("/health")
@@ -56,15 +60,3 @@ async def health():
         "status": "ok",
         "version": "0.1.0",
     }
-
-
-@app.get("/cards")
-async def get_cards():
-    """Get all cards"""
-    return {"cards": []}
-
-
-@app.post("/cards")
-async def create_card(card_data: dict):
-    """Create a new card"""
-    return {"card": card_data}

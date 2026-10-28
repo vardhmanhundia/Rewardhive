@@ -55,5 +55,33 @@ class Settings:
     LANGSMITH_PROJECT: str = os.getenv("LANGSMITH_PROJECT", "card-agent")
     LANGSMITH_ENDPOINT: str = os.getenv("LANGSMITH_ENDPOINT", "https://api.smith.langchain.com")
 
+    # Embeddings. One EmbeddingService is the shared seam for both ingestion
+    # (seed) and retrieval (query time); both sides must use the same provider
+    # and model so vectors are comparable. EMBEDDING_DIM must match the
+    # Vector(...) size in the card_chunks model and migration.
+    #
+    # Default provider is sentence-transformers: native wheels on arm64 /
+    # Python 3.13, no emulation. SONAR (Meta's model) is selectable via
+    # EMBEDDING_PROVIDER=sonar but needs the [sonar] extra on an x86_64,
+    # Python<=3.12 host (fairseq2n ships no cp313 or linux-arm64 wheel).
+    EMBEDDING_PROVIDER: str = os.getenv("EMBEDDING_PROVIDER", "sentence_transformers")
+    EMBEDDING_DIM: int = int(os.getenv("EMBEDDING_DIM", "1024"))
+    # sentence-transformers model; must emit EMBEDDING_DIM-sized vectors.
+    # bge-large-en-v1.5 is 1024-dim, matching the default EMBEDDING_DIM.
+    ST_MODEL: str = os.getenv("ST_MODEL", "BAAI/bge-large-en-v1.5")
+    # SONAR settings (used only when EMBEDDING_PROVIDER=sonar).
+    SONAR_ENCODER: str = os.getenv("SONAR_ENCODER", "text_sonar_basic_encoder")
+    SONAR_SOURCE_LANG: str = os.getenv("SONAR_SOURCE_LANG", "eng_Latn")
+    # Card catalog seed file, relative to the backend working directory.
+    SEED_PATH: str = os.getenv("SEED_PATH", "seed/cards.json")
+
+    # Recommendation (RAG over the card catalog). Muse generates the answer,
+    # grounded in cards retrieved from card_chunks via the embedding seam.
+    # TOP_K = distinct cards handed to the model; FETCH_K = chunks scanned by the
+    # vector search before de-duping to cards (FETCH_K >= TOP_K).
+    RECOMMENDATION_MODEL: str = os.getenv("RECOMMENDATION_MODEL", "muse-spark-1.1")
+    RECOMMENDATION_TOP_K: int = int(os.getenv("RECOMMENDATION_TOP_K", "5"))
+    RECOMMENDATION_FETCH_K: int = int(os.getenv("RECOMMENDATION_FETCH_K", "40"))
+
 
 settings = Settings()

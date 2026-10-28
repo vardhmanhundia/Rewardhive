@@ -10,6 +10,8 @@ from src.agents.commons import close_checkpointer, configure_langsmith, init_che
 from src.agents.user_profiling import set_checkpointer
 from src.api.auth import router as auth_router
 from src.api.profiling import router as profiling_router
+from src.api.cards import router as cards_router
+from src.api.recommendations import router as recommendations_router
 
 # Enable LangSmith tracing (no-op unless LANGSMITH_TRACING=true) before any
 # graph runs, so all LLM/graph calls are logged.
@@ -27,8 +29,6 @@ async def lifespan(app: FastAPI):
     set_checkpointer(checkpointer)
     yield
     await close_checkpointer()
-from src.api.cards import router as cards_router
-from src.api.recommendations import router as recommendations_router
 
 
 app = FastAPI(

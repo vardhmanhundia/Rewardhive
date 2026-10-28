@@ -3,8 +3,8 @@
  *
  * Multi-turn: each question streams back staged progress (retrieving →
  * generating) and the answer token-by-token, then shows the cards it drew on.
- * Backend runs SONAR retrieval + Muse Spark generation; mock mode fakes the
- * stream locally so the flow is demoable offline.
+ * Backend runs vector retrieval (pgvector) + Muse Spark generation; mock mode
+ * fakes the stream locally so the flow is demoable offline.
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Sparkles, Send, Search, FileText } from 'lucide-react';

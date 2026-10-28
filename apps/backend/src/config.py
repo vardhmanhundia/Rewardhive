@@ -75,5 +75,13 @@ class Settings:
     # Card catalog seed file, relative to the backend working directory.
     SEED_PATH: str = os.getenv("SEED_PATH", "seed/cards.json")
 
+    # Recommendation (RAG over the card catalog). Muse generates the answer,
+    # grounded in cards retrieved from card_chunks via the embedding seam.
+    # TOP_K = distinct cards handed to the model; FETCH_K = chunks scanned by the
+    # vector search before de-duping to cards (FETCH_K >= TOP_K).
+    RECOMMENDATION_MODEL: str = os.getenv("RECOMMENDATION_MODEL", "muse-spark-1.1")
+    RECOMMENDATION_TOP_K: int = int(os.getenv("RECOMMENDATION_TOP_K", "5"))
+    RECOMMENDATION_FETCH_K: int = int(os.getenv("RECOMMENDATION_FETCH_K", "40"))
+
 
 settings = Settings()

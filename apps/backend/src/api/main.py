@@ -28,6 +28,7 @@ async def lifespan(app: FastAPI):
     yield
     await close_checkpointer()
 from src.api.cards import router as cards_router
+from src.api.recommendations import router as recommendations_router
 
 
 app = FastAPI(
@@ -49,6 +50,7 @@ app.add_middleware(
 app.include_router(auth_router)
 app.include_router(profiling_router)
 app.include_router(cards_router)
+app.include_router(recommendations_router)
 
 
 @app.get("/health")

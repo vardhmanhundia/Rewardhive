@@ -1,7 +1,7 @@
 """user profiling long-term memory
 
 Revision ID: 0002_user_memories
-Revises: 0001_initial
+Revises: 0002_card_catalog
 Create Date: 2026-10-25
 """
 from alembic import op
@@ -9,7 +9,10 @@ import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import UUID
 
 revision = "0002_user_memories"
-down_revision = "0001_initial"
+# Chained after 0002_card_catalog (not 0001_initial) so the two merged branches
+# form a single linear history; otherwise Alembic sees two heads and
+# `alembic upgrade head` fails. These tables are independent, so order is moot.
+down_revision = "0002_card_catalog"
 branch_labels = None
 depends_on = None
 

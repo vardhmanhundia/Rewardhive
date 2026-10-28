@@ -26,7 +26,6 @@ dependencies = [
     "pgvector==0.3.6",
     "alembic==1.20.1",
     "redis==8.1.0",
-    "python-dotenv==1.2.4",
     "httpx==0.28.1",
     "PyJWT==2.15.1",
     "bcrypt==5.0.0",
@@ -67,3 +66,11 @@ line-length = 100
 
 [tool.ruff]
 line-length = 100
+
+[tool.mypy]
+# Third-party packages that ship no type stubs / py.typed marker. pgvector is
+# installed but untyped; sonar is optional (the [sonar] extra) so it's usually
+# not installed at all — mypy must not fail on either.
+[[tool.mypy.overrides]]
+module = ["pgvector.*", "sonar.*"]
+ignore_missing_imports = true

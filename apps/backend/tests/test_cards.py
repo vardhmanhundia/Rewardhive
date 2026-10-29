@@ -1,4 +1,5 @@
 """Tests for the card catalog read endpoints."""
+
 import asyncio
 
 from src.db.models import CardProduct

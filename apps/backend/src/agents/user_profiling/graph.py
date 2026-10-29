@@ -27,19 +27,25 @@ from uuid import UUID
 
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langchain_core.runnables import RunnableConfig
+from langgraph.config import get_stream_writer
 from langgraph.graph import END, START, StateGraph
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.agents.commons.tracing import traceable
+from src.agents.state import AgentState
 from src.agents.user_profiling.helpers import (
-    add_memory,
+    apply_profile_changes,
     config_values,
-    format_memories,
+    format_profile,
     history_messages,
+    load_profile,
+    merge_extraction,
+    render_conflicts,
+    render_profile,
 )
 from src.agents.user_profiling.models import (
     ChatReply,
-    MemoryDecision,
+    ProfileExtraction,
     ProfilingResult,
     ProfilingState,
     SuggestionList,
@@ -60,52 +66,59 @@ from src.agents.user_profiling.tools import (
 # ----------------------------------------------------------------------------
 # Shared steps (used by both the compiled graph and the streaming entrypoint)
 # ----------------------------------------------------------------------------
-async def extract_and_store_memories(
-    session: AsyncSession, user_id: UUID, message: str
-) -> list[str]:
-    """Extract memory-worthy facts from ``message`` and persist the new ones.
+async def extract_and_update_profile(
+    session: AsyncSession,
+    user_id: UUID,
+    message: str,
+    history: list[dict[str, str]] | None = None,
+) -> tuple[list[str], list[dict]]:
+    """Extract structured profile fields from ``message`` and merge them in.
 
-    Returns the list of memory texts stored this turn.
+    The conversation ``history`` is passed to the extractor so it can tell when
+    the user is confirming/correcting a conflicting single value (vs. mentioning
+    it in passing). Returns ``(updates, conflicts)`` where ``updates`` are
+    human-readable summaries of what changed and ``conflicts`` are unconfirmed
+    single-value differences for the chat node to ask about.
     """
-    existing = await format_memories(session, user_id)
+    current = await load_profile(session, user_id)
 
-    decision = cast(
-        MemoryDecision,
-        await extractor_llm.ainvoke(
-            [
-                SystemMessage(content=EXTRACTOR_SYSTEM_PROMPT.format(user_details=existing)),
-                HumanMessage(content=message),
-            ]
-        ),
-    )
+    messages: list[Any] = [
+        SystemMessage(content=EXTRACTOR_SYSTEM_PROMPT.format(user_details=render_profile(current)))
+    ]
+    messages.extend(history_messages({"history": history or []}))
+    messages.append(HumanMessage(content=message))
 
-    stored: list[str] = []
-    if decision.should_write:
-        for item in decision.memories:
-            if item.is_new and item.text.strip():
-                await add_memory(session, user_id, item.text)
-                stored.append(item.text.strip())
-    return stored
+    extraction = cast(ProfileExtraction, await extractor_llm.ainvoke(messages))
+    changes, updates, conflicts = merge_extraction(current, extraction)
+    await apply_profile_changes(session, user_id, changes)
+    return updates, [c.model_dump() for c in conflicts]
 
 
 # ----------------------------------------------------------------------------
 # Nodes
 # ----------------------------------------------------------------------------
 async def remember_node(state: ProfilingState, config: RunnableConfig) -> ProfilingState:
-    """Extract memory-worthy facts and persist the genuinely-new ones."""
+    """Extract structured profile fields and merge the new/confirmed ones."""
     session, user_id = config_values(config)
-    stored = await extract_and_store_memories(session, user_id, state.get("message", ""))
-    return {"new_memories": stored}
+    updates, conflicts = await extract_and_update_profile(
+        session, user_id, state.get("message", ""), state.get("history")
+    )
+    return {"new_memories": updates, "conflicts": conflicts}
 
 
 async def chat_node(state: ProfilingState, config: RunnableConfig) -> ProfilingState:
     """Answer the user, personalized with everything known about them."""
     session, user_id = config_values(config)
-    # Re-read so memories just stored this turn are available.
-    user_details = await format_memories(session, user_id)
+    # Re-read so fields just stored this turn are reflected in the answer.
+    user_details = await format_profile(session, user_id)
 
     messages: list[Any] = [
-        SystemMessage(content=CHAT_SYSTEM_PROMPT.format(user_details=user_details))
+        SystemMessage(
+            content=CHAT_SYSTEM_PROMPT.format(
+                user_details=user_details,
+                conflicts=render_conflicts(state.get("conflicts") or []),
+            )
+        )
     ]
     messages.extend(history_messages(state))
     messages.append(HumanMessage(content=state.get("message", "")))
@@ -146,9 +159,11 @@ def _message_role(message: Any) -> str:
     return "assistant" if message.type == "ai" else "user"
 
 
-async def load_history(user_id: UUID) -> list[dict[str, str]]:
-    """Return the user's persisted conversation as ``[{role, content}, ...]``.
+async def load_history(user_id: UUID) -> list[dict[str, Any]]:
+    """Return the user's persisted conversation as ``[{role, content, cards?}, ...]``.
 
+    Assistant turns carry the cards that were recommended (stored on the message),
+    so a reloaded conversation shows the same text + card layout as it did live.
     Empty if persistence is disabled or the user has no stored chat. Best-effort:
     never raises — a storage error yields an empty history.
     """
@@ -158,14 +173,31 @@ async def load_history(user_id: UUID) -> list[dict[str, str]]:
         config: RunnableConfig = {"configurable": {"thread_id": str(user_id)}}
         snapshot = await _persist_graph.aget_state(config)
         stored = snapshot.values.get("messages", []) if snapshot else []
-        return [{"role": _message_role(m), "content": _chunk_text(m.content)} for m in stored]
+        messages: list[dict[str, Any]] = []
+        for m in stored:
+            entry: dict[str, Any] = {
+                "role": _message_role(m),
+                "content": _chunk_text(m.content),
+            }
+            cards = getattr(m, "additional_kwargs", {}).get("cards")
+            if cards:
+                entry["cards"] = cards
+            messages.append(entry)
+        return messages
     except Exception:  # noqa: BLE001 — persistence is best-effort
         return []
 
 
-async def persist_turn(user_id: UUID, user_message: str, ai_message: str) -> None:
+async def persist_turn(
+    user_id: UUID,
+    user_message: str,
+    ai_message: str,
+    cards: list[dict[str, Any]] | None = None,
+) -> None:
     """Append one (user, assistant) turn to the user's persisted conversation.
 
+    When ``cards`` is given (the recommended cards for this turn), they ride along
+    on the assistant message so history can be rebuilt with the same layout.
     No-op when persistence is disabled. Best-effort: a storage error is swallowed
     so it never breaks the chat response.
     """
@@ -173,9 +205,13 @@ async def persist_turn(user_id: UUID, user_message: str, ai_message: str) -> Non
         return
     try:
         config: RunnableConfig = {"configurable": {"thread_id": str(user_id)}}
+        ai = AIMessage(
+            content=ai_message,
+            additional_kwargs={"cards": cards} if cards else {},
+        )
         await _persist_graph.aupdate_state(
             config,
-            {"messages": [HumanMessage(content=user_message), AIMessage(content=ai_message)]},
+            {"messages": [HumanMessage(content=user_message), ai]},
         )
     except Exception:  # noqa: BLE001 — persistence is best-effort
         pass
@@ -265,16 +301,22 @@ async def stream_profiling_turn(
     so stored memories persist even if the client disconnects mid-stream.
     """
     try:
-        # 1. Extract and persist long-term memories (not streamed), then commit
-        #    so they survive a dropped connection during the reply stream.
-        new_memories = await extract_and_store_memories(session, user_id, message)
+        # 1. Extract and persist structured profile fields (not streamed), then
+        #    commit so they survive a dropped connection during the reply stream.
+        new_memories, conflicts = await extract_and_update_profile(
+            session, user_id, message, history
+        )
         await session.commit()
 
-        # 2. Stream the personalized reply. Re-read memories so anything stored
-        #    this turn is available to the answer.
-        user_details = await format_memories(session, user_id)
+        # 2. Stream the personalized reply. Re-read the profile so anything
+        #    stored this turn is reflected in the answer.
+        user_details = await format_profile(session, user_id)
         messages: list[Any] = [
-            SystemMessage(content=CHAT_SYSTEM_PROMPT.format(user_details=user_details))
+            SystemMessage(
+                content=CHAT_SYSTEM_PROMPT.format(
+                    user_details=user_details, conflicts=render_conflicts(conflicts)
+                )
+            )
         ]
         messages.extend(history_messages({"history": history or []}))
         messages.append(HumanMessage(content=message))
@@ -297,3 +339,39 @@ async def stream_profiling_turn(
         yield {"type": "done"}
     except Exception as exc:  # noqa: BLE001 — surface any failure to the client
         yield {"type": "error", "detail": str(exc)}
+
+
+# ----------------------------------------------------------------------------
+# Profiling subgraph (for the composed card-agent graph in src.agents.graph)
+# ----------------------------------------------------------------------------
+# A single-step subgraph that runs *only* the structured remember step on the
+# shared AgentState. Unlike the standalone profiling graph above, it does not
+# chat or try to resolve conflicts — it just records them as a marker so the
+# user can reconcile them directly on the profile page.
+async def profile_node(state: AgentState, config: RunnableConfig) -> AgentState:
+    """Extract structured profile fields, merge them, and flag any conflicts.
+
+    Commits early so profile updates survive a client disconnect while the
+    recommendation subgraph is still streaming. Emits a ``conflicts`` event when
+    unconfirmed single-value differences are found (the frontend turns this into
+    a prompt to fix them on the profile page).
+    """
+    writer = get_stream_writer()
+    session, user_id = config_values(config)
+    writer({"kind": "stage", "stage": "retrieving"})
+    new_memories, conflicts = await extract_and_update_profile(
+        session, user_id, state.get("query", ""), state.get("history")
+    )
+    await session.commit()
+    if conflicts:
+        writer({"kind": "conflicts", "items": conflicts})
+    return {"new_memories": new_memories, "conflicts": conflicts}
+
+
+def build_profiling_subgraph() -> Any:
+    """Compile the profiling subgraph (``remember`` only) over the shared state."""
+    builder = StateGraph(AgentState)
+    builder.add_node("remember", profile_node)
+    builder.add_edge(START, "remember")
+    builder.add_edge("remember", END)
+    return builder.compile()

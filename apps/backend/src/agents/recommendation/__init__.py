@@ -1,7 +1,9 @@
-"""Card-recommendation agent: profile-aware RAG over the card catalog."""
-from src.agents.recommendation.graph import (
-    run_recommendation,
-    stream_recommendation,
-)
+"""Card-recommendation agent: profile-aware RAG over the card catalog.
 
-__all__ = ["run_recommendation", "stream_recommendation"]
+Exposes the recommendation subgraph builder. The composed turn (profiling +
+recommendation) and its entrypoints live in :mod:`src.agents.graph`.
+"""
+
+from src.agents.recommendation.graph import build_recommendation_subgraph
+
+__all__ = ["build_recommendation_subgraph"]

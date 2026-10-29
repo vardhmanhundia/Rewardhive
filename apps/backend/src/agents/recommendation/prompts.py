@@ -20,3 +20,19 @@ Write a concise, friendly recommendation:
   forcing a pick.
 Keep it to a few short paragraphs. Do not output JSON or bullet-point dumps of
 every field; write for a person deciding which card to get."""
+
+
+SELECTION_SYSTEM_PROMPT = """You pick out which candidate cards a written \
+recommendation actually endorses.
+
+You are given the candidate cards (each with an id and name) and the assistant's
+recommendation. Return the ids of only the cards the recommendation actually
+puts forward — the lead pick first, then any genuine alternatives it suggests.
+
+Rules:
+- Use the exact id values from the candidate list.
+- Order them best-fit first, matching the emphasis of the recommendation.
+- Omit any card the answer only mentions to rule out, and any candidate it does
+  not reference at all.
+- If the answer recommends nothing (e.g. none of the candidates fit), return an
+  empty list."""

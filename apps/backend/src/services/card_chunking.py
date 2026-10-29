@@ -6,6 +6,7 @@ transaction fees" rather than a bare "No foreign transaction fees"). One card
 expands to an overview chunk, a facts chunk, one chunk per reward tier, and one
 per benefit.
 """
+
 from __future__ import annotations
 
 from typing import Any

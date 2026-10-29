@@ -1,33 +1,41 @@
-"""Card-recommendation flow: one conversational turn that remembers + recommends.
+"""Recommendation subgraph: profile-aware RAG over the card catalog.
 
-Per turn this does what the old profiling chat and the recommender did together:
+Four steps over the shared :class:`~src.agents.state.AgentState`:
 
-1. Extract memory-worthy facts from the user's message and persist the new ones
-   (long-term profile, in ``user_memories``).
-2. Retrieve the most relevant cards from the catalog via the embedding seam
-   (:class:`RetrievalService`), using the query blended with the updated profile.
-3. Have Muse generate a recommendation grounded strictly in those cards and
-   personalized by the profile.
-4. Propose three follow-up questions.
+    retrieve -> recommend -> select -> suggest
 
-Non-streaming entrypoint (:func:`run_recommendation`) and a streaming one
-(:func:`stream_recommendation`) that yields event dicts the transport serializes
-as SSE. The memory write is committed early so it survives a dropped connection.
+- ``retrieve`` reads the (already updated) profile and pulls the most relevant
+  cards from the catalog via the embedding seam (:class:`RetrievalService`),
+  using the query blended with the profile. These are candidates for grounding.
+- ``recommend`` has Muse generate a recommendation grounded strictly in those
+  cards and personalized by the profile, streaming it token-by-token.
+- ``select`` narrows the candidates to the cards the answer actually recommends,
+  emits those (and only those) to the UI, and persists the turn with them.
+- ``suggest`` proposes three follow-up questions.
+
+This is wired after the profiling subgraph by the parent graph in
+:mod:`src.agents.graph`; it assumes the profile has already been extracted and
+stored. Nodes emit progress/token events through LangGraph's stream writer.
 """
+
 from __future__ import annotations
 
-from collections.abc import AsyncIterator
 from typing import Any, cast
-from uuid import UUID
 
 from langchain_core.messages import HumanMessage, SystemMessage
-from sqlalchemy.ext.asyncio import AsyncSession
+from langchain_core.runnables import RunnableConfig
+from langgraph.config import get_stream_writer
+from langgraph.graph import END, START, StateGraph
 
 from src.agents.commons.llm import get_chat_model
-from src.agents.commons.tracing import traceable
-from src.agents.recommendation.prompts import RECOMMENDATION_SYSTEM_PROMPT
-from src.agents.user_profiling.graph import extract_and_store_memories, persist_turn
-from src.agents.user_profiling.helpers import format_memories, history_messages
+from src.agents.recommendation.models import RecommendedSelection
+from src.agents.recommendation.prompts import (
+    RECOMMENDATION_SYSTEM_PROMPT,
+    SELECTION_SYSTEM_PROMPT,
+)
+from src.agents.state import AgentState
+from src.agents.user_profiling.graph import persist_turn
+from src.agents.user_profiling.helpers import config_values, format_profile, history_messages
 from src.agents.user_profiling.models import SuggestionList
 from src.agents.user_profiling.prompts import SUGGESTIONS_SYSTEM_PROMPT
 from src.agents.user_profiling.tools import suggestions_llm
@@ -38,6 +46,16 @@ from src.services.retrieval_service import RetrievalService
 
 # Plain (non-structured) Muse client for token-by-token streaming of the answer.
 reply_llm = get_chat_model(settings.RECOMMENDATION_MODEL, max_tokens=4096)
+
+# Structured client that narrows the retrieved candidates down to the cards the
+# finished answer actually recommends. Runs after the answer has streamed, so it
+# never competes with token streaming; low reasoning effort keeps it cheap.
+selection_llm = get_chat_model(
+    settings.PROFILING_EXTRACTOR_MODEL,
+    max_tokens=1024,
+    structured=RecommendedSelection,
+    reasoning_effort="low",
+)
 
 
 def _format_card(card: CardProduct) -> str:
@@ -101,6 +119,47 @@ def _chunk_text(content: Any) -> str:
     return ""
 
 
+def _candidates_for_selection(cards: list[CardProduct]) -> str:
+    """List candidates as ``id — name (issuer)`` so the selector can return ids."""
+    return "\n".join(f"{c.id} — {c.name} ({c.issuer})" for c in cards)
+
+
+async def _select_recommended(
+    cards: list[CardProduct], answer: str
+) -> list[CardProduct]:
+    """Narrow the candidates to the cards the answer actually recommends.
+
+    Returns them ordered best-first. Falls back to the top candidate if the
+    selector returns nothing usable but the answer did make a pick, so the UI is
+    never left empty when a recommendation was given.
+    """
+    if not cards or not answer.strip():
+        return []
+    by_id = {c.id: c for c in cards}
+    result = cast(
+        RecommendedSelection,
+        await selection_llm.ainvoke(
+            [
+                SystemMessage(content=SELECTION_SYSTEM_PROMPT),
+                HumanMessage(
+                    content=(
+                        f"Candidate cards:\n{_candidates_for_selection(cards)}\n\n"
+                        f"Recommendation:\n{answer}"
+                    )
+                ),
+            ]
+        ),
+    )
+    # Preserve the selector's order, keep only valid ids, drop duplicates.
+    seen: set[str] = set()
+    picked: list[CardProduct] = []
+    for cid in result.card_ids:
+        if cid in by_id and cid not in seen:
+            seen.add(cid)
+            picked.append(by_id[cid])
+    return picked
+
+
 async def _suggest(query: str, reply: str) -> list[str]:
     """Propose three follow-up questions from the completed turn."""
     result = cast(
@@ -115,83 +174,83 @@ async def _suggest(query: str, reply: str) -> list[str]:
     return result.suggestions[:3]
 
 
-@traceable(run_type="chain", name="recommendation")
-async def run_recommendation(
-    session: AsyncSession,
-    user_id: UUID,
-    query: str,
-    history: list[dict[str, str]] | None = None,
-) -> tuple[str, list[CardProduct], list[str], list[str]]:
-    """Non-streaming turn. Returns (answer, cards, new_memories, suggestions).
-
-    The caller owns the transaction; commit after this so stored memories persist.
-    """
-    history = history or []
-    new_memories = await extract_and_store_memories(session, user_id, query)
-    preferences = await format_memories(session, user_id)
+# ----------------------------------------------------------------------------
+# Nodes
+# ----------------------------------------------------------------------------
+async def retrieve_node(state: AgentState, config: RunnableConfig) -> AgentState:
+    """Read the updated profile and retrieve cards blended with it."""
+    writer = get_stream_writer()
+    session, user_id = config_values(config)
+    preferences = await format_profile(session, user_id=user_id)
     cards = await RetrievalService.retrieve_cards(
-        session, _retrieval_query(query, preferences)
+        session, _retrieval_query(state.get("query", ""), preferences)
     )
-    result = await reply_llm.ainvoke(_messages(query, preferences, cards, history))
-    answer = _chunk_text(result.content)
-    await persist_turn(user_id, query, answer)
-    suggestions = await _suggest(query, answer)
-    return answer, cards, new_memories, suggestions
+    # Candidates are kept for grounding; the cards shown to the user are the
+    # subset the answer actually recommends, emitted later by ``select_node``.
+    writer({"kind": "stage", "stage": "retrieved", "count": len(cards)})
+    return {"preferences": preferences, "cards": cards}
 
 
-@traceable(run_type="chain", name="recommendation_stream")
-async def stream_recommendation(
-    session: AsyncSession,
-    user_id: UUID,
-    query: str,
-    history: list[dict[str, str]] | None = None,
-) -> AsyncIterator[dict[str, Any]]:
-    """Stream a turn as event dicts the transport renders as SSE.
+async def recommend_node(state: AgentState, config: RunnableConfig) -> AgentState:
+    """Stream a recommendation grounded strictly in the retrieved cards."""
+    writer = get_stream_writer()
+    _session, user_id = config_values(config)
+    writer({"kind": "stage", "stage": "generating"})
+    messages = _messages(
+        state.get("query", ""),
+        state.get("preferences", ""),
+        state.get("cards", []),
+        state.get("history") or [],
+    )
+    parts: list[str] = []
+    async for chunk in reply_llm.astream(messages):
+        text = _chunk_text(chunk.content)
+        if text:
+            parts.append(text)
+            writer({"kind": "token", "text": text})
+    answer = "".join(parts)
+    return {"answer": answer}
 
-    Yields, in order:
-    - {"kind": "stage", "stage": "retrieving"}
-    - {"kind": "stage", "stage": "retrieved", "count": n}
-    - {"kind": "cards", "cards": [CardProduct, ...]}
-    - {"kind": "stage", "stage": "generating"}
-    - {"kind": "token", "text": "..."}  (repeated)
-    - {"kind": "memories", "items": [...]}  (facts stored this turn)
-    - {"kind": "suggestions", "items": [q1, q2, q3]}
-    - {"kind": "done"}
-    On failure, a single {"kind": "error", "detail": "..."}.
-    """
-    history = history or []
-    try:
-        yield {"kind": "stage", "stage": "retrieving"}
 
-        # 1. Extract + persist long-term memories, then commit so they survive a
-        #    dropped connection during the reply stream.
-        new_memories = await extract_and_store_memories(session, user_id, query)
-        await session.commit()
+async def select_node(state: AgentState, config: RunnableConfig) -> AgentState:
+    """Keep only the cards the answer recommends, emit them, and persist the turn."""
+    writer = get_stream_writer()
+    _session, user_id = config_values(config)
+    recommended = await _select_recommended(
+        state.get("cards", []), state.get("answer", "")
+    )
+    serialized = _serialize(recommended)
+    writer({"kind": "cards", "cards": serialized})
+    # Persist query, answer, and the recommended cards so history reloads intact.
+    await persist_turn(
+        user_id, state.get("query", ""), state.get("answer", ""), cards=serialized
+    )
+    return {"cards": recommended}
 
-        # 2. Retrieve cards using the query blended with the (updated) profile.
-        preferences = await format_memories(session, user_id)
-        cards = await RetrievalService.retrieve_cards(
-            session, _retrieval_query(query, preferences)
-        )
-        yield {"kind": "stage", "stage": "retrieved", "count": len(cards)}
-        yield {"kind": "cards", "cards": _serialize(cards)}
 
-        # 3. Stream the grounded recommendation.
-        yield {"kind": "stage", "stage": "generating"}
-        reply_parts: list[str] = []
-        async for chunk in reply_llm.astream(_messages(query, preferences, cards, history)):
-            text = _chunk_text(chunk.content)
-            if text:
-                reply_parts.append(text)
-                yield {"kind": "token", "text": text}
-        reply = "".join(reply_parts)
+async def suggest_node(state: AgentState, config: RunnableConfig) -> AgentState:
+    """Propose three follow-ups and emit the terminal metadata events."""
+    writer = get_stream_writer()
+    suggestions = await _suggest(state.get("query", ""), state.get("answer", ""))
+    writer({"kind": "memories", "items": state.get("new_memories", [])})
+    writer({"kind": "suggestions", "items": suggestions})
+    writer({"kind": "done"})
+    return {"suggestions": suggestions}
 
-        # 4. Persist the turn so the conversation survives reload / re-login.
-        await persist_turn(user_id, query, reply)
 
-        # 5. Terminal metadata events.
-        yield {"kind": "memories", "items": new_memories}
-        yield {"kind": "suggestions", "items": await _suggest(query, reply)}
-        yield {"kind": "done"}
-    except Exception as exc:  # noqa: BLE001 — surface any failure to the client
-        yield {"kind": "error", "detail": str(exc)}
+# ----------------------------------------------------------------------------
+# Subgraph assembly
+# ----------------------------------------------------------------------------
+def build_recommendation_subgraph() -> Any:
+    """Compile the recommendation subgraph over the shared state."""
+    builder = StateGraph(AgentState)
+    builder.add_node("retrieve", retrieve_node)
+    builder.add_node("recommend", recommend_node)
+    builder.add_node("select", select_node)
+    builder.add_node("suggest", suggest_node)
+    builder.add_edge(START, "retrieve")
+    builder.add_edge("retrieve", "recommend")
+    builder.add_edge("recommend", "select")
+    builder.add_edge("select", "suggest")
+    builder.add_edge("suggest", END)
+    return builder.compile()

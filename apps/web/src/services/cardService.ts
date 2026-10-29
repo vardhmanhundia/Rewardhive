@@ -40,10 +40,12 @@ export interface CardProduct {
   image_url?: string;
 }
 
-/** A prior chat turn, sent back as context for follow-ups. */
+/** A prior chat turn, sent back as context for follow-ups. Assistant turns from
+ *  history also carry the cards that were recommended so the UI can rebuild them. */
 export interface RecMessage {
   role: 'user' | 'assistant';
   content: string;
+  cards?: CardProduct[];
 }
 
 /** One fact the assistant has learned about the user (long-term profile). */
@@ -122,7 +124,11 @@ class CardService {
     });
     if (!res.ok) return [];
     const data = await res.json();
-    return (data.messages ?? []) as RecMessage[];
+    return (data.messages ?? []).map((m: RecMessage & { cards?: CardProduct[] }) => ({
+      role: m.role,
+      content: m.content,
+      cards: m.cards ?? [],
+    })) as RecMessage[];
   }
 
   /**

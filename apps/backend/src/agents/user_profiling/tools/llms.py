@@ -9,7 +9,7 @@ plain text token-by-token. Invocation requires ``MODEL_API_KEY`` (and
 """
 
 from src.agents.commons.llm import get_chat_model
-from src.agents.user_profiling.models import ChatReply, MemoryDecision, SuggestionList
+from src.agents.user_profiling.models import ChatReply, ProfileExtraction, SuggestionList
 from src.config import settings
 
 # Muse Spark always reasons, so max_tokens must cover reasoning + the answer.
@@ -18,7 +18,7 @@ from src.config import settings
 extractor_llm = get_chat_model(
     settings.PROFILING_EXTRACTOR_MODEL,
     max_tokens=2048,
-    structured=MemoryDecision,
+    structured=ProfileExtraction,
     reasoning_effort="low",
 )
 

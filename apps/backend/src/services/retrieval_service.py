@@ -7,6 +7,7 @@ to the top distinct cards and returns their full :class:`CardProduct` rows.
 
 This is what the recommendation agent calls before handing cards to Muse.
 """
+
 from __future__ import annotations
 
 from sqlalchemy import select
@@ -45,9 +46,7 @@ class RetrievalService:
 
         # Cosine distance uses the HNSW index (vector_cosine_ops). Smaller = closer.
         distance = CardChunk.embedding.cosine_distance(query_vector)
-        result = await session.execute(
-            select(CardChunk.card_id).order_by(distance).limit(fetch_k)
-        )
+        result = await session.execute(select(CardChunk.card_id).order_by(distance).limit(fetch_k))
 
         # De-dupe to distinct cards, preserving the nearest-first order.
         ordered_ids: list[str] = []
@@ -60,8 +59,6 @@ class RetrievalService:
         if not ordered_ids:
             return []
 
-        products = await session.execute(
-            select(CardProduct).where(CardProduct.id.in_(ordered_ids))
-        )
+        products = await session.execute(select(CardProduct).where(CardProduct.id.in_(ordered_ids)))
         by_id = {p.id: p for p in products.scalars().all()}
         return [by_id[cid] for cid in ordered_ids if cid in by_id]

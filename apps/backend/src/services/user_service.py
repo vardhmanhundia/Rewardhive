@@ -6,8 +6,8 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.db.models import User
-from src.models import UserSchema
+from src.db.models import User, UserProfile
+from src.models import UserSchema, UserProfileUpdate
 from src.utils.password import hash_password, verify_password
 
 
@@ -94,6 +94,33 @@ class UserService:
         user.is_active = False
         await session.flush()
         return True
+
+    @staticmethod
+    async def get_profile_details(session: AsyncSession, user_id: UUID) -> UserProfile:
+        """Return the user's extended profile, creating an empty row on first access."""
+        result = await session.execute(
+            select(UserProfile).where(UserProfile.user_id == user_id)
+        )
+        profile = result.scalar_one_or_none()
+        if profile is None:
+            profile = UserProfile(user_id=user_id)
+            session.add(profile)
+            await session.flush()
+        return profile
+
+    @staticmethod
+    async def upsert_profile(
+        session: AsyncSession,
+        user_id: UUID,
+        data: UserProfileUpdate,
+    ) -> UserProfile:
+        """Create-or-update the extended profile; only provided fields are written."""
+        profile = await UserService.get_profile_details(session, user_id)
+        # exclude_unset: a partial PUT only touches the fields the client sent.
+        for key, value in data.model_dump(exclude_unset=True).items():
+            setattr(profile, key, value)
+        await session.flush()
+        return profile
 
     @staticmethod
     def to_schema(user: User) -> UserSchema:

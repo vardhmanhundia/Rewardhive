@@ -32,14 +32,18 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.agents.commons.tracing import traceable
 from src.agents.user_profiling.helpers import (
-    add_memory,
+    apply_profile_changes,
     config_values,
-    format_memories,
+    format_profile,
     history_messages,
+    load_profile,
+    merge_extraction,
+    render_conflicts,
+    render_profile,
 )
 from src.agents.user_profiling.models import (
     ChatReply,
-    MemoryDecision,
+    ProfileExtraction,
     ProfilingResult,
     ProfilingState,
     SuggestionList,
@@ -60,52 +64,59 @@ from src.agents.user_profiling.tools import (
 # ----------------------------------------------------------------------------
 # Shared steps (used by both the compiled graph and the streaming entrypoint)
 # ----------------------------------------------------------------------------
-async def extract_and_store_memories(
-    session: AsyncSession, user_id: UUID, message: str
-) -> list[str]:
-    """Extract memory-worthy facts from ``message`` and persist the new ones.
+async def extract_and_update_profile(
+    session: AsyncSession,
+    user_id: UUID,
+    message: str,
+    history: list[dict[str, str]] | None = None,
+) -> tuple[list[str], list[dict]]:
+    """Extract structured profile fields from ``message`` and merge them in.
 
-    Returns the list of memory texts stored this turn.
+    The conversation ``history`` is passed to the extractor so it can tell when
+    the user is confirming/correcting a conflicting single value (vs. mentioning
+    it in passing). Returns ``(updates, conflicts)`` where ``updates`` are
+    human-readable summaries of what changed and ``conflicts`` are unconfirmed
+    single-value differences for the chat node to ask about.
     """
-    existing = await format_memories(session, user_id)
+    current = await load_profile(session, user_id)
 
-    decision = cast(
-        MemoryDecision,
-        await extractor_llm.ainvoke(
-            [
-                SystemMessage(content=EXTRACTOR_SYSTEM_PROMPT.format(user_details=existing)),
-                HumanMessage(content=message),
-            ]
-        ),
-    )
+    messages: list[Any] = [
+        SystemMessage(content=EXTRACTOR_SYSTEM_PROMPT.format(user_details=render_profile(current)))
+    ]
+    messages.extend(history_messages({"history": history or []}))
+    messages.append(HumanMessage(content=message))
 
-    stored: list[str] = []
-    if decision.should_write:
-        for item in decision.memories:
-            if item.is_new and item.text.strip():
-                await add_memory(session, user_id, item.text)
-                stored.append(item.text.strip())
-    return stored
+    extraction = cast(ProfileExtraction, await extractor_llm.ainvoke(messages))
+    changes, updates, conflicts = merge_extraction(current, extraction)
+    await apply_profile_changes(session, user_id, changes)
+    return updates, [c.model_dump() for c in conflicts]
 
 
 # ----------------------------------------------------------------------------
 # Nodes
 # ----------------------------------------------------------------------------
 async def remember_node(state: ProfilingState, config: RunnableConfig) -> ProfilingState:
-    """Extract memory-worthy facts and persist the genuinely-new ones."""
+    """Extract structured profile fields and merge the new/confirmed ones."""
     session, user_id = config_values(config)
-    stored = await extract_and_store_memories(session, user_id, state.get("message", ""))
-    return {"new_memories": stored}
+    updates, conflicts = await extract_and_update_profile(
+        session, user_id, state.get("message", ""), state.get("history")
+    )
+    return {"new_memories": updates, "conflicts": conflicts}
 
 
 async def chat_node(state: ProfilingState, config: RunnableConfig) -> ProfilingState:
     """Answer the user, personalized with everything known about them."""
     session, user_id = config_values(config)
-    # Re-read so memories just stored this turn are available.
-    user_details = await format_memories(session, user_id)
+    # Re-read so fields just stored this turn are reflected in the answer.
+    user_details = await format_profile(session, user_id)
 
     messages: list[Any] = [
-        SystemMessage(content=CHAT_SYSTEM_PROMPT.format(user_details=user_details))
+        SystemMessage(
+            content=CHAT_SYSTEM_PROMPT.format(
+                user_details=user_details,
+                conflicts=render_conflicts(state.get("conflicts") or []),
+            )
+        )
     ]
     messages.extend(history_messages(state))
     messages.append(HumanMessage(content=state.get("message", "")))
@@ -265,16 +276,22 @@ async def stream_profiling_turn(
     so stored memories persist even if the client disconnects mid-stream.
     """
     try:
-        # 1. Extract and persist long-term memories (not streamed), then commit
-        #    so they survive a dropped connection during the reply stream.
-        new_memories = await extract_and_store_memories(session, user_id, message)
+        # 1. Extract and persist structured profile fields (not streamed), then
+        #    commit so they survive a dropped connection during the reply stream.
+        new_memories, conflicts = await extract_and_update_profile(
+            session, user_id, message, history
+        )
         await session.commit()
 
-        # 2. Stream the personalized reply. Re-read memories so anything stored
-        #    this turn is available to the answer.
-        user_details = await format_memories(session, user_id)
+        # 2. Stream the personalized reply. Re-read the profile so anything
+        #    stored this turn is reflected in the answer.
+        user_details = await format_profile(session, user_id)
         messages: list[Any] = [
-            SystemMessage(content=CHAT_SYSTEM_PROMPT.format(user_details=user_details))
+            SystemMessage(
+                content=CHAT_SYSTEM_PROMPT.format(
+                    user_details=user_details, conflicts=render_conflicts(conflicts)
+                )
+            )
         ]
         messages.extend(history_messages({"history": history or []}))
         messages.append(HumanMessage(content=message))

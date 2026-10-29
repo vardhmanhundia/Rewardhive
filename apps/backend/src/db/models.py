@@ -11,7 +11,7 @@ from sqlalchemy import (
     Integer,
     Numeric,
     String,
-    Text,
+    Text
 )
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
@@ -21,6 +21,10 @@ from .database import Base
 # SONAR embedding dimension. Keep in sync with settings.EMBEDDING_DIM and the
 # Vector(...) size in the card_chunks migration.
 EMBEDDING_DIM = 1024
+
+# JSONB on Postgres, plain JSON elsewhere (e.g. SQLite in tests). Keeps the
+# dynamic profile lists queryable in prod without breaking create_all on SQLite.
+JSONList = JSON().with_variant(JSONB, "postgresql")
 
 
 class User(Base):
@@ -148,3 +152,57 @@ class CardChunk(Base):
 
     def __repr__(self) -> str:
         return f"<CardChunk(id={self.id}, card_id={self.card_id})>"
+
+
+class UserProfile(Base):
+    """Extended, user-editable profile details (1:1 with User).
+
+    Captures lifestyle/financial context used to personalize card
+    recommendations. Scalar/enum fields are stored as plain strings (validated
+    by Pydantic) so the option lists can evolve without a migration; the dynamic
+    collections (cards, banks, goals, loans) live in JSON(B) columns.
+    """
+
+    __tablename__ = "user_profiles"
+
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        nullable=False,
+    )
+
+    occupation: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    company: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    relationship_status: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    family_size: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    location_state: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    location_country: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    household: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    car: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    travel_preference: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    us_status: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    # Sub-type for visa / green card (e.g. "H-1B", "EB-2"); depends on us_status.
+    us_status_detail: Mapped[str | None] = mapped_column(String(100), nullable=True)
+
+    # Ordered airline preference (most preferred first): ["Delta", "United", ...]
+    airline_ranking: Mapped[list[str]] = mapped_column(JSONList, default=list, nullable=False)
+    # Ordered shopping preferences (most preferred first): ["Amazon", "Costco", ...]
+    online_shopping_ranking: Mapped[list[str]] = mapped_column(
+        JSONList, default=list, nullable=False
+    )
+    offline_shopping_ranking: Mapped[list[str]] = mapped_column(
+        JSONList, default=list, nullable=False
+    )
+    # Dynamic lists: [{card_id?, name?, category, custom?}], [{name}], [{text}], [{loan_type}]
+    cards: Mapped[list[dict]] = mapped_column(JSONList, default=list, nullable=False)
+    banks: Mapped[list[dict]] = mapped_column(JSONList, default=list, nullable=False)
+    goals: Mapped[list[dict]] = mapped_column(JSONList, default=list, nullable=False)
+    loans: Mapped[list[dict]] = mapped_column(JSONList, default=list, nullable=False)
+
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
+    )
+
+    def __repr__(self) -> str:
+        return f"<UserProfile(user_id={self.user_id})>"

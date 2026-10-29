@@ -9,8 +9,10 @@ Two providers, selected by `settings.EMBEDDING_PROVIDER`:
 - "sentence_transformers" (default): a self-hosted open model (bge-large-en-v1.5,
   1024-dim). Installs and runs natively on arm64 / Python 3.13 — no emulation.
 - "sonar": Meta's SONAR text encoder. Faithful Meta model, but fairseq2n ships
-  no cp313 or linux-arm64 wheel, so it needs the [sonar] extra on an x86_64,
-  Python<=3.12 host (see pyproject [project.optional-dependencies]).
+  no cp313 or linux-arm64 wheel, and it pins huggingface-hub<1.0 (incompatible
+  with the base deps), so it is NOT a project extra: install it out-of-band on an
+  x86_64, Python<=3.12 host with `uv pip install "sonar-space==0.5.0"` (see the
+  note in pyproject [project.optional-dependencies]).
 
 Both providers are synchronous, CPU/GPU-bound PyTorch, so `embed()` offloads to a
 worker thread to keep the FastAPI event loop free. The heavy model imports are

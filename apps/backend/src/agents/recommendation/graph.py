@@ -22,7 +22,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.agents.commons.llm import get_chat_model
 from src.agents.commons.tracing import traceable
 from src.agents.recommendation.prompts import RECOMMENDATION_SYSTEM_PROMPT
-from src.agents.user_profiling.helpers import format_memories
+from src.agents.user_profiling.helpers import format_profile
 from src.config import settings
 from src.db.models import CardProduct
 from src.models import CardProductSchema
@@ -83,7 +83,7 @@ async def _retrieve(
     session: AsyncSession, user_id: UUID, query: str
 ) -> tuple[str, list[CardProduct]]:
     """Load profile, retrieve cards. Returns (preferences, cards)."""
-    preferences = await format_memories(session, user_id)
+    preferences = await format_profile(session, user_id)
     cards = await RetrievalService.retrieve_cards(
         session, _retrieval_query(query, preferences)
     )

@@ -13,6 +13,8 @@ class ProfilingState(TypedDict, total=False):
     # (keyed by thread_id = user_id). Written via the persistence helpers, not
     # by the generation nodes.
     messages: Annotated[list[AnyMessage], add_messages]
-    new_memories: list[str]  # memories stored this turn (output)
+    new_memories: list[str]  # profile fields updated this turn (output)
+    # Unconfirmed single-value conflicts to ask the user about (remember -> chat).
+    conflicts: list[dict]
     reply: str  # personalized answer (output)
     suggestions: list[str]  # three follow-up questions (output)

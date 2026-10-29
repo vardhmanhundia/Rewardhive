@@ -27,10 +27,12 @@ from uuid import UUID
 
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langchain_core.runnables import RunnableConfig
+from langgraph.config import get_stream_writer
 from langgraph.graph import END, START, StateGraph
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.agents.commons.tracing import traceable
+from src.agents.state import AgentState
 from src.agents.user_profiling.helpers import (
     apply_profile_changes,
     config_values,
@@ -314,3 +316,39 @@ async def stream_profiling_turn(
         yield {"type": "done"}
     except Exception as exc:  # noqa: BLE001 — surface any failure to the client
         yield {"type": "error", "detail": str(exc)}
+
+
+# ----------------------------------------------------------------------------
+# Profiling subgraph (for the composed card-agent graph in src.agents.graph)
+# ----------------------------------------------------------------------------
+# A single-step subgraph that runs *only* the structured remember step on the
+# shared AgentState. Unlike the standalone profiling graph above, it does not
+# chat or try to resolve conflicts — it just records them as a marker so the
+# user can reconcile them directly on the profile page.
+async def profile_node(state: AgentState, config: RunnableConfig) -> AgentState:
+    """Extract structured profile fields, merge them, and flag any conflicts.
+
+    Commits early so profile updates survive a client disconnect while the
+    recommendation subgraph is still streaming. Emits a ``conflicts`` event when
+    unconfirmed single-value differences are found (the frontend turns this into
+    a prompt to fix them on the profile page).
+    """
+    writer = get_stream_writer()
+    session, user_id = config_values(config)
+    writer({"kind": "stage", "stage": "retrieving"})
+    new_memories, conflicts = await extract_and_update_profile(
+        session, user_id, state.get("query", ""), state.get("history")
+    )
+    await session.commit()
+    if conflicts:
+        writer({"kind": "conflicts", "items": conflicts})
+    return {"new_memories": new_memories, "conflicts": conflicts}
+
+
+def build_profiling_subgraph() -> Any:
+    """Compile the profiling subgraph (``remember`` only) over the shared state."""
+    builder = StateGraph(AgentState)
+    builder.add_node("remember", profile_node)
+    builder.add_edge(START, "remember")
+    builder.add_edge("remember", END)
+    return builder.compile()

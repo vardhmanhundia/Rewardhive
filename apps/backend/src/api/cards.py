@@ -1,4 +1,5 @@
 """Card catalog read endpoints (the products the assistant recommends from)."""
+
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, status

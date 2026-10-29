@@ -51,8 +51,18 @@ def test_put_persists_scalar_and_list_fields(client: TestClient, test_user_data:
         "online_shopping_ranking": ["Amazon", "Costco"],
         "offline_shopping_ranking": ["Costco", "Target"],
         "cards": [
-            {"card_id": "customized-cash-rewards", "name": None, "category": "groceries", "custom": False},
-            {"card_id": None, "name": "Local Credit Union Visa", "category": "everyday", "custom": True},
+            {
+                "card_id": "customized-cash-rewards",
+                "name": None,
+                "category": "groceries",
+                "custom": False,
+            },
+            {
+                "card_id": None,
+                "name": "Local Credit Union Visa",
+                "category": "everyday",
+                "custom": True,
+            },
         ],
         "banks": [{"name": "Bank of America"}],
         "goals": [{"text": "Maximize travel points"}],

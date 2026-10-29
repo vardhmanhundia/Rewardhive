@@ -1,28 +1,38 @@
-"""Card-recommendation flow: profile + query -> RAG retrieval -> Muse generation.
+"""Recommendation subgraph: profile-aware RAG over the card catalog.
 
-Reads the user's long-term profile memories, blends them with the incoming
-query, retrieves the most relevant cards from the catalog via the embedding
-seam (:class:`RetrievalService`), and has Muse generate a recommendation
-grounded strictly in those cards.
+Three steps over the shared :class:`~src.agents.state.AgentState`:
 
-Mirrors the user-profiling module's shape: a non-streaming entrypoint
-(:func:`run_recommendation`) and a streaming one (:func:`stream_recommendation`)
-that yields event dicts the transport serializes as SSE. Read-only: it never
-writes to the database.
+    retrieve -> recommend -> suggest
+
+- ``retrieve`` reads the (already updated) profile and pulls the most relevant
+  cards from the catalog via the embedding seam (:class:`RetrievalService`),
+  using the query blended with the profile.
+- ``recommend`` has Muse generate a recommendation grounded strictly in those
+  cards and personalized by the profile, streaming it token-by-token.
+- ``suggest`` proposes three follow-up questions.
+
+This is wired after the profiling subgraph by the parent graph in
+:mod:`src.agents.graph`; it assumes the profile has already been extracted and
+stored. Nodes emit progress/token events through LangGraph's stream writer.
 """
+
 from __future__ import annotations
 
-from collections.abc import AsyncIterator
-from typing import Any
-from uuid import UUID
+from typing import Any, cast
 
 from langchain_core.messages import HumanMessage, SystemMessage
-from sqlalchemy.ext.asyncio import AsyncSession
+from langchain_core.runnables import RunnableConfig
+from langgraph.config import get_stream_writer
+from langgraph.graph import END, START, StateGraph
 
 from src.agents.commons.llm import get_chat_model
-from src.agents.commons.tracing import traceable
 from src.agents.recommendation.prompts import RECOMMENDATION_SYSTEM_PROMPT
-from src.agents.user_profiling.helpers import format_profile
+from src.agents.state import AgentState
+from src.agents.user_profiling.graph import persist_turn
+from src.agents.user_profiling.helpers import config_values, format_profile, history_messages
+from src.agents.user_profiling.models import SuggestionList
+from src.agents.user_profiling.prompts import SUGGESTIONS_SYSTEM_PROMPT
+from src.agents.user_profiling.tools import suggestions_llm
 from src.config import settings
 from src.db.models import CardProduct
 from src.models import CardProductSchema
@@ -67,27 +77,21 @@ def _retrieval_query(query: str, preferences: str) -> str:
     return query
 
 
-def _messages(query: str, preferences: str, cards: list[CardProduct]) -> list[Any]:
+def _messages(
+    query: str, preferences: str, cards: list[CardProduct], history: list[dict[str, str]]
+) -> list[Any]:
     system = RECOMMENDATION_SYSTEM_PROMPT.format(
         preferences=preferences,
         cards=_format_cards(cards),
     )
-    return [SystemMessage(content=system), HumanMessage(content=query)]
+    messages: list[Any] = [SystemMessage(content=system)]
+    messages.extend(history_messages({"history": history}))
+    messages.append(HumanMessage(content=query))
+    return messages
 
 
 def _serialize(cards: list[CardProduct]) -> list[dict[str, Any]]:
     return [CardProductSchema.model_validate(c).model_dump() for c in cards]
-
-
-async def _retrieve(
-    session: AsyncSession, user_id: UUID, query: str
-) -> tuple[str, list[CardProduct]]:
-    """Load profile, retrieve cards. Returns (preferences, cards)."""
-    preferences = await format_profile(session, user_id)
-    cards = await RetrievalService.retrieve_cards(
-        session, _retrieval_query(query, preferences)
-    )
-    return preferences, cards
 
 
 def _chunk_text(content: Any) -> str:
@@ -99,44 +103,80 @@ def _chunk_text(content: Any) -> str:
     return ""
 
 
-@traceable(run_type="chain", name="recommendation")
-async def run_recommendation(
-    session: AsyncSession, user_id: UUID, query: str
-) -> tuple[str, list[CardProduct]]:
-    """Non-streaming recommendation: returns (answer, cards)."""
-    preferences, cards = await _retrieve(session, user_id, query)
-    result = await reply_llm.ainvoke(_messages(query, preferences, cards))
-    return _chunk_text(result.content), cards
+async def _suggest(query: str, reply: str) -> list[str]:
+    """Propose three follow-up questions from the completed turn."""
+    result = cast(
+        SuggestionList,
+        await suggestions_llm.ainvoke(
+            [
+                SystemMessage(content=SUGGESTIONS_SYSTEM_PROMPT),
+                HumanMessage(content=f"User asked:\n{query}\n\nAssistant recommended:\n{reply}"),
+            ]
+        ),
+    )
+    return result.suggestions[:3]
 
 
-@traceable(run_type="chain", name="recommendation_stream")
-async def stream_recommendation(
-    session: AsyncSession, user_id: UUID, query: str
-) -> AsyncIterator[dict[str, Any]]:
-    """Stream a recommendation as event dicts the transport renders as SSE.
+# ----------------------------------------------------------------------------
+# Nodes
+# ----------------------------------------------------------------------------
+async def retrieve_node(state: AgentState, config: RunnableConfig) -> AgentState:
+    """Read the updated profile and retrieve cards blended with it."""
+    writer = get_stream_writer()
+    session, user_id = config_values(config)
+    preferences = await format_profile(session, user_id=user_id)
+    cards = await RetrievalService.retrieve_cards(
+        session, _retrieval_query(state.get("query", ""), preferences)
+    )
+    writer({"kind": "stage", "stage": "retrieved", "count": len(cards)})
+    writer({"kind": "cards", "cards": _serialize(cards)})
+    return {"preferences": preferences, "cards": cards}
 
-    Yields, in order:
-    - {"kind": "stage", "stage": "retrieving"}
-    - {"kind": "stage", "stage": "retrieved", "count": n}
-    - {"kind": "cards", "cards": [CardProduct, ...]}
-    - {"kind": "stage", "stage": "generating"}
-    - {"kind": "token", "text": "..."}  (repeated)
-    - {"kind": "done"}
-    On failure, a single {"kind": "error", "detail": "..."}.
-    """
-    try:
-        yield {"kind": "stage", "stage": "retrieving"}
-        preferences, cards = await _retrieve(session, user_id, query)
 
-        yield {"kind": "stage", "stage": "retrieved", "count": len(cards)}
-        yield {"kind": "cards", "cards": _serialize(cards)}
+async def recommend_node(state: AgentState, config: RunnableConfig) -> AgentState:
+    """Stream a recommendation grounded strictly in the retrieved cards."""
+    writer = get_stream_writer()
+    _session, user_id = config_values(config)
+    writer({"kind": "stage", "stage": "generating"})
+    messages = _messages(
+        state.get("query", ""),
+        state.get("preferences", ""),
+        state.get("cards", []),
+        state.get("history") or [],
+    )
+    parts: list[str] = []
+    async for chunk in reply_llm.astream(messages):
+        text = _chunk_text(chunk.content)
+        if text:
+            parts.append(text)
+            writer({"kind": "token", "text": text})
+    answer = "".join(parts)
+    # Persist the turn so the conversation survives reload / re-login.
+    await persist_turn(user_id, state.get("query", ""), answer)
+    return {"answer": answer}
 
-        yield {"kind": "stage", "stage": "generating"}
-        async for chunk in reply_llm.astream(_messages(query, preferences, cards)):
-            text = _chunk_text(chunk.content)
-            if text:
-                yield {"kind": "token", "text": text}
 
-        yield {"kind": "done"}
-    except Exception as exc:  # noqa: BLE001 — surface any failure to the client
-        yield {"kind": "error", "detail": str(exc)}
+async def suggest_node(state: AgentState, config: RunnableConfig) -> AgentState:
+    """Propose three follow-ups and emit the terminal metadata events."""
+    writer = get_stream_writer()
+    suggestions = await _suggest(state.get("query", ""), state.get("answer", ""))
+    writer({"kind": "memories", "items": state.get("new_memories", [])})
+    writer({"kind": "suggestions", "items": suggestions})
+    writer({"kind": "done"})
+    return {"suggestions": suggestions}
+
+
+# ----------------------------------------------------------------------------
+# Subgraph assembly
+# ----------------------------------------------------------------------------
+def build_recommendation_subgraph() -> Any:
+    """Compile the recommendation subgraph over the shared state."""
+    builder = StateGraph(AgentState)
+    builder.add_node("retrieve", retrieve_node)
+    builder.add_node("recommend", recommend_node)
+    builder.add_node("suggest", suggest_node)
+    builder.add_edge(START, "retrieve")
+    builder.add_edge("retrieve", "recommend")
+    builder.add_edge("recommend", "suggest")
+    builder.add_edge("suggest", END)
+    return builder.compile()

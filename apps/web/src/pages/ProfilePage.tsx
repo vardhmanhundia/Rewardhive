@@ -9,6 +9,7 @@ import {Plus, X, Save, RotateCcw, CreditCard as CardIcon} from 'lucide-react';
 import {useAuth} from '@/context/AuthContext';
 import {Navbar} from '@/components/Navbar';
 import {CreditCardVisual} from '@/components/CreditCardVisual';
+import {Card, CardContent} from '@/components/ui/card';
 import profileService, {
   type ProfileDetails,
 } from '@/services/profileService';
@@ -107,11 +108,12 @@ export const ProfilePage = () => {
 
   if (authLoading || isLoading) {
     return (
-      <div className="min-h-screen bg-glow text-foreground">
-        <Navbar />
-        <main className="max-w-4xl mx-auto px-4 py-10">
-          <div className="glass h-40 animate-pulse rounded-2xl" />
-        </main>
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100">
+        <Card className="w-full max-w-md">
+          <CardContent className="pt-6">
+            <p className="text-center text-gray-600">No user data available</p>
+          </CardContent>
+        </Card>
       </div>
     );
   }

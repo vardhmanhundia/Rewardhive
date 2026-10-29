@@ -140,16 +140,33 @@ class ChatHistoryResponse(BaseModel):
 
 class RecommendationRequest(BaseModel):
     """A recommendation ask. The query is blended with the user's stored
-    profile preferences on the server."""
+    profile preferences on the server; history gives prior turns for context."""
 
     query: str = Field(..., min_length=1)
+    history: list[ProfilingTurnMessage] = Field(default_factory=list)
+
+
+class ProfileConflictInfo(BaseModel):
+    """A single-value profile field whose newly-mentioned value differs from the
+    stored one and the user has not confirmed. Surfaced as a marker so the user
+    can reconcile it directly on the profile page rather than mid-chat."""
+
+    field: str
+    label: str
+    stored: str
+    mentioned: str
 
 
 class RecommendationResponse(BaseModel):
-    """Non-streaming recommendation: Muse's prose plus the cards it drew on."""
+    """Non-streaming recommendation: Muse's prose, the cards it drew on, any
+    memories captured this turn, three follow-up suggestions, and a marker for
+    any unconfirmed profile conflicts to reconcile on the profile page."""
 
     answer: str
     cards: list[CardProductSchema]
+    new_memories: list[str]
+    suggestions: list[str]
+    conflicts: list[ProfileConflictInfo] = Field(default_factory=list)
 
 
 # --- Extended user profile ---------------------------------------------------

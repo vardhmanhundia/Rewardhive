@@ -11,7 +11,7 @@ from sqlalchemy import (
     Integer,
     Numeric,
     String,
-    Text
+    Text,
 )
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column

@@ -19,6 +19,7 @@ worker thread to keep the FastAPI event loop free. The heavy model imports are
 deferred to first use, so importing this module stays cheap and needs neither
 backend installed until embeddings are actually computed.
 """
+
 from __future__ import annotations
 
 from typing import Any

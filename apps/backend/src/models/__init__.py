@@ -2,7 +2,16 @@
 
 from pydantic import BaseModel, EmailStr, Field
 from datetime import datetime
+from typing import Literal, Optional
 from uuid import UUID
+
+# Enum-style option sets. Kept here so the API documents the allowed values in
+# OpenAPI; "other" lets the UI offer a free-text fallback where listed.
+RelationshipStatus = Literal["single", "partner", "family"]
+Household = Literal["owning", "renting", "mortgaging"]
+CarStatus = Literal["financed", "owned", "rental"]
+TravelPreference = Literal["economy", "leisure", "savings"]
+USStatus = Literal["citizen", "visa", "green_card", "visitor"]
 
 
 class CardSchema(BaseModel):
@@ -125,8 +134,18 @@ class ProfilingTurnResponse(BaseModel):
     new_memories: list[str]
 
 
+class ChatHistoryMessage(BaseModel):
+    """One persisted turn returned by the history endpoint. Assistant turns carry
+    the cards recommended then, so a reloaded conversation shows the same text +
+    card layout it did live; user turns and plain chat replies have none."""
+
+    role: str = Field(..., pattern="^(user|assistant)$")
+    content: str
+    cards: list[CardProductSchema] = Field(default_factory=list)
+
+
 class ChatHistoryResponse(BaseModel):
-    messages: list[ProfilingTurnMessage]
+    messages: list[ChatHistoryMessage]
 
 
 class RecommendationRequest(BaseModel):
@@ -137,11 +156,103 @@ class RecommendationRequest(BaseModel):
     history: list[ProfilingTurnMessage] = Field(default_factory=list)
 
 
+class ProfileConflictInfo(BaseModel):
+    """A single-value profile field whose newly-mentioned value differs from the
+    stored one and the user has not confirmed. Surfaced as a marker so the user
+    can reconcile it directly on the profile page rather than mid-chat."""
+
+    field: str
+    label: str
+    stored: str
+    mentioned: str
+
+
 class RecommendationResponse(BaseModel):
     """Non-streaming recommendation: Muse's prose, the cards it drew on, any
-    memories captured this turn, and three follow-up suggestions."""
+    memories captured this turn, three follow-up suggestions, and a marker for
+    any unconfirmed profile conflicts to reconcile on the profile page."""
 
     answer: str
     cards: list[CardProductSchema]
     new_memories: list[str]
     suggestions: list[str]
+    conflicts: list[ProfileConflictInfo] = Field(default_factory=list)
+
+
+# --- Extended user profile ---------------------------------------------------
+
+
+class SavedCard(BaseModel):
+    """A card the user holds, tagged with a spend category.
+
+    Either `card_id` (a catalog card) or a free-text `name` with `custom=True`
+    (a card not in the catalog) identifies it.
+    """
+
+    card_id: Optional[str] = None
+    name: Optional[str] = None
+    category: str
+    custom: bool = False
+
+
+class SavedBank(BaseModel):
+    name: str
+
+
+class SavedGoal(BaseModel):
+    text: str
+
+
+class SavedLoan(BaseModel):
+    loan_type: str
+
+
+class UserProfileDetails(BaseModel):
+    """Full read model for the extended profile."""
+
+    occupation: Optional[str] = None
+    company: Optional[str] = None
+    relationship_status: Optional[RelationshipStatus] = None
+    family_size: Optional[int] = None
+    location_state: Optional[str] = None
+    location_country: Optional[str] = None
+    household: Optional[Household] = None
+    car: Optional[CarStatus] = None
+    travel_preference: Optional[TravelPreference] = None
+    us_status: Optional[USStatus] = None
+    us_status_detail: Optional[str] = None
+    # Ordered airline preference, most preferred first.
+    airline_ranking: list[str] = Field(default_factory=list)
+    # Ordered shopping preferences, most preferred first.
+    online_shopping_ranking: list[str] = Field(default_factory=list)
+    offline_shopping_ranking: list[str] = Field(default_factory=list)
+    cards: list[SavedCard] = Field(default_factory=list)
+    banks: list[SavedBank] = Field(default_factory=list)
+    goals: list[SavedGoal] = Field(default_factory=list)
+    loans: list[SavedLoan] = Field(default_factory=list)
+
+    class Config:
+        from_attributes = True
+
+
+class UserProfileUpdate(BaseModel):
+    """Partial-update payload. Only provided fields are written."""
+
+    occupation: Optional[str] = Field(None, max_length=200)
+    company: Optional[str] = Field(None, max_length=200)
+    relationship_status: Optional[RelationshipStatus] = None
+    family_size: Optional[int] = Field(None, ge=0, le=50)
+    location_state: Optional[str] = Field(None, max_length=100)
+    location_country: Optional[str] = Field(None, max_length=100)
+    household: Optional[Household] = None
+    car: Optional[CarStatus] = None
+    travel_preference: Optional[TravelPreference] = None
+    us_status: Optional[USStatus] = None
+    us_status_detail: Optional[str] = Field(None, max_length=100)
+    airline_ranking: Optional[list[str]] = None
+    online_shopping_ranking: Optional[list[str]] = None
+    offline_shopping_ranking: Optional[list[str]] = None
+    cards: Optional[list[SavedCard]] = None
+    banks: Optional[list[SavedBank]] = None
+    goals: Optional[list[SavedGoal]] = None
+    loans: Optional[list[SavedLoan]] = None

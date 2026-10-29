@@ -5,6 +5,7 @@ required, the query is passed through, the answer + cards + memories +
 suggestions come back, and the stream serializes agent events as the named SSE
 frames the frontend expects (stage / cards / token / memories / suggestions / done).
 """
+
 from fastapi.testclient import TestClient
 
 from src.api import recommendations
@@ -35,9 +36,7 @@ def test_recommend_requires_auth(client: TestClient):
     assert response.status_code == 401
 
 
-def test_recommend_returns_full_payload(
-    client: TestClient, test_user_data: dict, monkeypatch
-):
+def test_recommend_returns_full_payload(client: TestClient, test_user_data: dict, monkeypatch):
     captured: dict = {}
 
     async def fake_run(session, user_id, query, history=None):
@@ -48,6 +47,14 @@ def test_recommend_returns_full_payload(
             [_demo_card()],
             ["User eats out a lot."],
             ["What's your credit score?", "Do you travel?", "Annual fee ok?"],
+            [
+                {
+                    "field": "family_size",
+                    "label": "Family size",
+                    "stored": "2",
+                    "mentioned": "4",
+                }
+            ],
         )
 
     monkeypatch.setattr(recommendations, "run_recommendation", fake_run)
@@ -65,6 +72,8 @@ def test_recommend_returns_full_payload(
     assert data["cards"][0]["id"] == "demo-card"
     assert data["new_memories"] == ["User eats out a lot."]
     assert len(data["suggestions"]) == 3
+    assert data["conflicts"][0]["field"] == "family_size"
+    assert data["conflicts"][0]["mentioned"] == "4"
     assert captured["query"] == "best dining card"
     assert captured["history"] == [{"role": "user", "content": "hi"}]
 
@@ -80,9 +89,7 @@ def test_stream_requires_auth(client: TestClient):
     assert response.status_code == 401
 
 
-def test_stream_emits_named_sse_events(
-    client: TestClient, test_user_data: dict, monkeypatch
-):
+def test_stream_emits_named_sse_events(client: TestClient, test_user_data: dict, monkeypatch):
     async def fake_stream(session, user_id, query, history=None):
         yield {"kind": "stage", "stage": "retrieving"}
         yield {"kind": "stage", "stage": "retrieved", "count": 1}

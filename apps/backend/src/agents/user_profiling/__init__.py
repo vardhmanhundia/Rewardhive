@@ -16,8 +16,8 @@ from src.agents.user_profiling.graph import (
 )
 from src.agents.user_profiling.models import (
     ChatReply,
-    MemoryDecision,
-    MemoryItem,
+    ProfileConflict,
+    ProfileExtraction,
     ProfilingResult,
     ProfilingState,
     SuggestionList,
@@ -25,8 +25,8 @@ from src.agents.user_profiling.models import (
 
 __all__ = [
     "ChatReply",
-    "MemoryDecision",
-    "MemoryItem",
+    "ProfileConflict",
+    "ProfileExtraction",
     "ProfilingResult",
     "ProfilingState",
     "SuggestionList",

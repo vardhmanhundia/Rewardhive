@@ -5,6 +5,7 @@ profile memories. The streaming endpoint emits named Server-Sent Events that the
 frontend consumes: ``stage`` (progress), ``cards`` (the retrieved catalog rows),
 ``token`` (answer chunks), and ``done``.
 """
+
 from __future__ import annotations
 
 import json
@@ -14,14 +15,15 @@ from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.agents.recommendation import run_recommendation, stream_recommendation
+from src.agents.graph import run_recommendation, stream_recommendation
 from src.agents.user_profiling.graph import load_history
 from src.db.database import get_db
 from src.middleware.auth import get_current_user_id, verify_user_auth
 from src.models import (
     CardProductSchema,
+    ChatHistoryMessage,
     ChatHistoryResponse,
-    ProfilingTurnMessage,
+    ProfileConflictInfo,
     RecommendationRequest,
     RecommendationResponse,
 )
@@ -45,7 +47,7 @@ async def recommend(
     """Remember, retrieve, and recommend — plus the cards, memories, and suggestions."""
     user_id = get_current_user_id(payload)
     history = [turn.model_dump() for turn in request.history]
-    answer, cards, new_memories, suggestions = await run_recommendation(
+    answer, cards, new_memories, suggestions, conflicts = await run_recommendation(
         session, user_id, request.query, history=history
     )
     # The agent flushes new memories; commit so they persist across turns.
@@ -55,6 +57,7 @@ async def recommend(
         cards=[CardProductSchema.model_validate(c) for c in cards],
         new_memories=new_memories,
         suggestions=suggestions,
+        conflicts=[ProfileConflictInfo.model_validate(c) for c in conflicts],
     )
 
 
@@ -69,7 +72,10 @@ async def history(
     user_id = get_current_user_id(payload)
     messages = await load_history(user_id)
     return ChatHistoryResponse(
-        messages=[ProfilingTurnMessage(role=m["role"], content=m["content"]) for m in messages]
+        messages=[
+            ChatHistoryMessage(role=m["role"], content=m["content"], cards=m.get("cards", []))
+            for m in messages
+        ]
     )
 
 
@@ -94,9 +100,7 @@ async def recommend_stream(
     history = [turn.model_dump() for turn in request.history]
 
     async def event_source() -> AsyncIterator[str]:
-        async for event in stream_recommendation(
-            session, user_id, request.query, history=history
-        ):
+        async for event in stream_recommendation(session, user_id, request.query, history=history):
             kind = event["kind"]
             if kind == "stage":
                 yield _sse("stage", {"stage": event["stage"], "count": event.get("count")})
@@ -104,7 +108,7 @@ async def recommend_stream(
                 yield _sse("cards", event["cards"])
             elif kind == "token":
                 yield _sse("token", {"text": event["text"]})
-            elif kind in ("memories", "suggestions"):
+            elif kind in ("memories", "suggestions", "conflicts"):
                 yield _sse(kind, {"items": event["items"]})
             elif kind == "done":
                 yield _sse("done", {})

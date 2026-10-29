@@ -1,4 +1,5 @@
 """Card catalog service: read access to the products the assistant recommends from."""
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 

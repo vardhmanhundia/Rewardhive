@@ -8,6 +8,7 @@ Run from apps/backend with the DB and migrations up:
 
     python -m src.db.seed_cards
 """
+
 from __future__ import annotations
 
 import asyncio

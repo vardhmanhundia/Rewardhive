@@ -21,10 +21,13 @@ from src.middleware.auth import get_current_user_id, verify_user_auth
 from src.models import (
     CardProductSchema,
     ChatHistoryResponse,
+    ProfileSummaryResponse,
     ProfilingTurnMessage,
     RecommendationRequest,
     RecommendationResponse,
+    UserMemorySchema,
 )
+from src.services.memory_service import MemoryService
 
 router = APIRouter(prefix="/recommendations", tags=["recommendations"])
 
@@ -71,6 +74,21 @@ async def history(
     return ChatHistoryResponse(
         messages=[ProfilingTurnMessage(role=m["role"], content=m["content"]) for m in messages]
     )
+
+
+@router.get("/profile", response_model=ProfileSummaryResponse)
+async def profile_summary(
+    payload: dict = Depends(verify_user_auth),
+    session: AsyncSession = Depends(get_db),
+) -> ProfileSummaryResponse:
+    """Return the long-term profile the assistant has learned about the user.
+
+    Read-only view over ``user_memories`` for the home/summary page. Empty if the
+    user hasn't chatted yet.
+    """
+    user_id = get_current_user_id(payload)
+    memories = await MemoryService.list_memories(session, user_id)
+    return ProfileSummaryResponse(memories=[UserMemorySchema.model_validate(m) for m in memories])
 
 
 def _sse(event: str, data: object) -> str:

@@ -75,6 +75,39 @@ def test_recommend_rejects_empty_query(client: TestClient, test_user_data: dict)
     assert response.status_code == 422
 
 
+def test_profile_requires_auth(client: TestClient):
+    response = client.get("/recommendations/profile")
+    assert response.status_code == 401
+
+
+def test_profile_returns_memories(client: TestClient, test_user_data: dict, monkeypatch):
+    from src.db.models import UserMemory
+    from src.services.memory_service import MemoryService
+
+    async def fake_list(session, user_id):
+        return [
+            UserMemory(user_id=user_id, content="User travels internationally."),
+            UserMemory(user_id=user_id, content="Prefers no annual fee."),
+        ]
+
+    monkeypatch.setattr(MemoryService, "list_memories", fake_list)
+
+    headers = _auth_header(client, test_user_data)
+    response = client.get("/recommendations/profile", headers=headers)
+
+    assert response.status_code == 200
+    data = response.json()
+    contents = [m["content"] for m in data["memories"]]
+    assert contents == ["User travels internationally.", "Prefers no annual fee."]
+
+
+def test_profile_empty_for_new_user(client: TestClient, test_user_data: dict):
+    headers = _auth_header(client, test_user_data)
+    response = client.get("/recommendations/profile", headers=headers)
+    assert response.status_code == 200
+    assert response.json()["memories"] == []
+
+
 def test_stream_requires_auth(client: TestClient):
     response = client.post("/recommendations/stream", json={"query": "travel card"})
     assert response.status_code == 401

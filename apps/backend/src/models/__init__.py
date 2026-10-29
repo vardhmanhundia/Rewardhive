@@ -129,6 +129,13 @@ class ChatHistoryResponse(BaseModel):
     messages: list[ProfilingTurnMessage]
 
 
+class ProfileSummaryResponse(BaseModel):
+    """What the assistant has learned about a user — the long-term profile
+    memories surfaced on the home/summary page."""
+
+    memories: list[UserMemorySchema]
+
+
 class RecommendationRequest(BaseModel):
     """A recommendation ask. The query is blended with the user's stored
     profile preferences on the server; history gives prior turns for context."""

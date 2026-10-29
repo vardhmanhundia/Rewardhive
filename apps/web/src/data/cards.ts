@@ -1,8 +1,9 @@
 /**
- * Card catalog for the UI. Currently Bank of America consumer cards, transcribed
- * from the issuer's own product copy. Still served from the frontend until the
- * backend /cards endpoint is live (VITE_USE_MOCK_CARDS=false), at which point
- * this moves to the DB (seed file) and the API returns it.
+ * Card catalog for the UI — consumer and business cards from Bank of America,
+ * Chase, American Express and Capital One, transcribed from each issuer's own
+ * product copy. Served from the frontend until the backend /cards endpoint is
+ * live (VITE_USE_MOCK_CARDS=false), at which point this mirrors the DB catalog
+ * (seed file) that the API returns.
  *
  * Fields NOT present in the source copy are left out on purpose rather than
  * guessed: exact APR percentages, card network (Visa/MC), the credit tier, and
@@ -10,7 +11,7 @@
  */
 import type { CardProduct } from '@/services/cardService';
 
-export const mockCards: CardProduct[] = [
+export const cards: CardProduct[] = [
   {
     id: 'customized-cash-rewards',
     name: 'Customized Cash Rewards',

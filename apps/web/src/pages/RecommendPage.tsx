@@ -7,6 +7,7 @@
  * fakes the stream locally so the flow is demoable offline.
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { Sparkles, Send, Search, FileText } from 'lucide-react';
 import { Navbar } from '@/components/Navbar';
 import { CardTile } from '@/components/CardTile';
@@ -33,10 +34,17 @@ const EXAMPLES = [
 ];
 
 export const RecommendPage = () => {
+  const location = useLocation();
+  // A query handed over from the home page ("quick ask" / a recent question):
+  // it starts a focused session rather than restoring the prior conversation.
+  const initialQuery =
+    (location.state as { initialQuery?: string } | null)?.initialQuery ?? null;
+
   const [turns, setTurns] = useState<ChatTurn[]>([]);
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const didInit = useRef(false);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -45,6 +53,8 @@ export const RecommendPage = () => {
   // Restore the persisted conversation on load. Cards/suggestions aren't
   // persisted, so restored turns show the text exchange only.
   useEffect(() => {
+    // When arriving with a query from the home page, skip restore and ask it.
+    if (initialQuery) return;
     let cancelled = false;
     cardService
       .getHistory()
@@ -118,6 +128,14 @@ export const RecommendPage = () => {
       setBusy(false);
     }
   };
+
+  // Fire the handed-over query once, after mount.
+  useEffect(() => {
+    if (!initialQuery || didInit.current) return;
+    didInit.current = true;
+    ask(initialQuery);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const empty = turns.length === 0;
 

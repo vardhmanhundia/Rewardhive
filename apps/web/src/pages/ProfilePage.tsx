@@ -39,11 +39,11 @@ export const ProfilePage = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100">
+      <div className="min-h-screen flex items-center justify-center bg-glow text-foreground">
         <Card className="w-full max-w-md">
           <CardContent className="pt-6">
             <div className="text-center">
-              <p className="text-gray-600">Loading...</p>
+              <p className="text-muted-foreground">Loading...</p>
             </div>
           </CardContent>
         </Card>
@@ -53,10 +53,10 @@ export const ProfilePage = () => {
 
   if (!user) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100">
+      <div className="min-h-screen flex items-center justify-center bg-glow text-foreground">
         <Card className="w-full max-w-md">
           <CardContent className="pt-6">
-            <p className="text-center text-gray-600">No user data available</p>
+            <p className="text-center text-muted-foreground">No user data available</p>
           </CardContent>
         </Card>
       </div>
@@ -70,15 +70,15 @@ export const ProfilePage = () => {
   });
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 py-12 px-4">
+    <div className="min-h-screen bg-glow text-foreground py-12 px-4">
       <div className="max-w-4xl mx-auto space-y-6">
         {/* Header */}
         <div className="flex justify-between items-center">
           <div>
-            <h1 className="text-4xl font-bold text-gray-900">
+            <h1 className="text-4xl font-bold text-foreground">
               Welcome, {user.first_name}
             </h1>
-            <p className="text-gray-600 mt-1">Your account information</p>
+            <p className="text-muted-foreground mt-1">Your account information</p>
           </div>
           <Button
             onClick={handleLogout}
@@ -118,15 +118,15 @@ export const ProfilePage = () => {
                 isCopied={copiedField === "email"}
               />
               <div>
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
                   Account Status
                 </p>
                 <div className="flex items-center gap-2">
                   <span
                     className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
                       user.is_active
-                        ? "bg-green-100 text-green-800"
-                        : "bg-red-100 text-red-800"
+                        ? "bg-green-500/15 text-green-400"
+                        : "bg-red-500/15 text-red-400"
                     }`}
                   >
                     {user.is_active ? "✓ Active" : "Inactive"}
@@ -188,21 +188,21 @@ const InfoField = ({
 
   return (
     <div>
-      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
         {label}
       </p>
-      <div className="flex items-center justify-between gap-2 p-3 bg-gray-50 rounded-lg border border-gray-200">
-        <p className="text-sm text-gray-900 break-all font-medium">{value}</p>
+      <div className="flex items-center justify-between gap-2 p-3 bg-white/5 rounded-lg border border-white/10">
+        <p className="text-sm text-foreground break-all font-medium">{value}</p>
         {copyable && (
           <button
             onClick={() => onCopy(value, fieldKey)}
-            className="p-1 hover:bg-gray-200 rounded transition-colors flex-shrink-0"
+            className="p-1 hover:bg-white/10 rounded transition-colors flex-shrink-0"
             title="Copy to clipboard"
           >
             {isCopied ? (
-              <CheckCircle className="w-4 h-4 text-green-600" />
+              <CheckCircle className="w-4 h-4 text-green-400" />
             ) : (
-              <Copy className="w-4 h-4 text-gray-400 hover:text-gray-600" />
+              <Copy className="w-4 h-4 text-muted-foreground hover:text-foreground" />
             )}
           </button>
         )}

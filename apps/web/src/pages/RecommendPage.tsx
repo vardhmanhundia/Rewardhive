@@ -21,6 +21,9 @@ interface ChatTurn {
   stage: RecStage | null;
   answer: string;
   cards: CardProduct[];
+  // How many candidates retrieval found this turn (for the progress line; the
+  // rendered `cards` are only the subset the answer recommends).
+  found: number;
   memories: string[];
   suggestions: string[];
 }
@@ -42,8 +45,9 @@ export const RecommendPage = () => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [turns]);
 
-  // Restore the persisted conversation on load. Cards/suggestions aren't
-  // persisted, so restored turns show the text exchange only.
+  // Restore the persisted conversation on load. Assistant turns carry the cards
+  // that were recommended, so restored turns render the same text + cards layout
+  // they did live. Memories/suggestions aren't persisted.
   useEffect(() => {
     let cancelled = false;
     cardService
@@ -54,13 +58,16 @@ export const RecommendPage = () => {
         for (let i = 0; i < msgs.length; i++) {
           if (msgs[i].role !== 'user') continue;
           const next = msgs[i + 1];
-          const answer = next?.role === 'assistant' ? next.content : '';
+          const isReply = next?.role === 'assistant';
+          const answer = isReply ? next.content : '';
+          const cards = isReply ? next.cards ?? [] : [];
           restored.push({
             id: crypto.randomUUID(),
             query: msgs[i].content,
             stage: 'done',
             answer,
-            cards: [],
+            cards,
+            found: cards.length,
             memories: [],
             suggestions: [],
           });
@@ -92,7 +99,7 @@ export const RecommendPage = () => {
     const id = crypto.randomUUID();
     setTurns((prev) => [
       ...prev,
-      { id, query, stage: null, answer: '', cards: [], memories: [], suggestions: [] },
+      { id, query, stage: null, answer: '', cards: [], found: 0, memories: [], suggestions: [] },
     ]);
     setInput('');
     setBusy(true);
@@ -101,7 +108,8 @@ export const RecommendPage = () => {
       await cardService.recommendStream(
         query,
         {
-          onStage: (stage) => patch(id, { stage }),
+          onStage: (stage, meta) =>
+            patch(id, meta?.count != null ? { stage, found: meta.count } : { stage }),
           onCards: (cards) => patch(id, { cards }),
           onToken: (chunk) =>
             setTurns((prev) =>
@@ -278,7 +286,7 @@ const StageLine = ({ turn }: { turn: ChatTurn }) => {
       case 'retrieved':
         return {
           icon: Search,
-          text: `Found ${turn.cards.length} matching ${turn.cards.length === 1 ? 'card' : 'cards'}`,
+          text: `Found ${turn.found} matching ${turn.found === 1 ? 'card' : 'cards'}`,
           spin: false,
         };
       case 'generating':
@@ -286,7 +294,7 @@ const StageLine = ({ turn }: { turn: ChatTurn }) => {
       default:
         return null;
     }
-  }, [turn.stage, turn.cards.length]);
+  }, [turn.stage, turn.found]);
 
   // Once the answer is flowing, the "drafting" line is redundant.
   if (!label || (turn.stage === 'generating' && turn.answer)) return null;

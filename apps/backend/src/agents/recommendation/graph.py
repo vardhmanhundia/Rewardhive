@@ -1,14 +1,16 @@
 """Recommendation subgraph: profile-aware RAG over the card catalog.
 
-Three steps over the shared :class:`~src.agents.state.AgentState`:
+Four steps over the shared :class:`~src.agents.state.AgentState`:
 
-    retrieve -> recommend -> suggest
+    retrieve -> recommend -> select -> suggest
 
 - ``retrieve`` reads the (already updated) profile and pulls the most relevant
   cards from the catalog via the embedding seam (:class:`RetrievalService`),
-  using the query blended with the profile.
+  using the query blended with the profile. These are candidates for grounding.
 - ``recommend`` has Muse generate a recommendation grounded strictly in those
   cards and personalized by the profile, streaming it token-by-token.
+- ``select`` narrows the candidates to the cards the answer actually recommends,
+  emits those (and only those) to the UI, and persists the turn with them.
 - ``suggest`` proposes three follow-up questions.
 
 This is wired after the profiling subgraph by the parent graph in
@@ -26,7 +28,11 @@ from langgraph.config import get_stream_writer
 from langgraph.graph import END, START, StateGraph
 
 from src.agents.commons.llm import get_chat_model
-from src.agents.recommendation.prompts import RECOMMENDATION_SYSTEM_PROMPT
+from src.agents.recommendation.models import RecommendedSelection
+from src.agents.recommendation.prompts import (
+    RECOMMENDATION_SYSTEM_PROMPT,
+    SELECTION_SYSTEM_PROMPT,
+)
 from src.agents.state import AgentState
 from src.agents.user_profiling.graph import persist_turn
 from src.agents.user_profiling.helpers import config_values, format_profile, history_messages
@@ -40,6 +46,16 @@ from src.services.retrieval_service import RetrievalService
 
 # Plain (non-structured) Muse client for token-by-token streaming of the answer.
 reply_llm = get_chat_model(settings.RECOMMENDATION_MODEL, max_tokens=4096)
+
+# Structured client that narrows the retrieved candidates down to the cards the
+# finished answer actually recommends. Runs after the answer has streamed, so it
+# never competes with token streaming; low reasoning effort keeps it cheap.
+selection_llm = get_chat_model(
+    settings.PROFILING_EXTRACTOR_MODEL,
+    max_tokens=1024,
+    structured=RecommendedSelection,
+    reasoning_effort="low",
+)
 
 
 def _format_card(card: CardProduct) -> str:
@@ -103,6 +119,47 @@ def _chunk_text(content: Any) -> str:
     return ""
 
 
+def _candidates_for_selection(cards: list[CardProduct]) -> str:
+    """List candidates as ``id — name (issuer)`` so the selector can return ids."""
+    return "\n".join(f"{c.id} — {c.name} ({c.issuer})" for c in cards)
+
+
+async def _select_recommended(
+    cards: list[CardProduct], answer: str
+) -> list[CardProduct]:
+    """Narrow the candidates to the cards the answer actually recommends.
+
+    Returns them ordered best-first. Falls back to the top candidate if the
+    selector returns nothing usable but the answer did make a pick, so the UI is
+    never left empty when a recommendation was given.
+    """
+    if not cards or not answer.strip():
+        return []
+    by_id = {c.id: c for c in cards}
+    result = cast(
+        RecommendedSelection,
+        await selection_llm.ainvoke(
+            [
+                SystemMessage(content=SELECTION_SYSTEM_PROMPT),
+                HumanMessage(
+                    content=(
+                        f"Candidate cards:\n{_candidates_for_selection(cards)}\n\n"
+                        f"Recommendation:\n{answer}"
+                    )
+                ),
+            ]
+        ),
+    )
+    # Preserve the selector's order, keep only valid ids, drop duplicates.
+    seen: set[str] = set()
+    picked: list[CardProduct] = []
+    for cid in result.card_ids:
+        if cid in by_id and cid not in seen:
+            seen.add(cid)
+            picked.append(by_id[cid])
+    return picked
+
+
 async def _suggest(query: str, reply: str) -> list[str]:
     """Propose three follow-up questions from the completed turn."""
     result = cast(
@@ -128,8 +185,9 @@ async def retrieve_node(state: AgentState, config: RunnableConfig) -> AgentState
     cards = await RetrievalService.retrieve_cards(
         session, _retrieval_query(state.get("query", ""), preferences)
     )
+    # Candidates are kept for grounding; the cards shown to the user are the
+    # subset the answer actually recommends, emitted later by ``select_node``.
     writer({"kind": "stage", "stage": "retrieved", "count": len(cards)})
-    writer({"kind": "cards", "cards": _serialize(cards)})
     return {"preferences": preferences, "cards": cards}
 
 
@@ -151,9 +209,23 @@ async def recommend_node(state: AgentState, config: RunnableConfig) -> AgentStat
             parts.append(text)
             writer({"kind": "token", "text": text})
     answer = "".join(parts)
-    # Persist the turn so the conversation survives reload / re-login.
-    await persist_turn(user_id, state.get("query", ""), answer)
     return {"answer": answer}
+
+
+async def select_node(state: AgentState, config: RunnableConfig) -> AgentState:
+    """Keep only the cards the answer recommends, emit them, and persist the turn."""
+    writer = get_stream_writer()
+    _session, user_id = config_values(config)
+    recommended = await _select_recommended(
+        state.get("cards", []), state.get("answer", "")
+    )
+    serialized = _serialize(recommended)
+    writer({"kind": "cards", "cards": serialized})
+    # Persist query, answer, and the recommended cards so history reloads intact.
+    await persist_turn(
+        user_id, state.get("query", ""), state.get("answer", ""), cards=serialized
+    )
+    return {"cards": recommended}
 
 
 async def suggest_node(state: AgentState, config: RunnableConfig) -> AgentState:
@@ -174,9 +246,11 @@ def build_recommendation_subgraph() -> Any:
     builder = StateGraph(AgentState)
     builder.add_node("retrieve", retrieve_node)
     builder.add_node("recommend", recommend_node)
+    builder.add_node("select", select_node)
     builder.add_node("suggest", suggest_node)
     builder.add_edge(START, "retrieve")
     builder.add_edge("retrieve", "recommend")
-    builder.add_edge("recommend", "suggest")
+    builder.add_edge("recommend", "select")
+    builder.add_edge("select", "suggest")
     builder.add_edge("suggest", END)
     return builder.compile()

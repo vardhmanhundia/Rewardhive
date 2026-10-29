@@ -134,8 +134,18 @@ class ProfilingTurnResponse(BaseModel):
     new_memories: list[str]
 
 
+class ChatHistoryMessage(BaseModel):
+    """One persisted turn returned by the history endpoint. Assistant turns carry
+    the cards recommended then, so a reloaded conversation shows the same text +
+    card layout it did live; user turns and plain chat replies have none."""
+
+    role: str = Field(..., pattern="^(user|assistant)$")
+    content: str
+    cards: list[CardProductSchema] = Field(default_factory=list)
+
+
 class ChatHistoryResponse(BaseModel):
-    messages: list[ProfilingTurnMessage]
+    messages: list[ChatHistoryMessage]
 
 
 class RecommendationRequest(BaseModel):

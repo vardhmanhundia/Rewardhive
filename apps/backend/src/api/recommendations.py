@@ -21,9 +21,9 @@ from src.db.database import get_db
 from src.middleware.auth import get_current_user_id, verify_user_auth
 from src.models import (
     CardProductSchema,
+    ChatHistoryMessage,
     ChatHistoryResponse,
     ProfileConflictInfo,
-    ProfilingTurnMessage,
     RecommendationRequest,
     RecommendationResponse,
 )
@@ -72,7 +72,10 @@ async def history(
     user_id = get_current_user_id(payload)
     messages = await load_history(user_id)
     return ChatHistoryResponse(
-        messages=[ProfilingTurnMessage(role=m["role"], content=m["content"]) for m in messages]
+        messages=[
+            ChatHistoryMessage(role=m["role"], content=m["content"], cards=m.get("cards", []))
+            for m in messages
+        ]
     )
 
 

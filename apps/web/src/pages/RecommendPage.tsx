@@ -21,6 +21,8 @@ interface ChatTurn {
   stage: RecStage | null;
   answer: string;
   cards: CardProduct[];
+  memories: string[];
+  suggestions: string[];
 }
 
 const EXAMPLES = [
@@ -40,6 +42,38 @@ export const RecommendPage = () => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [turns]);
 
+  // Restore the persisted conversation on load. Cards/suggestions aren't
+  // persisted, so restored turns show the text exchange only.
+  useEffect(() => {
+    let cancelled = false;
+    cardService
+      .getHistory()
+      .then((msgs) => {
+        if (cancelled || msgs.length === 0) return;
+        const restored: ChatTurn[] = [];
+        for (let i = 0; i < msgs.length; i++) {
+          if (msgs[i].role !== 'user') continue;
+          const next = msgs[i + 1];
+          const answer = next?.role === 'assistant' ? next.content : '';
+          restored.push({
+            id: crypto.randomUUID(),
+            query: msgs[i].content,
+            stage: 'done',
+            answer,
+            cards: [],
+            memories: [],
+            suggestions: [],
+          });
+          if (answer) i++;
+        }
+        if (restored.length) setTurns(restored);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const patch = (id: string, update: Partial<ChatTurn>) =>
     setTurns((prev) => prev.map((t) => (t.id === id ? { ...t, ...update } : t)));
 
@@ -47,20 +81,37 @@ export const RecommendPage = () => {
     const query = raw.trim();
     if (!query || busy) return;
 
+    // Prior turns become conversation context for follow-ups.
+    const history = turns
+      .flatMap((t) => [
+        { role: 'user' as const, content: t.query },
+        { role: 'assistant' as const, content: t.answer },
+      ])
+      .filter((m) => m.content.trim());
+
     const id = crypto.randomUUID();
-    setTurns((prev) => [...prev, { id, query, stage: null, answer: '', cards: [] }]);
+    setTurns((prev) => [
+      ...prev,
+      { id, query, stage: null, answer: '', cards: [], memories: [], suggestions: [] },
+    ]);
     setInput('');
     setBusy(true);
 
     try {
-      await cardService.recommendStream(query, {
-        onStage: (stage) => patch(id, { stage }),
-        onCards: (cards) => patch(id, { cards }),
-        onToken: (chunk) =>
-          setTurns((prev) =>
-            prev.map((t) => (t.id === id ? { ...t, answer: t.answer + chunk } : t)),
-          ),
-      });
+      await cardService.recommendStream(
+        query,
+        {
+          onStage: (stage) => patch(id, { stage }),
+          onCards: (cards) => patch(id, { cards }),
+          onToken: (chunk) =>
+            setTurns((prev) =>
+              prev.map((t) => (t.id === id ? { ...t, answer: t.answer + chunk } : t)),
+            ),
+          onMemories: (items) => patch(id, { memories: items }),
+          onSuggestions: (items) => patch(id, { suggestions: items }),
+        },
+        history,
+      );
     } catch {
       patch(id, { stage: 'done', answer: 'Something went wrong — please try again.' });
     } finally {
@@ -80,7 +131,7 @@ export const RecommendPage = () => {
         ) : (
           <div className="flex-1 space-y-8 py-8">
             {turns.map((turn) => (
-              <Turn key={turn.id} turn={turn} />
+              <Turn key={turn.id} turn={turn} onPick={ask} />
             ))}
             <div ref={bottomRef} />
           </div>
@@ -155,7 +206,7 @@ const EmptyState = ({ onPick }: { onPick: (q: string) => void }) => (
   </div>
 );
 
-const Turn = ({ turn }: { turn: ChatTurn }) => (
+const Turn = ({ turn, onPick }: { turn: ChatTurn; onPick: (q: string) => void }) => (
   <div className="space-y-4">
     {/* User bubble */}
     <div className="flex justify-end">
@@ -170,7 +221,7 @@ const Turn = ({ turn }: { turn: ChatTurn }) => (
 
       {turn.answer && (
         <div className="glass rounded-2xl rounded-tl-sm p-4">
-          <p className="leading-relaxed">
+          <p className="whitespace-pre-wrap leading-relaxed">
             {turn.answer}
             {turn.stage === 'generating' && (
               <span className="ml-0.5 inline-block h-4 w-1.5 animate-pulse bg-primary align-middle" />
@@ -183,6 +234,34 @@ const Turn = ({ turn }: { turn: ChatTurn }) => (
         <div className="grid gap-4 sm:grid-cols-2">
           {turn.cards.map((card) => (
             <CardTile key={card.id} card={card} />
+          ))}
+        </div>
+      )}
+
+      {turn.memories.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs text-muted-foreground">Noted about you:</span>
+          {turn.memories.map((m) => (
+            <span
+              key={m}
+              className="rounded-full border border-primary/30 bg-primary/10 px-2.5 py-1 text-xs text-foreground"
+            >
+              {m}
+            </span>
+          ))}
+        </div>
+      )}
+
+      {turn.suggestions.length > 0 && (
+        <div className="flex flex-wrap gap-2 pt-1">
+          {turn.suggestions.map((s) => (
+            <button
+              key={s}
+              onClick={() => onPick(s)}
+              className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
+            >
+              {s}
+            </button>
           ))}
         </div>
       )}

@@ -15,9 +15,16 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.agents.recommendation import run_recommendation, stream_recommendation
+from src.agents.user_profiling.graph import load_history
 from src.db.database import get_db
 from src.middleware.auth import get_current_user_id, verify_user_auth
-from src.models import CardProductSchema, RecommendationRequest, RecommendationResponse
+from src.models import (
+    CardProductSchema,
+    ChatHistoryResponse,
+    ProfilingTurnMessage,
+    RecommendationRequest,
+    RecommendationResponse,
+)
 
 router = APIRouter(prefix="/recommendations", tags=["recommendations"])
 
@@ -35,12 +42,34 @@ async def recommend(
     payload: dict = Depends(verify_user_auth),
     session: AsyncSession = Depends(get_db),
 ) -> RecommendationResponse:
-    """Return a profile-aware recommendation plus the cards it drew on."""
+    """Remember, retrieve, and recommend — plus the cards, memories, and suggestions."""
     user_id = get_current_user_id(payload)
-    answer, cards = await run_recommendation(session, user_id, request.query)
+    history = [turn.model_dump() for turn in request.history]
+    answer, cards, new_memories, suggestions = await run_recommendation(
+        session, user_id, request.query, history=history
+    )
+    # The agent flushes new memories; commit so they persist across turns.
+    await session.commit()
     return RecommendationResponse(
         answer=answer,
         cards=[CardProductSchema.model_validate(c) for c in cards],
+        new_memories=new_memories,
+        suggestions=suggestions,
+    )
+
+
+@router.get("/history", response_model=ChatHistoryResponse)
+async def history(
+    payload: dict = Depends(verify_user_auth),
+) -> ChatHistoryResponse:
+    """Return the authenticated user's persisted recommend conversation.
+
+    Empty if persistence is disabled or the user has no stored chat yet.
+    """
+    user_id = get_current_user_id(payload)
+    messages = await load_history(user_id)
+    return ChatHistoryResponse(
+        messages=[ProfilingTurnMessage(role=m["role"], content=m["content"]) for m in messages]
     )
 
 
@@ -57,13 +86,17 @@ async def recommend_stream(
 ) -> StreamingResponse:
     """Stream a profile-aware recommendation as Server-Sent Events.
 
-    Emits ``stage`` ({stage, count?}), then ``cards`` (CardProduct[]), then
-    ``token`` ({text}) repeatedly, then ``done`` — or a single ``error``.
+    Emits ``stage`` ({stage, count?}), ``cards`` (CardProduct[]), ``token``
+    ({text}) repeatedly, then ``memories`` ({items}), ``suggestions`` ({items}),
+    and ``done`` — or a single ``error``.
     """
     user_id = get_current_user_id(payload)
+    history = [turn.model_dump() for turn in request.history]
 
     async def event_source() -> AsyncIterator[str]:
-        async for event in stream_recommendation(session, user_id, request.query):
+        async for event in stream_recommendation(
+            session, user_id, request.query, history=history
+        ):
             kind = event["kind"]
             if kind == "stage":
                 yield _sse("stage", {"stage": event["stage"], "count": event.get("count")})
@@ -71,6 +104,8 @@ async def recommend_stream(
                 yield _sse("cards", event["cards"])
             elif kind == "token":
                 yield _sse("token", {"text": event["text"]})
+            elif kind in ("memories", "suggestions"):
+                yield _sse(kind, {"items": event["items"]})
             elif kind == "done":
                 yield _sse("done", {})
             elif kind == "error":

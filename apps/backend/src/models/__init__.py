@@ -131,13 +131,17 @@ class ChatHistoryResponse(BaseModel):
 
 class RecommendationRequest(BaseModel):
     """A recommendation ask. The query is blended with the user's stored
-    profile preferences on the server."""
+    profile preferences on the server; history gives prior turns for context."""
 
     query: str = Field(..., min_length=1)
+    history: list[ProfilingTurnMessage] = Field(default_factory=list)
 
 
 class RecommendationResponse(BaseModel):
-    """Non-streaming recommendation: Muse's prose plus the cards it drew on."""
+    """Non-streaming recommendation: Muse's prose, the cards it drew on, any
+    memories captured this turn, and three follow-up suggestions."""
 
     answer: str
     cards: list[CardProductSchema]
+    new_memories: list[str]
+    suggestions: list[str]

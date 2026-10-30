@@ -90,13 +90,29 @@ def test_profile_requires_auth(client: TestClient):
 
 
 def test_profile_returns_memories(client: TestClient, test_user_data: dict, monkeypatch):
+    import uuid
+    from datetime import datetime
+
     from src.db.models import UserMemory
     from src.services.memory_service import MemoryService
 
+    # Persisted rows have id/created_at set at insert time; set them here since
+    # these stand-ins are never flushed.
     async def fake_list(session, user_id):
+        now = datetime.utcnow()
         return [
-            UserMemory(user_id=user_id, content="User travels internationally."),
-            UserMemory(user_id=user_id, content="Prefers no annual fee."),
+            UserMemory(
+                id=uuid.uuid4(),
+                user_id=user_id,
+                content="User travels internationally.",
+                created_at=now,
+            ),
+            UserMemory(
+                id=uuid.uuid4(),
+                user_id=user_id,
+                content="Prefers no annual fee.",
+                created_at=now,
+            ),
         ]
 
     monkeypatch.setattr(MemoryService, "list_memories", fake_list)

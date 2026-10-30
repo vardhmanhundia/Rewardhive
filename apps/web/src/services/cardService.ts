@@ -6,7 +6,7 @@
  * backend is live, set VITE_USE_MOCK_CARDS=false and regenerate shared/api.d.ts
  * (`npm run gen:api`) — then prefer those generated types over the ones below.
  */
-import { mockCards } from '@/data/mockCards';
+import { cards } from '@/data/cards';
 import authService from './authService';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
@@ -48,6 +48,13 @@ export interface RecMessage {
   cards?: CardProduct[];
 }
 
+/** One fact the assistant has learned about the user (long-term profile). */
+export interface UserMemory {
+  id: string;
+  content: string;
+  created_at: string;
+}
+
 /** What the RAG endpoint returns: Muse prose, the cards it drew on, the memories
  *  captured this turn, and three follow-up suggestions. */
 export interface RecommendationResult {
@@ -76,7 +83,7 @@ class CardService {
   async getAllCards(): Promise<CardProduct[]> {
     if (USE_MOCK) {
       await delay(300);
-      return mockCards;
+      return cards;
     }
     const res = await fetch(`${API_URL}/cards`);
     if (!res.ok) throw new Error('Failed to load cards');
@@ -88,13 +95,25 @@ class CardService {
   async getCard(id: string): Promise<CardProduct> {
     if (USE_MOCK) {
       await delay(200);
-      const card = mockCards.find((c) => c.id === id);
+      const card = cards.find((c) => c.id === id);
       if (!card) throw new Error('Card not found');
       return card;
     }
     const res = await fetch(`${API_URL}/cards/${id}`);
     if (!res.ok) throw new Error('Card not found');
     return res.json();
+  }
+
+  /** What the assistant has learned about the user — long-term profile memories.
+   *  Empty in mock mode, when not logged in, or when nothing is stored yet. */
+  async getProfileSummary(): Promise<UserMemory[]> {
+    if (USE_MOCK) return [];
+    const res = await fetch(`${API_URL}/recommendations/profile`, {
+      headers: { ...authHeaders() },
+    });
+    if (!res.ok) return [];
+    const data = await res.json();
+    return (data.memories ?? []) as UserMemory[];
   }
 
   /** The user's persisted recommend conversation (empty if none / not logged in). */
@@ -164,7 +183,7 @@ class CardService {
     const decoder = new TextDecoder();
     let buffer = '';
     let answer = '';
-    let cards: CardProduct[] = [];
+    let resultCards: CardProduct[] = [];
     let newMemories: string[] = [];
     let suggestions: string[] = [];
 
@@ -182,8 +201,8 @@ class CardService {
         const payload = JSON.parse(dataLine);
         if (event === 'stage') handlers.onStage?.(payload.stage, { count: payload.count });
         else if (event === 'cards') {
-          cards = payload;
-          handlers.onCards?.(cards);
+          resultCards = payload;
+          handlers.onCards?.(resultCards);
         } else if (event === 'token') {
           answer += payload.text;
           handlers.onToken?.(payload.text);
@@ -197,7 +216,7 @@ class CardService {
       }
     }
     handlers.onStage?.('done');
-    return { answer, cards, newMemories, suggestions };
+    return { answer, cards: resultCards, newMemories, suggestions };
   }
 }
 
@@ -211,9 +230,9 @@ async function mockRecommendStream(
   onStage?.('retrieving');
   await sleep(600);
 
-  const { answer, cards } = mockRecommend(query);
-  onStage?.('retrieved', { count: cards.length });
-  onCards?.(cards);
+  const { answer, cards: resultCards } = mockRecommend(query);
+  onStage?.('retrieved', { count: resultCards.length });
+  onCards?.(resultCards);
   await sleep(400);
 
   onStage?.('generating');
@@ -223,13 +242,13 @@ async function mockRecommendStream(
     await sleep(35);
   }
   onStage?.('done');
-  return { answer, cards, newMemories: [], suggestions: [] };
+  return { answer, cards: resultCards, newMemories: [], suggestions: [] };
 }
 
 /** Local stand-in for the backend RAG pipeline — keyword match, not real retrieval. */
 function mockRecommend(query: string): RecommendationResult {
   const q = query.toLowerCase();
-  const scored = mockCards
+  const scored = cards
     .map((card) => {
       const haystack = [
         card.name,

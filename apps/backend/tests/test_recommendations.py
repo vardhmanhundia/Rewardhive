@@ -84,6 +84,55 @@ def test_recommend_rejects_empty_query(client: TestClient, test_user_data: dict)
     assert response.status_code == 422
 
 
+def test_profile_requires_auth(client: TestClient):
+    response = client.get("/recommendations/profile")
+    assert response.status_code == 401
+
+
+def test_profile_returns_memories(client: TestClient, test_user_data: dict, monkeypatch):
+    import uuid
+    from datetime import datetime
+
+    from src.db.models import UserMemory
+    from src.services.memory_service import MemoryService
+
+    # Persisted rows have id/created_at set at insert time; set them here since
+    # these stand-ins are never flushed.
+    async def fake_list(session, user_id):
+        now = datetime.utcnow()
+        return [
+            UserMemory(
+                id=uuid.uuid4(),
+                user_id=user_id,
+                content="User travels internationally.",
+                created_at=now,
+            ),
+            UserMemory(
+                id=uuid.uuid4(),
+                user_id=user_id,
+                content="Prefers no annual fee.",
+                created_at=now,
+            ),
+        ]
+
+    monkeypatch.setattr(MemoryService, "list_memories", fake_list)
+
+    headers = _auth_header(client, test_user_data)
+    response = client.get("/recommendations/profile", headers=headers)
+
+    assert response.status_code == 200
+    data = response.json()
+    contents = [m["content"] for m in data["memories"]]
+    assert contents == ["User travels internationally.", "Prefers no annual fee."]
+
+
+def test_profile_empty_for_new_user(client: TestClient, test_user_data: dict):
+    headers = _auth_header(client, test_user_data)
+    response = client.get("/recommendations/profile", headers=headers)
+    assert response.status_code == 200
+    assert response.json()["memories"] == []
+
+
 def test_stream_requires_auth(client: TestClient):
     response = client.post("/recommendations/stream", json={"query": "travel card"})
     assert response.status_code == 401

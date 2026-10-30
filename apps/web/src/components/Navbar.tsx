@@ -4,7 +4,7 @@
  */
 import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Home, CreditCard, User, LogOut, ChevronDown } from 'lucide-react';
+import { Home, CreditCard, Wallet, User, LogOut, ChevronDown } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 
 const baseLinks = [{ to: '/cards', label: 'Browse cards', icon: CreditCard }];
@@ -16,7 +16,11 @@ export const Navbar = () => {
   // Signed-in users get a Home link to their summary page, and the logo takes
   // them there rather than to the marketing landing.
   const links = isAuthenticated
-    ? [{ to: '/for-you', label: 'My Space', icon: Home }, ...baseLinks]
+    ? [
+        { to: '/for-you', label: 'My Space', icon: Home },
+        { to: '/evaluate', label: 'Evaluate', icon: Wallet },
+        ...baseLinks,
+      ]
     : baseLinks;
 
   return (

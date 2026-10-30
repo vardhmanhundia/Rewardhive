@@ -263,3 +263,74 @@ class UserProfileUpdate(BaseModel):
     banks: Optional[list[SavedBank]] = None
     goals: Optional[list[SavedGoal]] = None
     loans: Optional[list[SavedLoan]] = None
+
+
+# --- Wallet optimizer --------------------------------------------------------
+# API shapes for the deterministic optimizer engine (src/services/optimizer_service).
+# Response models mirror the engine's dataclasses field-for-field so routes can
+# build them with dataclasses.asdict().
+
+
+class OwnedCardInput(BaseModel):
+    """A card the user holds, with the category they currently use it for."""
+
+    card_id: str
+    category: Optional[str] = None
+
+
+class WalletOptimizeRequest(BaseModel):
+    """Optimize a wallet for a given annual spend (keys are category slugs)."""
+
+    spend: dict[str, float] = Field(default_factory=dict)
+    card_ids: list[str] = Field(default_factory=list)
+
+
+class EvaluateCardRequest(BaseModel):
+    """"Should I get this card?" — current wallet + usage vs. a candidate."""
+
+    spend: dict[str, float] = Field(default_factory=dict)
+    owned: list[OwnedCardInput] = Field(default_factory=list)
+    candidate_id: str
+
+
+class CategoryBreakdownSchema(BaseModel):
+    category: str
+    label: str
+    spend: float
+    card_id: Optional[str] = None
+    card_name: Optional[str] = None
+    rate: str
+    earned: float
+    effective_pct: float
+
+
+class WalletResultSchema(BaseModel):
+    net_annual_value: float
+    total_rewards: float
+    total_fees: float
+    effective_return_pct: float
+    breakdown: list[CategoryBreakdownSchema] = Field(default_factory=list)
+
+
+class ScenarioComparisonSchema(BaseModel):
+    """Three scenarios (keep / reallocate / add) plus the verdict."""
+
+    keep: WalletResultSchema
+    reallocate: WalletResultSchema
+    add: WalletResultSchema
+    candidate_id: str
+    candidate_name: str
+    candidate_fee: float
+    gain_from_reallocating: float
+    gain_from_adding: float
+    worth_it: bool
+    verdict: str
+
+
+class AdvisorRequest(BaseModel):
+    """A what-if question plus the wallet context the advisor agent reasons over."""
+
+    question: str = ""
+    spend: dict[str, float] = Field(default_factory=dict)
+    owned: list[OwnedCardInput] = Field(default_factory=list)
+    candidate_id: Optional[str] = None

@@ -10,7 +10,7 @@
 import { useMemo, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { Sparkles, Send, Search, User } from 'lucide-react';
+import { Sparkles, Send, Search, User, Wallet } from 'lucide-react';
 import { Navbar } from '@/components/Navbar';
 import { CardTile } from '@/components/CardTile';
 import { useAuth } from '@/context/AuthContext';
@@ -204,6 +204,23 @@ export const SummaryPage = () => {
         <div className="grid gap-6 lg:grid-cols-3 lg:items-start">
           <div className="space-y-6 lg:col-span-2">
             <QuickAsk onAsk={ask} />
+            <Link
+              to="/evaluate"
+              className="glass flex items-center justify-between gap-3 rounded-2xl p-5 transition-all hover:-translate-y-0.5 hover:border-primary/40"
+            >
+              <div className="flex items-center gap-3">
+                <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/15 text-primary">
+                  <Wallet className="h-5 w-5" />
+                </span>
+                <div>
+                  <h3 className="font-display font-semibold">Thinking about a new card?</h3>
+                  <p className="text-sm text-muted-foreground">
+                    See if it beats your current wallet — fee and all.
+                  </p>
+                </div>
+              </div>
+              <span className="shrink-0 text-sm font-medium text-primary">Should I get it? →</span>
+            </Link>
             <BestCardFinder cards={cards ?? []} loading={cardsLoading} onAsk={ask} />
           </div>
 

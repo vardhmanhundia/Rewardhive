@@ -4,17 +4,20 @@
  */
 import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { CreditCard, Sparkles, User, LogOut, ChevronDown } from 'lucide-react';
+import { Home, CreditCard, User, LogOut, ChevronDown } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 
-const links = [
-  { to: '/cards', label: 'Browse cards', icon: CreditCard },
-  { to: '/recommend', label: 'Recommend', icon: Sparkles },
-];
+const baseLinks = [{ to: '/cards', label: 'Browse cards', icon: CreditCard }];
 
 export const Navbar = () => {
   const { pathname } = useLocation();
   const { user, isAuthenticated, isLoading } = useAuth();
+
+  // Signed-in users get a Home link to their summary page, and the logo takes
+  // them there rather than to the marketing landing.
+  const links = isAuthenticated
+    ? [{ to: '/for-you', label: 'My Space', icon: Home }, ...baseLinks]
+    : baseLinks;
 
   return (
     <header className="sticky top-0 z-30 border-b border-white/5 bg-background/70 backdrop-blur-md">

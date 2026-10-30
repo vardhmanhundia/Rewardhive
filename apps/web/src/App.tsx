@@ -5,6 +5,7 @@ import {HomePage} from "./pages/HomePage";
 import {SignupPage} from "./pages/SignupPage";
 import {LoginPage} from "./pages/LoginPage";
 import {ProfilePage} from "./pages/ProfilePage";
+import {OnboardingPage} from "./pages/OnboardingPage";
 import {CardsPage} from "./pages/CardsPage";
 import {CardDetailPage} from "./pages/CardDetailPage";
 import {RecommendPage} from "./pages/RecommendPage";
@@ -24,6 +25,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <RecommendPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/onboarding"
+            element={
+              <ProtectedRoute>
+                <OnboardingPage />
               </ProtectedRoute>
             }
           />

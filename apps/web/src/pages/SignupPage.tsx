@@ -91,7 +91,8 @@ export const SignupPage = () => {
         formData.last_name,
         formData.password
       );
-      navigate('/');
+      // First-time users go through the profile onboarding stepper.
+      navigate('/onboarding');
     } catch (error) {
       console.error('Signup error:', error);
     } finally {

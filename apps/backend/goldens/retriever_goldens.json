@@ -1,0 +1,338 @@
+[
+  {
+    "id": "tc01",
+    "query": "I want the simplest cash back card: one flat rate on everything, no bonus categories to track, no annual fee. Which personal card fits?",
+    "ideal_answer": "Bank of America Unlimited Cash Rewards. It earns an unlimited 1.5% flat cash back on all purchases with no categories to manage and no annual fee. (Chase Freedom Unlimited also has a 1.5% base rate but adds bonus categories, and Ink Business Unlimited is a business card, so the pure no-category personal pick is Unlimited Cash Rewards.)",
+    "source": ["unlimited-cash-rewards"],
+    "query_type": "single",
+    "eval_focus": "precision"
+  },
+  {
+    "id": "tc02",
+    "query": "I just want to pay down existing debt as cheaply as possible. Which card has the longest intro APR and won't jack up my rate if I slip on a payment? I don't care about rewards.",
+    "ideal_answer": "BankAmericard. It offers a low intro APR for the first 21 billing cycles on purchases and qualifying balance transfers — the longest intro period in the catalog — has no penalty APR (a late payment won't automatically raise your rate), earns no rewards, and has no annual fee.",
+    "source": ["bankamericard"],
+    "query_type": "single",
+    "eval_focus": "precision"
+  },
+  {
+    "id": "tc03",
+    "query": "I'm new to credit with a limited/fair history and I'm worried about getting approved. I want to build credit with no annual fee.",
+    "ideal_answer": "Capital One Platinum Credit Card. It's built for fair or limited credit, requires no credit score to apply, has no annual fee and no foreign transaction fees, and reviews your credit line automatically in as little as 6 months. It earns no rewards but includes free CreditWise credit monitoring.",
+    "source": ["capital-one-platinum"],
+    "query_type": "single",
+    "eval_focus": "precision"
+  },
+  {
+    "id": "tc04",
+    "query": "I eat out constantly. I want the highest rewards rate at restaurants plus monthly dining credits, and I'm fine paying an annual fee.",
+    "ideal_answer": "American Express Gold Card. It earns 4x at restaurants worldwide (up to $50k/yr) and 4x at U.S. supermarkets (up to $25k/yr), plus monthly credits including $10/mo dining, $10/mo Uber Cash, $100/yr Resy, and $7/mo Dunkin'. The annual fee is $325, and there is no welcome offer at this time.",
+    "source": ["amex-gold"],
+    "query_type": "single",
+    "eval_focus": "precision"
+  },
+  {
+    "id": "tc05",
+    "query": "Which single card gives the highest cash back rate at U.S. supermarkets?",
+    "ideal_answer": "Blue Cash Preferred Card from American Express, at 6% cash back at U.S. supermarkets on up to $6,000/yr (then 1%) — the top supermarket rate in the catalog. It also earns 6% on select U.S. streaming and 3% on transit and U.S. gas, for a $95 fee (waived the first year). Amex Gold is the runner-up at 4x supermarkets.",
+    "source": ["amex-blue-cash-preferred"],
+    "query_type": "single",
+    "eval_focus": "precision"
+  },
+  {
+    "id": "tc06",
+    "query": "I fly United a lot and mostly care about a free checked bag and priority boarding. Which co-brand card?",
+    "ideal_answer": "United Explorer Card. It gives a free first checked bag for you and one companion, Group 2 priority boarding, and 2 United Club one-time passes per year. It earns 9x on United flights and has no foreign transaction fees. The $150 annual fee is waived the first year.",
+    "source": ["united-explorer"],
+    "query_type": "single",
+    "eval_focus": "precision"
+  },
+  {
+    "id": "tc07",
+    "query": "I stay at IHG hotels often. I want an annual free night and automatic elite status.",
+    "ideal_answer": "IHG One Rewards Premier Credit Card. It includes an anniversary free night (redemption cap 50,000 points), automatic IHG One Rewards Gold Elite status while you're a cardmember, and earns up to 24x points at IHG. The annual fee is $150.",
+    "source": ["ihg-premier"],
+    "query_type": "single",
+    "eval_focus": "precision"
+  },
+  {
+    "id": "tc08",
+    "query": "Money is no object — I want the premium travel card that advertises the largest airport-lounge network and the most annual credits.",
+    "ideal_answer": "The Platinum Card from American Express. Its Global Lounge Collection spans 1,550+ lounges (Centurion Lounges, 10 Delta Sky Club visits, Priority Pass), and it carries the catalog's largest stack of annual credits (over $3,500), including a $600 hotel credit, $200 airline fee credit, Uber Cash, and more. The annual fee is $895, with no welcome offer at this time.",
+    "source": ["amex-platinum"],
+    "query_type": "single",
+    "eval_focus": "precision"
+  },
+  {
+    "id": "tc09",
+    "query": "I want the cheapest card that earns unlimited 2x miles on literally every purchase.",
+    "ideal_answer": "Capital One Venture Rewards. It earns an unlimited 2x miles on every purchase for a $95 annual fee — the lowest-fee flat 2x card in the catalog. (Venture X also earns 2x everywhere but costs $395.)",
+    "source": ["capital-one-venture"],
+    "query_type": "single",
+    "eval_focus": "precision"
+  },
+  {
+    "id": "tc10",
+    "query": "I want a premium travel card with lounge access and transferable miles, but the lowest annual fee among the premium tier.",
+    "ideal_answer": "Capital One Venture X. At a $395 annual fee it's the lowest-cost premium card offering lounge access (Capital One Lounge/Landing plus 1,300+ Priority Pass) and miles transferable to 15+ loyalty programs — versus Sapphire Reserve and Sapphire Reserve for Business at $795 and Amex Platinum at $895. A $300 annual travel credit and 10,000-mile anniversary bonus help offset the fee.",
+    "source": ["capital-one-venture-x"],
+    "query_type": "single",
+    "eval_focus": "precision"
+  },
+  {
+    "id": "tc11",
+    "query": "I want a mid-tier travel card around a $95 fee with transferable points and solid travel/dining earn.",
+    "ideal_answer": "Chase Sapphire Preferred. For a $95 annual fee it earns 5x on Chase Travel, 3x on dining, and 2x on other travel, with points transferable 1:1 to airline and hotel partners, a $100 annual Chase Travel hotel credit, and no foreign transaction fees.",
+    "source": ["chase-sapphire-preferred"],
+    "query_type": "single",
+    "eval_focus": "precision"
+  },
+  {
+    "id": "tc12",
+    "query": "As a consumer, which travel card earns the most points when I book travel through the issuer's own portal?",
+    "ideal_answer": "Chase Sapphire Reserve, which earns 8x on Chase Travel (including The Edit) — the highest portal rate among personal cards. It also earns 4x on flights and hotels booked direct and 3x on dining, for a $795 annual fee. (The Sapphire Reserve for Business also earns 8x on Chase Travel but is a business card.)",
+    "source": ["chase-sapphire-reserve"],
+    "query_type": "single",
+    "eval_focus": "precision"
+  },
+  {
+    "id": "tc13",
+    "query": "I like chasing bonus categories that change throughout the year. Which no-fee card has rotating quarterly 5% categories?",
+    "ideal_answer": "Chase Freedom Flex. It earns 5% on rotating quarterly categories you activate, on up to $1,500 in combined purchases each quarter, plus standing 5% on Chase Travel and 3% on dining and drugstores. No annual fee and no foreign transaction fees.",
+    "source": ["chase-freedom-flex"],
+    "query_type": "single",
+    "eval_focus": "precision"
+  },
+  {
+    "id": "tc14",
+    "query": "I'd rather pick my own top bonus category each month instead of rotating ones. No annual fee. What fits?",
+    "ideal_answer": "Bank of America Customized Cash Rewards. You earn 3% in a choice category (gas/EV, online shopping, dining, travel, drug stores, or home improvement) that you can change once each calendar month, plus 2% at grocery stores and wholesale clubs — the 3% and 2% apply to the first $2,500 in combined purchases each quarter. New cardholders earn an elevated 6% in the choice category for the first year. No annual fee.",
+    "source": ["customized-cash-rewards"],
+    "query_type": "single",
+    "eval_focus": "precision"
+  },
+  {
+    "id": "tc15",
+    "query": "I travel abroad occasionally but refuse to pay an annual fee. I want a travel card with no foreign transaction fees.",
+    "ideal_answer": "Bank of America Travel Rewards. It has no annual fee and no foreign transaction fees, earns an unlimited 1.5 points per $1 everywhere, and lets you redeem points as a statement credit toward travel and dining. It's the only no-annual-fee travel-type card in the catalog.",
+    "source": ["travel-rewards"],
+    "query_type": "single",
+    "eval_focus": "precision"
+  },
+  {
+    "id": "tc16",
+    "query": "I want a travel card under $100/year that gives back annual travel statement credits and double points on travel and dining.",
+    "ideal_answer": "Bank of America Premium Rewards. For a $95 annual fee it earns 2x on travel and dining and 1.5x on everything else, and offers up to $200 in combined annual travel statement credits (up to $100 airline incidental + up to $100 TSA PreCheck/Global Entry every four years), with no foreign transaction fees.",
+    "source": ["premium-rewards"],
+    "query_type": "single",
+    "eval_focus": "precision"
+  },
+  {
+    "id": "tc17",
+    "query": "No-fee card that earns 3% on groceries, online shopping, and gas. Which one?",
+    "ideal_answer": "Blue Cash Everyday Card from American Express. It earns 3% at U.S. supermarkets, U.S. online retail, and U.S. gas stations (each on up to $6,000/yr, then 1%), with no annual fee and a 0% intro APR on purchases for 15 months.",
+    "source": ["amex-blue-cash-everyday"],
+    "query_type": "single",
+    "eval_focus": "precision"
+  },
+  {
+    "id": "tc18",
+    "query": "I run a small business with heavy office-supply and internet/phone spend. Which no-fee business card rewards that best?",
+    "ideal_answer": "Ink Business Cash Credit Card. It earns 5% cash back at office supply stores and on internet/cable/phone services (on the first $25,000 in combined purchases each anniversary year), plus 2% on gas and dining (first $25,000) and 1% elsewhere. No annual fee, with a 0% intro APR for 12 months.",
+    "source": ["ink-business-cash"],
+    "query_type": "single",
+    "eval_focus": "precision"
+  },
+  {
+    "id": "tc19",
+    "query": "Small business, I just want a flat cash-back rate on everything with no fee and don't want to think about categories.",
+    "ideal_answer": "Ink Business Unlimited Credit Card. It earns an unlimited 1.5% cash back on every business purchase, has no annual fee, and includes a 0% intro APR for 12 months on purchases.",
+    "source": ["ink-business-unlimited"],
+    "query_type": "single",
+    "eval_focus": "precision"
+  },
+  {
+    "id": "tc20",
+    "query": "Premium business travel card that rewards advertising spend and gives lounge access.",
+    "ideal_answer": "The Sapphire Reserve for Business Card. It earns 8x on Chase Travel, 4x on flights and hotels booked direct, and 3x on social media and search advertising (up to $1M/yr, from 11/15/26), with Chase Sapphire Lounge and Priority Pass access, a $300 annual travel credit, cell phone protection up to $1,000/claim, and no foreign transaction fees. The annual fee is $795.",
+    "source": ["sapphire-reserve-business"],
+    "query_type": "single",
+    "eval_focus": "precision"
+  },
+  {
+    "id": "tc21",
+    "query": "No annual fee, earns at least 1.5% on everything but also boosts travel, dining, and drugstores. Which personal card?",
+    "ideal_answer": "Chase Freedom Unlimited. It earns an unlimited 1.5% on all purchases plus 5% on travel through Chase Travel, 3% on dining and takeout, and 3% at drugstores. No annual fee, with a 0% intro APR for 15 months on purchases and balance transfers.",
+    "source": ["chase-freedom-unlimited"],
+    "query_type": "single",
+    "eval_focus": "precision"
+  },
+  {
+    "id": "tc22",
+    "query": "List every card with no annual fee.",
+    "ideal_answer": "The no-annual-fee cards are: Customized Cash Rewards, Unlimited Cash Rewards, Travel Rewards, and BankAmericard (Bank of America); Chase Freedom Unlimited, Chase Freedom Flex, Ink Business Unlimited, and Ink Business Cash (Chase); Blue Cash Everyday (Amex); and Capital One Platinum. That's 10 cards.",
+    "source": ["customized-cash-rewards", "unlimited-cash-rewards", "travel-rewards", "bankamericard", "chase-freedom-unlimited", "chase-freedom-flex", "ink-business-unlimited", "ink-business-cash", "amex-blue-cash-everyday", "capital-one-platinum"],
+    "query_type": "multi",
+    "eval_focus": "recall"
+  },
+  {
+    "id": "tc23",
+    "query": "Which cards are business cards?",
+    "ideal_answer": "Three business cards: Ink Business Unlimited (no-fee flat 1.5%), Ink Business Cash (5% office/telecom, 2% gas/dining), and The Sapphire Reserve for Business ($795 premium travel card with 8x Chase Travel and 3x advertising).",
+    "source": ["ink-business-unlimited", "ink-business-cash", "sapphire-reserve-business"],
+    "query_type": "multi",
+    "eval_focus": "recall"
+  },
+  {
+    "id": "tc24",
+    "query": "I travel internationally. Which cards charge no foreign transaction fees?",
+    "ideal_answer": "The cards with no foreign transaction fees are: Travel Rewards and Premium Rewards (Bank of America); Chase Sapphire Preferred, Chase Freedom Flex, Chase Sapphire Reserve, United Explorer, IHG One Rewards Premier, and The Sapphire Reserve for Business (Chase); Amex Gold and Amex Platinum; and Capital One Platinum, Venture X, and Venture. That's 13 cards.",
+    "source": ["travel-rewards", "premium-rewards", "chase-sapphire-preferred", "chase-freedom-flex", "chase-sapphire-reserve", "united-explorer", "ihg-premier", "sapphire-reserve-business", "amex-gold", "amex-platinum", "capital-one-platinum", "capital-one-venture-x", "capital-one-venture"],
+    "query_type": "multi",
+    "eval_focus": "recall"
+  },
+  {
+    "id": "tc25",
+    "query": "Which cards come with complimentary airport lounge membership?",
+    "ideal_answer": "Four cards include complimentary lounge access: Chase Sapphire Reserve (Chase Sapphire Lounges + Priority Pass), Amex Platinum (Global Lounge Collection), Capital One Venture X (Capital One Lounge/Landing + Priority Pass), and The Sapphire Reserve for Business (Chase Sapphire Lounges + Priority Pass). The United Explorer only provides 2 one-time United Club passes per year, not a membership.",
+    "source": ["chase-sapphire-reserve", "amex-platinum", "capital-one-venture-x", "sapphire-reserve-business"],
+    "query_type": "multi",
+    "eval_focus": "recall"
+  },
+  {
+    "id": "tc26",
+    "query": "Which cards offer a Global Entry or TSA PreCheck application fee credit?",
+    "ideal_answer": "Nine cards offer a Global Entry / TSA PreCheck credit: Premium Rewards, Chase Sapphire Preferred, Chase Sapphire Reserve, United Explorer, IHG One Rewards Premier, The Sapphire Reserve for Business, Amex Platinum, Capital One Venture X, and Capital One Venture.",
+    "source": ["premium-rewards", "chase-sapphire-preferred", "chase-sapphire-reserve", "united-explorer", "ihg-premier", "sapphire-reserve-business", "amex-platinum", "capital-one-venture-x", "capital-one-venture"],
+    "query_type": "multi",
+    "eval_focus": "recall"
+  },
+  {
+    "id": "tc27",
+    "query": "Which cards advertise a 0% intro APR specifically on purchases?",
+    "ideal_answer": "Six cards state a 0% intro APR on purchases: Chase Freedom Unlimited (15 months), Chase Freedom Flex (15 months), Ink Business Unlimited (12 months), Ink Business Cash (12 months), Blue Cash Everyday (15 months), and Blue Cash Preferred (12 months). The Bank of America cards list a 'low intro APR' rather than an explicit 0%.",
+    "source": ["chase-freedom-unlimited", "chase-freedom-flex", "ink-business-unlimited", "ink-business-cash", "amex-blue-cash-everyday", "amex-blue-cash-preferred"],
+    "query_type": "multi",
+    "eval_focus": "recall"
+  },
+  {
+    "id": "tc28",
+    "query": "Show me the premium cards with an annual fee of $300 or more.",
+    "ideal_answer": "Five cards have a $300+ annual fee: Amex Gold ($325), Capital One Venture X ($395), Chase Sapphire Reserve ($795), The Sapphire Reserve for Business ($795), and Amex Platinum ($895).",
+    "source": ["amex-gold", "capital-one-venture-x", "chase-sapphire-reserve", "sapphire-reserve-business", "amex-platinum"],
+    "query_type": "multi",
+    "eval_focus": "recall"
+  },
+  {
+    "id": "tc29",
+    "query": "Which cards earn elevated rewards at grocery stores / U.S. supermarkets?",
+    "ideal_answer": "Four cards earn boosted rewards at supermarkets/grocery stores: Blue Cash Preferred (6% U.S. supermarkets), Amex Gold (4x U.S. supermarkets), Blue Cash Everyday (3% U.S. supermarkets), and Customized Cash Rewards (2% at grocery stores and wholesale clubs). (Chase Sapphire Preferred earns 3x on online grocery only, not physical supermarkets.)",
+    "source": ["amex-blue-cash-preferred", "amex-gold", "amex-blue-cash-everyday", "customized-cash-rewards"],
+    "query_type": "multi",
+    "eval_focus": "recall"
+  },
+  {
+    "id": "tc30",
+    "query": "Which cards give bonus rewards on gas?",
+    "ideal_answer": "Five cards earn elevated rewards on gas: Blue Cash Everyday (3% U.S. gas), Blue Cash Preferred (3% U.S. gas), Chase Sapphire Preferred (3x gas and EV charging), Ink Business Cash (2% gas, on the first $25k combined/yr), and Customized Cash Rewards (3%, or 6% the first year, if you select the gas/EV choice category).",
+    "source": ["amex-blue-cash-everyday", "amex-blue-cash-preferred", "chase-sapphire-preferred", "ink-business-cash", "customized-cash-rewards"],
+    "query_type": "multi",
+    "eval_focus": "recall"
+  },
+  {
+    "id": "tc31",
+    "query": "Which cards let me transfer points or miles to airline and hotel partners?",
+    "ideal_answer": "Six cards offer 1:1 or direct transfers to travel loyalty partners: Chase Sapphire Preferred, Chase Sapphire Reserve, and The Sapphire Reserve for Business (1:1 transfers); Amex Platinum (1:1 to 20 partners); and Capital One Venture X and Venture (transfer to 15+ programs).",
+    "source": ["chase-sapphire-preferred", "chase-sapphire-reserve", "sapphire-reserve-business", "amex-platinum", "capital-one-venture-x", "capital-one-venture"],
+    "query_type": "multi",
+    "eval_focus": "recall"
+  },
+  {
+    "id": "tc32",
+    "query": "Which cards have rotating or customizable bonus categories?",
+    "ideal_answer": "Two cards: Chase Freedom Flex (5% on rotating quarterly categories you activate, up to $1,500/quarter) and Customized Cash Rewards (3%/6% in a choice category you can change once each calendar month). Freedom Flex rotates automatically each quarter; Customized Cash Rewards lets you pick.",
+    "source": ["chase-freedom-flex", "customized-cash-rewards"],
+    "query_type": "multi",
+    "eval_focus": "recall"
+  },
+  {
+    "id": "tc33",
+    "query": "Which cards include cell phone protection?",
+    "ideal_answer": "Three cards list cell phone protection: The Sapphire Reserve for Business (up to $1,000/claim), Amex Platinum (up to $800/claim), and Capital One Venture X (up to $800).",
+    "source": ["sapphire-reserve-business", "amex-platinum", "capital-one-venture-x"],
+    "query_type": "multi",
+    "eval_focus": "recall"
+  },
+  {
+    "id": "tc34",
+    "query": "I'm backpacking abroad for a few months on a tight budget. I want a card with no annual fee and no foreign transaction fees that still earns something.",
+    "ideal_answer": "Bank of America Travel Rewards is the best fit: no annual fee, no foreign transaction fees, and an unlimited 1.5 points per $1 everywhere, redeemable toward travel and dining. It's the only card that is both no-fee and no-FTF while still earning a travel reward.",
+    "source": ["travel-rewards"],
+    "query_type": "scenario",
+    "eval_focus": "both"
+  },
+  {
+    "id": "tc35",
+    "query": "We're a family that spends heavily on groceries, gas, and streaming subscriptions. What's the best rewards card for us?",
+    "ideal_answer": "Blue Cash Preferred Card from American Express. It earns 6% at U.S. supermarkets (up to $6,000/yr), 6% on select U.S. streaming subscriptions, and 3% on transit and at U.S. gas stations — directly matching grocery, gas, and streaming spend. The $95 fee is waived the first year. If you'd rather avoid any fee, Blue Cash Everyday earns 3% on supermarkets, online retail, and gas.",
+    "source": ["amex-blue-cash-preferred"],
+    "query_type": "scenario",
+    "eval_focus": "both"
+  },
+  {
+    "id": "tc36",
+    "query": "I own a small business and just want simple cash back with no annual fee — nothing complicated.",
+    "ideal_answer": "Ink Business Unlimited Credit Card: unlimited 1.5% cash back on every business purchase, no annual fee, and a 0% intro APR for 12 months. If your spend is concentrated in office supplies and internet/phone, Ink Business Cash (also no-fee) would earn more via its 5% categories.",
+    "source": ["ink-business-unlimited"],
+    "query_type": "scenario",
+    "eval_focus": "both"
+  },
+  {
+    "id": "tc37",
+    "query": "I want some travel perks but I really don't want to pay an annual fee. What are my options?",
+    "ideal_answer": "Bank of America Travel Rewards is the dedicated no-fee travel card: 1.5x everywhere, redeemable toward travel and dining, with no foreign transaction fees. If you book travel through Chase, Chase Freedom Unlimited and Chase Freedom Flex (both no-fee) earn 5% on Chase Travel as a travel-oriented alternative.",
+    "source": ["travel-rewards", "chase-freedom-unlimited", "chase-freedom-flex"],
+    "query_type": "scenario",
+    "eval_focus": "both"
+  },
+  {
+    "id": "tc38",
+    "query": "I want a premium card with transferable points and lounge access but I think $795+ is too much. Is there a middle option?",
+    "ideal_answer": "Capital One Venture X at $395 is the middle option. It offers lounge access (Capital One Lounge/Landing plus 1,300+ Priority Pass), miles transferable to 15+ programs, a $300 annual travel credit, and a 10,000-mile anniversary bonus — the lowest-fee card that combines lounges and transfers, versus Sapphire Reserve ($795) and Amex Platinum ($895).",
+    "source": ["capital-one-venture-x"],
+    "query_type": "scenario",
+    "eval_focus": "both"
+  },
+  {
+    "id": "tc39",
+    "query": "I want the biggest flexible points welcome bonus on a personal card to kickstart a trip, and I can meet a high spend requirement.",
+    "ideal_answer": "Chase Sapphire Reserve offers the largest flexible-points welcome bonus among personal cards: 100,000 bonus points after $6,000 in purchases in the first 3 months, redeemable broadly and transferable to partners. Note that IHG Premier offers a larger 180,000-point bonus, but those points are IHG-specific; the 200,000-point offer on The Sapphire Reserve for Business is a business card requiring $30,000 in spend.",
+    "source": ["chase-sapphire-reserve"],
+    "query_type": "scenario",
+    "eval_focus": "both"
+  },
+  {
+    "id": "tc40",
+    "query": "I want a card where I never have to pay interest — 0% APR permanently, forever.",
+    "ideal_answer": "No card in the catalog offers a permanent 0% APR; all intro offers eventually convert to a variable APR. The closest is BankAmericard, with a low intro APR for the first 21 billing cycles (the longest intro period here) and no penalty APR, after which a variable APR applies.",
+    "source": [],
+    "query_type": "abstention",
+    "eval_focus": "precision"
+  },
+  {
+    "id": "tc41",
+    "query": "Is there a no-annual-fee card that has both transferable travel points and airport lounge access?",
+    "ideal_answer": "No card in the catalog combines all three: no annual fee, transferable points, and lounge access. Every card offering point transfers or lounge access carries an annual fee, and the no-fee travel card (Travel Rewards) has neither transfer partners nor lounge access.",
+    "source": [],
+    "query_type": "abstention",
+    "eval_focus": "precision"
+  },
+  {
+    "id": "tc42",
+    "query": "Which card earns crypto or Bitcoin rewards?",
+    "ideal_answer": "No card in the catalog earns crypto or Bitcoin rewards. The cards earn cash back, points, or miles only.",
+    "source": [],
+    "query_type": "abstention",
+    "eval_focus": "precision"
+  }
+]

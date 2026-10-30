@@ -1,0 +1,66 @@
+[
+  {
+    "id": "fc01",
+    "query": "Which no-annual-fee card gives a flat cash back rate on everything with no categories to track?",
+    "ideal_context": [
+      "Unlimited Cash Rewards (Bank of America). type: cashback. annual fee: $0. Earns an unlimited 1.5% cash back on all purchases with no bonus categories to manage. Rewards never expire while the account is open.",
+      "Chase Freedom Unlimited (Chase). type: cashback. annual fee: $0. Earns 1.5% on all other purchases, plus 5% on travel through Chase Travel, 3% on dining, and 3% at drugstores — so it is not a pure flat-rate card."
+    ]
+  },
+  {
+    "id": "fc02",
+    "query": "If I just want to pay down a balance cheaply, which card has the longest intro APR and no penalty APR?",
+    "ideal_context": [
+      "BankAmericard (Bank of America). type: balance transfer. annual fee: $0. Low intro APR for the first 21 billing cycles on purchases and qualifying balance transfers. No penalty APR — paying late won't automatically raise your APR. Earns no rewards.",
+      "Chase Freedom Unlimited (Chase). type: cashback. annual fee: $0. 0% intro APR for 15 months on purchases and balance transfers, then a variable APR."
+    ]
+  },
+  {
+    "id": "fc03",
+    "query": "I have fair credit and I'm worried about approval. What no-fee card helps build credit?",
+    "ideal_context": [
+      "Capital One Platinum Credit Card. type: credit building. annual fee: $0. credit needed: fair (no credit score required to apply). No foreign transaction fees. Automatic credit line review in as little as 6 months. Earns no rewards.",
+      "Travel Rewards (Bank of America). type: travel. annual fee: $0. credit needed: good to excellent."
+    ]
+  },
+  {
+    "id": "fc04",
+    "query": "What's a good mid-tier travel card with a $95 annual fee and strong dining and travel points?",
+    "ideal_context": [
+      "Chase Sapphire Preferred (Chase). type: travel. annual fee: $95. Rewards: 5x on Chase Travel, 3x on dining, 2x on all other travel. No foreign transaction fee. Intro offer: 75,000 bonus points after $5,000 in purchases in the first 3 months. $100 Chase Travel hotel credit each anniversary year.",
+      "Premium Rewards (Bank of America). type: travel. annual fee: $95. Rewards: 2x travel and dining, 1.5x everything else. Up to $200 in combined annual travel statement credits. No foreign transaction fees."
+    ]
+  },
+  {
+    "id": "fc05",
+    "query": "Which card earns the most at U.S. supermarkets and on streaming?",
+    "ideal_context": [
+      "Blue Cash Preferred Card (American Express). type: cashback. annual fee: $95. Rewards: 6% cash back at U.S. supermarkets (up to $6,000/yr, then 1%), 6% on select U.S. streaming subscriptions, 3% on transit, 3% at U.S. gas stations.",
+      "American Express Gold Card. type: dining. annual fee: $325. Rewards: 4x at restaurants worldwide, 4x at U.S. supermarkets (up to $25k/yr, then 1x)."
+    ]
+  },
+  {
+    "id": "fc06",
+    "query": "I eat out constantly. Which card is built around restaurants?",
+    "ideal_context": [
+      "American Express Gold Card. type: dining. annual fee: $325. Rewards: 4x at restaurants worldwide (up to $50k/yr, then 1x), 4x at U.S. supermarkets, 3x on flights. $120 annual dining credit. No foreign transaction fee.",
+      "Chase Sapphire Preferred (Chase). type: travel. annual fee: $95. Rewards: 3x on dining, 5x on Chase Travel."
+    ]
+  },
+  {
+    "id": "fc07",
+    "query": "I'm a frequent flyer who wants premium lounge access and don't mind a high fee. What fits?",
+    "ideal_context": [
+      "The Platinum Card (American Express). type: travel. annual fee: $895. Global Lounge Collection: 1,550+ lounges including Centurion Lounges and Priority Pass. Rewards: 5x on flights booked directly or via Amex Travel. $200 annual airline fee credit. $600 annual hotel credit.",
+      "Capital One Venture X. type: travel. annual fee: $395. credit needed: excellent. Capital One Lounge access plus Priority Pass. $300 annual Capital One Travel credit. 10,000-mile anniversary bonus. Rewards: 10x hotels and rental cars via Capital One Travel, 2x on everything else."
+    ]
+  },
+  {
+    "id": "fc08",
+    "query": "What's a simple travel card with a mid fee that earns 2x on everything and a good travel credit?",
+    "ideal_context": [
+      "Capital One Venture X. type: travel. annual fee: $395. Rewards: 2x on all purchases, 10x hotels/rental cars via Capital One Travel. $300 annual Capital One Travel credit. 10,000-mile anniversary bonus.",
+      "Premium Rewards (Bank of America). type: travel. annual fee: $95. Rewards: 2x travel and dining, 1.5x on all other purchases. Up to $200 in combined annual travel statement credits."
+    ]
+  }
+]

@@ -1,0 +1,52 @@
+[
+  {
+    "id": "cg01",
+    "question": "What flat cash back rate does the Bank of America Unlimited Cash Rewards card earn, and does it have an annual fee?",
+    "ideal_answer": "It earns an unlimited 1.5% cash back on every purchase with no bonus categories to track, and it has no annual fee."
+  },
+  {
+    "id": "cg02",
+    "question": "How long is the intro APR on the BankAmericard, and does a late payment raise your rate?",
+    "ideal_answer": "The BankAmericard has a low intro APR for the first 21 billing cycles on purchases and qualifying balance transfers, and it has no penalty APR, so a late payment won't automatically raise your rate. It earns no rewards and has no annual fee."
+  },
+  {
+    "id": "cg03",
+    "question": "Is the Capital One Platinum card a good fit for someone with fair credit, and does it charge an annual fee or foreign transaction fees?",
+    "ideal_answer": "Yes. The Capital One Platinum Credit Card is built for fair or limited credit and requires no credit score to apply. It has no annual fee and no foreign transaction fees, though it earns no rewards."
+  },
+  {
+    "id": "cg04",
+    "question": "What is the annual fee on the Chase Sapphire Preferred and what are its main earning categories?",
+    "ideal_answer": "The Chase Sapphire Preferred has a $95 annual fee. It earns 5x on travel booked through Chase Travel, 3x on dining, and 2x on all other travel, and it has no foreign transaction fee."
+  },
+  {
+    "id": "cg05",
+    "question": "How much does the Amex Gold card earn at restaurants and U.S. supermarkets, and what's its annual fee?",
+    "ideal_answer": "The American Express Gold Card earns 4x at restaurants worldwide and 4x at U.S. supermarkets (on up to $25,000 per year, then 1x). Its annual fee is $325."
+  },
+  {
+    "id": "cg06",
+    "question": "What does the Blue Cash Preferred earn at U.S. supermarkets, and is there a cap?",
+    "ideal_answer": "The Blue Cash Preferred Card earns 6% cash back at U.S. supermarkets on up to $6,000 per year, then 1% after that. It also earns 6% on select U.S. streaming subscriptions and has a $95 annual fee."
+  },
+  {
+    "id": "cg07",
+    "question": "What lounge access and annual fee does the Amex Platinum have?",
+    "ideal_answer": "The Platinum Card from American Express gives access to the Global Lounge Collection, including Centurion Lounges and Priority Pass, and has an $895 annual fee."
+  },
+  {
+    "id": "cg08",
+    "question": "What rewards rate does the Capital One Venture X earn on everyday purchases, and what travel credit does it include?",
+    "ideal_answer": "The Capital One Venture X earns 2x miles on all purchases (and more through Capital One Travel), and it includes a $300 annual Capital One Travel credit plus a 10,000-mile anniversary bonus. Its annual fee is $395."
+  },
+  {
+    "id": "cg09",
+    "question": "Does the Chase Freedom Unlimited have an intro APR offer and what is its base cash back rate?",
+    "ideal_answer": "Yes. The Chase Freedom Unlimited has a 0% intro APR for 15 months on purchases and balance transfers, then a variable APR. It earns 1.5% on all purchases as its base rate, plus 5% on Chase Travel, 3% on dining, and 3% at drugstores. It has no annual fee."
+  },
+  {
+    "id": "cg10",
+    "question": "Between the Chase Sapphire Preferred and the Amex Platinum, which has the lower annual fee?",
+    "ideal_answer": "The Chase Sapphire Preferred has the lower annual fee at $95, compared with the Amex Platinum's $895 annual fee."
+  }
+]

@@ -12,7 +12,9 @@ from src.api.auth import router as auth_router
 from src.api.profile import router as profile_router
 
 # from src.api.profiling import router as profiling_router
+from src.api.advisor import router as advisor_router
 from src.api.cards import router as cards_router
+from src.api.optimizer import router as optimizer_router
 from src.api.recommendations import router as recommendations_router
 
 # Enable LangSmith tracing (no-op unless LANGSMITH_TRACING=true) before any
@@ -53,7 +55,9 @@ app.include_router(auth_router)
 app.include_router(profile_router)
 # app.include_router(profiling_router)
 app.include_router(cards_router)
+app.include_router(optimizer_router)
 app.include_router(recommendations_router)
+app.include_router(advisor_router)
 
 
 @app.get("/health")

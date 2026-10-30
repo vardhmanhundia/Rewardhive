@@ -55,6 +55,45 @@ export interface UserMemory {
   created_at: string;
 }
 
+/** Wallet-optimizer types — mirror the backend engine's result shapes. */
+export interface CategoryBreakdown {
+  category: string;
+  label: string;
+  spend: number;
+  card_id: string | null;
+  card_name: string | null;
+  rate: string;
+  earned: number;
+  effective_pct: number;
+}
+
+export interface WalletResult {
+  net_annual_value: number;
+  total_rewards: number;
+  total_fees: number;
+  effective_return_pct: number;
+  breakdown: CategoryBreakdown[];
+}
+
+export interface ScenarioComparison {
+  keep: WalletResult;
+  reallocate: WalletResult;
+  add: WalletResult;
+  candidate_id: string;
+  candidate_name: string;
+  candidate_fee: number;
+  gain_from_reallocating: number;
+  gain_from_adding: number;
+  worth_it: boolean;
+  verdict: string;
+}
+
+/** A card the user holds, with the category they currently use it for. */
+export interface OwnedCardInput {
+  card_id: string;
+  category?: string;
+}
+
 /** What the RAG endpoint returns: Muse prose, the cards it drew on, the memories
  *  captured this turn, and three follow-up suggestions. */
 export interface RecommendationResult {
@@ -129,6 +168,85 @@ class CardService {
       content: m.content,
       cards: m.cards ?? [],
     })) as RecMessage[];
+  }
+
+  /** Optimize a wallet for a spend profile (annual $ per category). Hits the
+   *  backend engine directly — the optimizer is never mocked. */
+  async optimizeWallet(
+    spend: Record<string, number>,
+    cardIds: string[],
+  ): Promise<WalletResult> {
+    const res = await fetch(`${API_URL}/optimizer/wallet`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      body: JSON.stringify({ spend, card_ids: cardIds }),
+    });
+    if (!res.ok) throw new Error('Could not optimize wallet');
+    return res.json();
+  }
+
+  /** "Should I get this card?" — keep vs. reallocate vs. add, with a verdict. */
+  async evaluateCard(
+    spend: Record<string, number>,
+    owned: OwnedCardInput[],
+    candidateId: string,
+  ): Promise<ScenarioComparison> {
+    const res = await fetch(`${API_URL}/optimizer/evaluate-card`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      body: JSON.stringify({ spend, owned, candidate_id: candidateId }),
+    });
+    if (!res.ok) throw new Error('Could not evaluate card');
+    return res.json();
+  }
+
+  /**
+   * Stream the advisor agent: it interprets a what-if question, re-runs the
+   * optimizer on the adjusted spend, and streams a grounded explanation.
+   * Consumes the same named-SSE format as the recommend stream.
+   */
+  async advisorStream(
+    body: {
+      question: string;
+      spend: Record<string, number>;
+      owned: OwnedCardInput[];
+      candidate_id?: string;
+    },
+    handlers: {
+      onPlan?: (note: string, spend: Record<string, number>) => void;
+      onResult?: (mode: string, result: ScenarioComparison | WalletResult) => void;
+      onToken?: (text: string) => void;
+      signal?: AbortSignal;
+    } = {},
+  ): Promise<void> {
+    const res = await fetch(`${API_URL}/advisor/stream`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      body: JSON.stringify(body),
+      signal: handlers.signal,
+    });
+    if (!res.ok || !res.body) throw new Error('Advisor request failed');
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const frames = buffer.split('\n\n');
+      buffer = frames.pop() ?? '';
+      for (const frame of frames) {
+        const event = /event:\s*(.*)/.exec(frame)?.[1]?.trim();
+        const dataLine = /data:\s*([\s\S]*)/.exec(frame)?.[1];
+        if (!event || !dataLine) continue;
+        const payload = JSON.parse(dataLine);
+        if (event === 'plan') handlers.onPlan?.(payload.note, payload.spend);
+        else if (event === 'result') handlers.onResult?.(payload.mode, payload.result);
+        else if (event === 'token') handlers.onToken?.(payload.text);
+        else if (event === 'error') throw new Error(payload.detail ?? 'Advisor error');
+      }
+    }
   }
 
   /**

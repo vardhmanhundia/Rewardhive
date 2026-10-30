@@ -10,6 +10,7 @@ import {OnboardingPage} from "./pages/OnboardingPage";
 import {CardsPage} from "./pages/CardsPage";
 import {CardDetailPage} from "./pages/CardDetailPage";
 import {RecommendPage} from "./pages/RecommendPage";
+import {EvaluatePage} from "./pages/EvaluatePage";
 
 function App() {
   return (
@@ -34,6 +35,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <RecommendPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/evaluate"
+            element={
+              <ProtectedRoute>
+                <EvaluatePage />
               </ProtectedRoute>
             }
           />

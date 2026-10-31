@@ -173,8 +173,11 @@ class UserProfile(Base):
 
     occupation: Mapped[str | None] = mapped_column(String(200), nullable=True)
     company: Mapped[str | None] = mapped_column(String(200), nullable=True)
-    relationship_status: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    date_of_birth: Mapped[str | None] = mapped_column(String(10), nullable=True)
+    gender: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    relationship_status: Mapped[str | None] = mapped_column(String(30), nullable=True)
     family_size: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    city: Mapped[str | None] = mapped_column(String(200), nullable=True)
     location_state: Mapped[str | None] = mapped_column(String(100), nullable=True)
     location_country: Mapped[str | None] = mapped_column(String(100), nullable=True)
     household: Mapped[str | None] = mapped_column(String(20), nullable=True)
@@ -186,6 +189,8 @@ class UserProfile(Base):
 
     # Ordered airline preference (most preferred first): ["Delta", "United", ...]
     airline_ranking: Mapped[list[str]] = mapped_column(JSONList, default=list, nullable=False)
+    # Ordered hotel preference (most preferred first): ["Marriott", "Hilton", ...]
+    hotel_ranking: Mapped[list[str]] = mapped_column(JSONList, default=list, nullable=False)
     # Ordered shopping preferences (most preferred first): ["Amazon", "Costco", ...]
     online_shopping_ranking: Mapped[list[str]] = mapped_column(
         JSONList, default=list, nullable=False

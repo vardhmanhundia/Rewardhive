@@ -9,8 +9,21 @@ export interface Option {
 
 export const RELATIONSHIP_OPTIONS: Option[] = [
   { value: 'single', label: 'Single' },
-  { value: 'partner', label: 'Partner' },
-  { value: 'family', label: 'Family' },
+  { value: 'relationship', label: 'In a relationship' },
+  { value: 'living_together', label: 'Living together' },
+  { value: 'engaged', label: 'Engaged' },
+  { value: 'married', label: 'Married' },
+  { value: 'married_with_kids', label: 'Married with kids' },
+  { value: 'divorced', label: 'Divorced' },
+  { value: 'widowed', label: 'Widowed' },
+  { value: 'other', label: 'Other' },
+];
+
+export const GENDER_OPTIONS: Option[] = [
+  { value: 'male', label: 'Male' },
+  { value: 'female', label: 'Female' },
+  { value: 'non_binary', label: 'Non-binary' },
+  { value: 'prefer_not_to_say', label: 'Prefer not to say' },
 ];
 
 export const HOUSEHOLD_OPTIONS: Option[] = [
@@ -80,6 +93,20 @@ export const AIRLINES: string[] = [
   'Frontier',
   'Spirit',
   'Hawaiian Airlines',
+];
+
+/** Hotels offered for ranking (ordered preference). */
+export const HOTELS: string[] = [
+  'Marriott',
+  'Hilton',
+  'Hyatt',
+  'IHG',
+  'Wyndham',
+  'Best Western',
+  'Choice Hotels',
+  'Accor',
+  'Radisson',
+  'Four Seasons',
 ];
 
 /**

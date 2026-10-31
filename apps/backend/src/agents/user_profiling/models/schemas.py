@@ -33,8 +33,11 @@ class ProfileExtraction(BaseModel):
 
     occupation: Optional[str] = None
     company: Optional[str] = None
+    date_of_birth: Optional[str] = None
+    gender: Optional[str] = None
     relationship_status: Optional[RelationshipStatus] = None
     family_size: Optional[int] = None
+    city: Optional[str] = None
     location_state: Optional[str] = None
     location_country: Optional[str] = None
     household: Optional[Household] = None
@@ -43,6 +46,7 @@ class ProfileExtraction(BaseModel):
     us_status: Optional[USStatus] = None
     us_status_detail: Optional[str] = None
     airline_ranking: list[str] = Field(default_factory=list)
+    hotel_ranking: list[str] = Field(default_factory=list)
     online_shopping_ranking: list[str] = Field(default_factory=list)
     offline_shopping_ranking: list[str] = Field(default_factory=list)
     cards: list[SavedCard] = Field(default_factory=list)

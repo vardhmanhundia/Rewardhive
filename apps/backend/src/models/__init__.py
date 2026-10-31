@@ -7,7 +7,10 @@ from uuid import UUID
 
 # Enum-style option sets. Kept here so the API documents the allowed values in
 # OpenAPI; "other" lets the UI offer a free-text fallback where listed.
-RelationshipStatus = Literal["single", "partner", "family"]
+RelationshipStatus = Literal[
+    "single", "relationship", "living_together", "engaged",
+    "married", "married_with_kids", "divorced", "widowed", "other",
+]
 Household = Literal["owning", "renting", "mortgaging"]
 CarStatus = Literal["financed", "owned", "rental"]
 TravelPreference = Literal["economy", "leisure", "savings"]
@@ -219,8 +222,11 @@ class UserProfileDetails(BaseModel):
 
     occupation: Optional[str] = None
     company: Optional[str] = None
+    date_of_birth: Optional[str] = None
+    gender: Optional[str] = None
     relationship_status: Optional[RelationshipStatus] = None
     family_size: Optional[int] = None
+    city: Optional[str] = None
     location_state: Optional[str] = None
     location_country: Optional[str] = None
     household: Optional[Household] = None
@@ -230,6 +236,8 @@ class UserProfileDetails(BaseModel):
     us_status_detail: Optional[str] = None
     # Ordered airline preference, most preferred first.
     airline_ranking: list[str] = Field(default_factory=list)
+    # Ordered hotel preference, most preferred first.
+    hotel_ranking: list[str] = Field(default_factory=list)
     # Ordered shopping preferences, most preferred first.
     online_shopping_ranking: list[str] = Field(default_factory=list)
     offline_shopping_ranking: list[str] = Field(default_factory=list)
@@ -247,8 +255,11 @@ class UserProfileUpdate(BaseModel):
 
     occupation: Optional[str] = Field(None, max_length=200)
     company: Optional[str] = Field(None, max_length=200)
+    date_of_birth: Optional[str] = Field(None, max_length=10)
+    gender: Optional[str] = Field(None, max_length=50)
     relationship_status: Optional[RelationshipStatus] = None
     family_size: Optional[int] = Field(None, ge=0, le=50)
+    city: Optional[str] = Field(None, max_length=200)
     location_state: Optional[str] = Field(None, max_length=100)
     location_country: Optional[str] = Field(None, max_length=100)
     household: Optional[Household] = None
@@ -257,6 +268,7 @@ class UserProfileUpdate(BaseModel):
     us_status: Optional[USStatus] = None
     us_status_detail: Optional[str] = Field(None, max_length=100)
     airline_ranking: Optional[list[str]] = None
+    hotel_ranking: Optional[list[str]] = None
     online_shopping_ranking: Optional[list[str]] = None
     offline_shopping_ranking: Optional[list[str]] = None
     cards: Optional[list[SavedCard]] = None

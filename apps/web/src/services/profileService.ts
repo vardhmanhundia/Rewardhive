@@ -25,8 +25,11 @@ export interface SavedLoan {
 export interface ProfileDetails {
   occupation: string | null;
   company: string | null;
+  date_of_birth: string | null;
+  gender: string | null;
   relationship_status: string | null;
   family_size: number | null;
+  city: string | null;
   location_state: string | null;
   location_country: string | null;
   household: string | null;
@@ -35,6 +38,7 @@ export interface ProfileDetails {
   us_status: string | null;
   us_status_detail: string | null;
   airline_ranking: string[];
+  hotel_ranking: string[];
   online_shopping_ranking: string[];
   offline_shopping_ranking: string[];
   cards: SavedCard[];

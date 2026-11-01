@@ -148,6 +148,19 @@ class ChatHistoryResponse(BaseModel):
     messages: list[ChatHistoryMessage]
 
 
+class ConversationSummary(BaseModel):
+    """One recommend-chat conversation for the 'pick up where you left off' tabs."""
+
+    id: UUID
+    title: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
+
+
+class ConversationListResponse(BaseModel):
+    conversations: list[ConversationSummary]
+
+
 class ProfileSummaryResponse(BaseModel):
     """What the assistant has learned about a user — the long-term profile
     memories surfaced on the home/summary page."""
@@ -161,6 +174,9 @@ class RecommendationRequest(BaseModel):
 
     query: str = Field(..., min_length=1)
     history: list[ProfilingTurnMessage] = Field(default_factory=list)
+    # The conversation (session) this turn belongs to. Omitted for a fresh
+    # session — the server creates a conversation and returns its id.
+    conversation_id: Optional[UUID] = None
 
 
 class ProfileConflictInfo(BaseModel):
@@ -334,3 +350,39 @@ class AdvisorRequest(BaseModel):
     spend: dict[str, float] = Field(default_factory=dict)
     owned: list[OwnedCardInput] = Field(default_factory=list)
     candidate_id: Optional[str] = None
+
+
+# --- Which card should I use? ------------------------------------------------
+# The rewards advisor: "which of my cards earns most on this purchase?"
+
+
+class BestCardRequest(BaseModel):
+    """A which-card question. `card_ids` scopes the candidates (e.g. the two cards
+    the user named to compare); when empty, the server uses the user's saved cards.
+    `monthly_amount` is optional and only adds a $/yr estimate to the answer."""
+
+    question: str = Field(..., min_length=1)
+    card_ids: list[str] = Field(default_factory=list)
+    monthly_amount: Optional[float] = Field(None, ge=0)
+
+
+class CardRewardPickSchema(BaseModel):
+    """One card's best earn on the purchase (mirrors the engine's CardRewardPick)."""
+
+    card_id: str
+    card_name: str
+    issuer: str
+    reward_label: str
+    rate: str
+    effective_pct: float
+    est_annual_value: Optional[float] = None
+    specific: bool
+
+
+class RewardResultSchema(BaseModel):
+    """The resolved purchase plus the ranked cards, best first."""
+
+    category: Optional[str] = None
+    merchant: Optional[str] = None
+    note: str = ""
+    picks: list[CardRewardPickSchema] = Field(default_factory=list)

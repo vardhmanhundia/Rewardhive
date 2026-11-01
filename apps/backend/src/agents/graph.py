@@ -60,6 +60,7 @@ async def run_recommendation(
     user_id: UUID,
     query: str,
     history: list[dict[str, str]] | None = None,
+    conversation_id: UUID | None = None,
 ) -> tuple[str, list[CardProduct], list[str], list[str], list[dict[str, Any]]]:
     """Non-streaming turn.
 
@@ -67,9 +68,16 @@ async def run_recommendation(
     profiling subgraph commits stored profile updates itself; the caller may
     commit again harmlessly. ``conflicts`` is a marker of unconfirmed
     single-value differences for the frontend to surface on the profile page.
+    ``conversation_id`` keys where the turn is persisted (when given).
     """
     state: AgentState = {"query": query, "history": history or []}
-    config: RunnableConfig = {"configurable": {"session": session, "user_id": user_id}}
+    config: RunnableConfig = {
+        "configurable": {
+            "session": session,
+            "user_id": user_id,
+            "conversation_id": conversation_id,
+        }
+    }
     final = cast(AgentState, await compiled_graph.ainvoke(state, config))
     return (
         final.get("answer", ""),
@@ -86,6 +94,7 @@ async def stream_recommendation(
     user_id: UUID,
     query: str,
     history: list[dict[str, str]] | None = None,
+    conversation_id: UUID | None = None,
 ) -> AsyncIterator[dict[str, Any]]:
     """Stream a turn as event dicts the transport renders as SSE.
 
@@ -105,7 +114,13 @@ async def stream_recommendation(
     ``subgraphs=True`` is required for those nested events to surface here.
     """
     state: AgentState = {"query": query, "history": history or []}
-    config: RunnableConfig = {"configurable": {"session": session, "user_id": user_id}}
+    config: RunnableConfig = {
+        "configurable": {
+            "session": session,
+            "user_id": user_id,
+            "conversation_id": conversation_id,
+        }
+    }
     try:
         async for _namespace, event in compiled_graph.astream(
             state, config, stream_mode="custom", subgraphs=True

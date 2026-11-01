@@ -11,6 +11,7 @@ import {CardsPage} from "./pages/CardsPage";
 import {CardDetailPage} from "./pages/CardDetailPage";
 import {RecommendPage} from "./pages/RecommendPage";
 import {EvaluatePage} from "./pages/EvaluatePage";
+import {WhichCardPage} from "./pages/WhichCardPage";
 
 function App() {
   return (
@@ -43,6 +44,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <EvaluatePage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/which-card"
+            element={
+              <ProtectedRoute>
+                <WhichCardPage />
               </ProtectedRoute>
             }
           />

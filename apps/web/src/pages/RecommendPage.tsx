@@ -7,12 +7,13 @@
  * fakes the stream locally so the flow is demoable offline.
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useLocation } from 'react-router-dom';
-import { Sparkles, Send, Search, FileText } from 'lucide-react';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
+import { Plus, Sparkles, Send, Search, FileText } from 'lucide-react';
 import { Navbar } from '@/components/Navbar';
 import { CardTile } from '@/components/CardTile';
 import cardService, {
   type CardProduct,
+  type RecMessage,
   type RecStage,
 } from '@/services/cardService';
 
@@ -36,60 +37,60 @@ const EXAMPLES = [
   'Lots of dining rewards, fee is fine',
 ];
 
+/** Rebuild chat turns from a persisted transcript (pairs each user message with
+ *  the assistant reply that follows, carrying the cards recommended then). */
+function restoreTurns(msgs: RecMessage[]): ChatTurn[] {
+  const turns: ChatTurn[] = [];
+  for (let i = 0; i < msgs.length; i++) {
+    if (msgs[i].role !== 'user') continue;
+    const next = msgs[i + 1];
+    const isReply = next?.role === 'assistant';
+    const answer = isReply ? next.content : '';
+    const cards = isReply ? next.cards ?? [] : [];
+    turns.push({
+      id: crypto.randomUUID(),
+      query: msgs[i].content,
+      stage: 'done',
+      answer,
+      cards,
+      found: cards.length,
+      memories: [],
+      suggestions: [],
+    });
+    if (answer) i++;
+  }
+  return turns;
+}
+
 export const RecommendPage = () => {
   const location = useLocation();
-  // A query handed over from the home page ("quick ask" / a recent question):
-  // it starts a focused session rather than restoring the prior conversation.
-  const initialQuery =
-    (location.state as { initialQuery?: string } | null)?.initialQuery ?? null;
+  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  // The conversation (session) this chat reads/writes, from the URL (?c=<id>).
+  // Absent = a fresh session; the server assigns an id on the first turn.
+  const urlConversationId = searchParams.get('c');
+
+  // A query handed over from My Space's quick-ask via router state. Asked once in
+  // a fresh session. React Router keeps location.state across a refresh, so we
+  // clear it after consuming so a refresh doesn't replay it.
+  const handoffQuery = useRef<string | null>(
+    (location.state as { initialQuery?: string } | null)?.initialQuery ?? null,
+  );
 
   const [turns, setTurns] = useState<ChatTurn[]>([]);
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const didInit = useRef(false);
+  // The conversation currently being written to (URL id, or the one the server
+  // assigns for a fresh session). `syncedConv` marks ids this component itself
+  // put in the URL, so that URL change doesn't reload and clobber the live turns.
+  const convId = useRef<string | null>(urlConversationId);
+  const syncedConv = useRef<string | null>(null);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [turns]);
-
-  // Restore the persisted conversation on load. Assistant turns carry the cards
-  // that were recommended, so restored turns render the same text + cards layout
-  // they did live. Memories/suggestions aren't persisted.
-  useEffect(() => {
-    // When arriving with a query from the home page, skip restore and ask it.
-    if (initialQuery) return;
-    let cancelled = false;
-    cardService
-      .getHistory()
-      .then((msgs) => {
-        if (cancelled || msgs.length === 0) return;
-        const restored: ChatTurn[] = [];
-        for (let i = 0; i < msgs.length; i++) {
-          if (msgs[i].role !== 'user') continue;
-          const next = msgs[i + 1];
-          const isReply = next?.role === 'assistant';
-          const answer = isReply ? next.content : '';
-          const cards = isReply ? next.cards ?? [] : [];
-          restored.push({
-            id: crypto.randomUUID(),
-            query: msgs[i].content,
-            stage: 'done',
-            answer,
-            cards,
-            found: cards.length,
-            memories: [],
-            suggestions: [],
-          });
-          if (answer) i++;
-        }
-        if (restored.length) setTurns(restored);
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   const patch = (id: string, update: Partial<ChatTurn>) =>
     setTurns((prev) => prev.map((t) => (t.id === id ? { ...t, ...update } : t)));
@@ -118,6 +119,11 @@ export const RecommendPage = () => {
       await cardService.recommendStream(
         query,
         {
+          onConversation: (cid) => {
+            convId.current = cid;
+            syncedConv.current = cid; // our own URL sync below shouldn't reload
+            if (cid !== urlConversationId) setSearchParams({ c: cid }, { replace: true });
+          },
           onStage: (stage, meta) =>
             patch(id, meta?.count != null ? { stage, found: meta.count } : { stage }),
           onCards: (cards) => patch(id, { cards }),
@@ -129,6 +135,7 @@ export const RecommendPage = () => {
           onSuggestions: (items) => patch(id, { suggestions: items }),
         },
         history,
+        convId.current ?? undefined,
       );
     } catch {
       patch(id, { stage: 'done', answer: 'Something went wrong — please try again.' });
@@ -137,13 +144,45 @@ export const RecommendPage = () => {
     }
   };
 
-  // Fire the handed-over query once, after mount.
+  // Load a conversation's saved transcript when opened via ?c=<id> (e.g. a
+  // "pick up where you left off" tab). Skipped for an id this session just
+  // created, so syncing that id into the URL doesn't clobber the live turns.
   useEffect(() => {
-    if (!initialQuery || didInit.current) return;
+    if (!urlConversationId || urlConversationId === syncedConv.current) return;
+    let cancelled = false;
+    convId.current = urlConversationId;
+    cardService
+      .getConversationHistory(urlConversationId)
+      .then((msgs) => {
+        if (!cancelled) setTurns(restoreTurns(msgs));
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [urlConversationId]);
+
+  // Fresh session: fire the handed-over query once (no restore). Clearing the
+  // router state keeps a refresh from replaying it.
+  useEffect(() => {
+    if (urlConversationId || !handoffQuery.current || didInit.current) return;
     didInit.current = true;
-    ask(initialQuery);
+    const query = handoffQuery.current;
+    handoffQuery.current = null;
+    navigate(location.pathname, { replace: true, state: null });
+    ask(query);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Start a brand-new conversation: clear the view and drop ?c from the URL.
+  const startNewChat = () => {
+    if (busy) return;
+    setTurns([]);
+    convId.current = null;
+    syncedConv.current = null;
+    didInit.current = true; // don't re-fire any handoff
+    setSearchParams({}, { replace: false });
+  };
 
   const empty = turns.length === 0;
 
@@ -152,10 +191,22 @@ export const RecommendPage = () => {
       <Navbar />
 
       <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col px-4">
+        {!empty && (
+          <div className="flex justify-end pt-6">
+            <button
+              onClick={startNewChat}
+              disabled={busy}
+              className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground disabled:opacity-50"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              New chat
+            </button>
+          </div>
+        )}
         {empty ? (
           <EmptyState onPick={ask} />
         ) : (
-          <div className="flex-1 space-y-8 py-8">
+          <div className="flex-1 space-y-8 py-4">
             {turns.map((turn) => (
               <Turn key={turn.id} turn={turn} onPick={ask} />
             ))}

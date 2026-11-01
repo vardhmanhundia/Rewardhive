@@ -42,6 +42,7 @@ from src.agents.user_profiling.tools import suggestions_llm
 from src.config import settings
 from src.db.models import CardProduct
 from src.models import CardProductSchema
+from src.services.conversation_service import ConversationService
 from src.services.retrieval_service import RetrievalService
 
 # Plain (non-structured) Muse client for token-by-token streaming of the answer.
@@ -215,16 +216,19 @@ async def recommend_node(state: AgentState, config: RunnableConfig) -> AgentStat
 async def select_node(state: AgentState, config: RunnableConfig) -> AgentState:
     """Keep only the cards the answer recommends, emit them, and persist the turn."""
     writer = get_stream_writer()
-    _session, user_id = config_values(config)
+    session, _user_id = config_values(config)
     recommended = await _select_recommended(
         state.get("cards", []), state.get("answer", "")
     )
     serialized = _serialize(recommended)
     writer({"kind": "cards", "cards": serialized})
-    # Persist query, answer, and the recommended cards so history reloads intact.
-    await persist_turn(
-        user_id, state.get("query", ""), state.get("answer", ""), cards=serialized
-    )
+    # Persist the turn under its conversation thread so history reloads intact,
+    # then bump the conversation (title from the first question, updated_at).
+    conversation_id = config.get("configurable", {}).get("conversation_id")
+    if conversation_id is not None:
+        query = state.get("query", "")
+        await persist_turn(str(conversation_id), query, state.get("answer", ""), cards=serialized)
+        await ConversationService.touch(session, conversation_id, first_question=query)
     return {"cards": recommended}
 
 

@@ -10,8 +10,9 @@ from __future__ import annotations
 
 import json
 from collections.abc import AsyncIterator
+from uuid import UUID
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -23,13 +24,35 @@ from src.models import (
     CardProductSchema,
     ChatHistoryMessage,
     ChatHistoryResponse,
+    ConversationListResponse,
+    ConversationSummary,
     ProfileSummaryResponse,
     ProfileConflictInfo,
     RecommendationRequest,
     RecommendationResponse,
     UserMemorySchema,
 )
+from src.services.conversation_service import ConversationService
 from src.services.memory_service import MemoryService
+
+
+async def _resolve_conversation_id(
+    session: AsyncSession, user_id: UUID, conversation_id: UUID | None
+) -> UUID:
+    """Return the conversation to persist this turn under.
+
+    Uses the requested conversation when it exists and belongs to the user;
+    otherwise starts a fresh one. A newly created conversation is committed so
+    its id is stable before the turn streams.
+    """
+    if conversation_id is not None:
+        existing = await ConversationService.get(session, conversation_id, user_id)
+        if existing is not None:
+            return existing.id
+    conversation = await ConversationService.create(session, user_id)
+    new_id = conversation.id  # capture before commit (attributes expire on commit)
+    await session.commit()
+    return new_id
 
 router = APIRouter(prefix="/recommendations", tags=["recommendations"])
 
@@ -50,8 +73,9 @@ async def recommend(
     """Remember, retrieve, and recommend — plus the cards, memories, and suggestions."""
     user_id = get_current_user_id(payload)
     history = [turn.model_dump() for turn in request.history]
+    conversation_id = await _resolve_conversation_id(session, user_id, request.conversation_id)
     answer, cards, new_memories, suggestions, conflicts = await run_recommendation(
-        session, user_id, request.query, history=history
+        session, user_id, request.query, history=history, conversation_id=conversation_id
     )
     # The agent flushes new memories; commit so they persist across turns.
     await session.commit()
@@ -73,7 +97,7 @@ async def history(
     Empty if persistence is disabled or the user has no stored chat yet.
     """
     user_id = get_current_user_id(payload)
-    messages = await load_history(user_id)
+    messages = await load_history(str(user_id))
     return ChatHistoryResponse(
         messages=[
             ChatHistoryMessage(role=m["role"], content=m["content"], cards=m.get("cards", []))
@@ -116,25 +140,74 @@ async def recommend_stream(
     """
     user_id = get_current_user_id(payload)
     history = [turn.model_dump() for turn in request.history]
+    conversation_id = await _resolve_conversation_id(session, user_id, request.conversation_id)
 
     async def event_source() -> AsyncIterator[str]:
-        async for event in stream_recommendation(session, user_id, request.query, history=history):
-            kind = event["kind"]
-            if kind == "stage":
-                yield _sse("stage", {"stage": event["stage"], "count": event.get("count")})
-            elif kind == "cards":
-                yield _sse("cards", event["cards"])
-            elif kind == "token":
-                yield _sse("token", {"text": event["text"]})
-            elif kind in ("memories", "suggestions", "conflicts"):
-                yield _sse(kind, {"items": event["items"]})
-            elif kind == "done":
-                yield _sse("done", {})
-            elif kind == "error":
-                yield _sse("error", {"detail": event["detail"]})
+        # Tell the client which conversation this turn belongs to, so a fresh
+        # session can adopt the new id (and update its URL) for follow-ups.
+        yield _sse("conversation", {"id": str(conversation_id)})
+        try:
+            async for event in stream_recommendation(
+                session, user_id, request.query, history=history, conversation_id=conversation_id
+            ):
+                kind = event["kind"]
+                if kind == "stage":
+                    yield _sse("stage", {"stage": event["stage"], "count": event.get("count")})
+                elif kind == "cards":
+                    yield _sse("cards", event["cards"])
+                elif kind == "token":
+                    yield _sse("token", {"text": event["text"]})
+                elif kind in ("memories", "suggestions", "conflicts"):
+                    yield _sse(kind, {"items": event["items"]})
+                elif kind == "done":
+                    yield _sse("done", {})
+                elif kind == "error":
+                    yield _sse("error", {"detail": event["detail"]})
+        finally:
+            # Persist the conversation bump (title/updated_at) and any profile
+            # writes made while streaming; roll back if the commit fails.
+            try:
+                await session.commit()
+            except Exception:  # noqa: BLE001 — a failed commit must not crash the stream
+                await session.rollback()
 
     return StreamingResponse(
         event_source(),
         media_type="text/event-stream",
         headers=_STREAM_HEADERS,
+    )
+
+
+@router.get("/conversations", response_model=ConversationListResponse)
+async def list_conversations(
+    payload: dict = Depends(verify_user_auth),
+    session: AsyncSession = Depends(get_db),
+) -> ConversationListResponse:
+    """List the user's recommend-chat conversations, most recent first."""
+    user_id = get_current_user_id(payload)
+    conversations = await ConversationService.list_for_user(session, user_id)
+    return ConversationListResponse(
+        conversations=[
+            ConversationSummary.model_validate(c, from_attributes=True) for c in conversations
+        ]
+    )
+
+
+@router.get("/conversations/{conversation_id}/history", response_model=ChatHistoryResponse)
+async def conversation_history(
+    conversation_id: UUID,
+    payload: dict = Depends(verify_user_auth),
+    session: AsyncSession = Depends(get_db),
+) -> ChatHistoryResponse:
+    """Return one conversation's persisted transcript (404 if not the user's)."""
+    user_id = get_current_user_id(payload)
+    conversation = await ConversationService.get(session, conversation_id, user_id)
+    if conversation is None:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    messages = await load_history(str(conversation_id))
+    return ChatHistoryResponse(
+        messages=[
+            ChatHistoryMessage(role=m["role"], content=m["content"], cards=m.get("cards", []))
+            for m in messages
+        ]
     )

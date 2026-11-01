@@ -19,6 +19,7 @@ export const Navbar = () => {
     ? [
         { to: '/for-you', label: 'My Space', icon: Home },
         { to: '/for-you-2', label: 'For You', icon: Sparkles },
+        { to: '/which-card', label: 'Which card?', icon: Sparkles },
         { to: '/evaluate', label: 'Evaluate', icon: Wallet },
         ...baseLinks,
       ]

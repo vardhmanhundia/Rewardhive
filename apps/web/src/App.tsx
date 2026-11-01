@@ -13,6 +13,7 @@ import {RecommendPage} from "./pages/RecommendPage";
 import {EvaluatePage} from "./pages/EvaluatePage";
 import {ForYouV2Page} from "./pages/ForYouV2Page";
 import {OnboardingPage2} from "./pages/OnboardingPage2";
+import {WhichCardPage} from "./pages/WhichCardPage";
 
 function App() {
   return (
@@ -52,7 +53,15 @@ function App() {
             path="/for-you-2"
             element={
               <ProtectedRoute>
-                <ForYouV2Page />
+                 <ForYouV2Page />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/which-card"
+            element={
+              <ProtectedRoute>
+                <WhichCardPage />
               </ProtectedRoute>
             }
           />

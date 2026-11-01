@@ -211,3 +211,31 @@ class UserProfile(Base):
 
     def __repr__(self) -> str:
         return f"<UserProfile(user_id={self.user_id})>"
+
+
+class Conversation(Base):
+    """One recommend-chat conversation (session) belonging to a user.
+
+    The transcript itself lives in the LangGraph checkpointer, keyed by
+    ``thread_id = conversation id``. This row holds only the user association and
+    the metadata the UI lists under "pick up where you left off": a ``title``
+    (auto-set from the first question) and timestamps used to order the tabs.
+    """
+
+    __tablename__ = "conversations"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4,
+        nullable=False,
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
+    title: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
+    )
+
+    def __repr__(self) -> str:
+        return f"<Conversation(id={self.id}, user_id={self.user_id})>"

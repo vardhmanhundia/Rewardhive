@@ -17,6 +17,9 @@ dependencies = [
     "langchain-openai==1.7.3",
     "langgraph==1.2.17",
     "langgraph-checkpoint-postgres==3.2.0",
+    # SQLite checkpointer for local dev (sqlite:///…); pulls aiosqlite + sqlite-vec.
+    # Requires the same langgraph-checkpoint base (>=4.3,<5) as the Postgres saver.
+    "langgraph-checkpoint-sqlite==3.1.2",
     "langsmith==0.14.12",
     "psycopg[binary,pool]==3.3.6",
     "python-dotenv==1.2.4",

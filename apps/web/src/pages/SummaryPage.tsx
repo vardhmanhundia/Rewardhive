@@ -10,12 +10,12 @@
 import { useMemo, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { Sparkles, Send, Search, User, Wallet } from 'lucide-react';
+import { MessageSquare, Sparkles, Send, Search, User, Wallet } from 'lucide-react';
 import { Navbar } from '@/components/Navbar';
 import { CardTile } from '@/components/CardTile';
 import { useAuth } from '@/context/AuthContext';
 import type { UserProfile } from '@/services/authService';
-import cardService, { type CardProduct } from '@/services/cardService';
+import cardService, { type CardProduct, type Conversation } from '@/services/cardService';
 
 /** A few starter prompts, shown when the user hasn't asked anything yet. */
 const STARTERS = [
@@ -143,9 +143,9 @@ export const SummaryPage = () => {
     queryFn: () => cardService.getProfileSummary(),
   });
 
-  const { data: history, isLoading: histLoading } = useQuery({
-    queryKey: ['recHistory'],
-    queryFn: () => cardService.getHistory(),
+  const { data: conversations, isLoading: convLoading } = useQuery({
+    queryKey: ['recConversations'],
+    queryFn: () => cardService.listConversations(),
   });
 
   const { data: cards, isLoading: cardsLoading } = useQuery({
@@ -153,30 +153,19 @@ export const SummaryPage = () => {
     queryFn: () => cardService.getAllCards(),
   });
 
-  // Newest first, de-duplicated — the user's own questions from past turns.
-  const recentQuestions = useMemo(() => {
-    const seen = new Set<string>();
-    const out: string[] = [];
-    for (const m of (history ?? []).slice().reverse()) {
-      if (m.role !== 'user') continue;
-      const q = m.content.trim();
-      if (!q || seen.has(q)) continue;
-      seen.add(q);
-      out.push(q);
-      if (out.length === 5) break;
-    }
-    return out;
-  }, [history]);
-
-  const questionCount = (history ?? []).filter((m) => m.role === 'user').length;
+  const conversationCount = conversations?.length ?? 0;
   const prefCount = memories?.length ?? 0;
   const hasProfile = prefCount > 0;
 
+  // Quick-ask starts a fresh session (no ?c) and hands the query over.
   const ask = (q: string) => {
     const query = q.trim();
     if (!query) return;
     navigate('/recommend', { state: { initialQuery: query } });
   };
+
+  // A "pick up where you left off" tab reopens that saved conversation.
+  const openConversation = (id: string) => navigate(`/recommend?c=${id}`);
 
   const memberSince = user?.created_at
     ? new Date(user.created_at).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
@@ -228,11 +217,15 @@ export const SummaryPage = () => {
             <ProfileCard
               user={user}
               prefCount={prefCount}
-              questionCount={questionCount}
+              conversationCount={conversationCount}
               memberSince={memberSince}
             />
             <KnowsAboutYou loading={memLoading} memories={memories?.map((m) => m.content) ?? []} />
-            <RecentQuestions loading={histLoading} questions={recentQuestions} onPick={ask} />
+            <Conversations
+              loading={convLoading}
+              conversations={conversations ?? []}
+              onOpen={openConversation}
+            />
           </aside>
         </div>
       </main>
@@ -250,12 +243,12 @@ const MetaPill = ({ children }: { children: React.ReactNode }) => (
 const ProfileCard = ({
   user,
   prefCount,
-  questionCount,
+  conversationCount,
   memberSince,
 }: {
   user: UserProfile | null;
   prefCount: number;
-  questionCount: number;
+  conversationCount: number;
   memberSince: string | null;
 }) => {
   const initials = `${user?.first_name?.[0] ?? ''}${user?.last_name?.[0] ?? ''}`.toUpperCase();
@@ -283,8 +276,8 @@ const ProfileCard = ({
           {prefCount === 1 ? 'preference' : 'preferences'}
         </MetaPill>
         <MetaPill>
-          <span className="text-foreground">{questionCount}</span>{' '}
-          {questionCount === 1 ? 'question' : 'questions'}
+          <span className="text-foreground">{conversationCount}</span>{' '}
+          {conversationCount === 1 ? 'conversation' : 'conversations'}
         </MetaPill>
       </div>
     </section>
@@ -479,15 +472,29 @@ const KnowsAboutYou = ({ loading, memories }: { loading: boolean; memories: stri
   </section>
 );
 
-/** Recent questions the user can re-open in the recommend chat. */
-const RecentQuestions = ({
+/** Short relative label for when a conversation was last active. */
+function relativeTime(iso: string): string {
+  const then = new Date(iso).getTime();
+  if (Number.isNaN(then)) return '';
+  const mins = Math.round((Date.now() - then) / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.round(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.round(hrs / 24);
+  if (days < 7) return `${days}d ago`;
+  return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+/** Past conversations as tabs — each reopens its saved chat in the recommend view. */
+const Conversations = ({
   loading,
-  questions,
-  onPick,
+  conversations,
+  onOpen,
 }: {
   loading: boolean;
-  questions: string[];
-  onPick: (q: string) => void;
+  conversations: Conversation[];
+  onOpen: (id: string) => void;
 }) => (
   <section className="glass rounded-2xl p-5">
     <div className="mb-4 flex items-center gap-2">
@@ -503,19 +510,22 @@ const RecentQuestions = ({
           <div key={i} className="h-11 animate-pulse rounded-lg bg-white/10" />
         ))}
       </div>
-    ) : questions.length > 0 ? (
+    ) : conversations.length > 0 ? (
       <ul className="space-y-1.5">
-        {questions.map((q) => (
-          <li key={q}>
+        {conversations.map((c) => (
+          <li key={c.id}>
             <button
-              onClick={() => onPick(q)}
+              onClick={() => onOpen(c.id)}
               className="group flex w-full items-center justify-between gap-3 rounded-lg border border-white/5 bg-white/[0.03] px-3 py-2.5 text-left text-sm transition-colors hover:border-primary/40 hover:bg-white/5"
             >
-              <span className="line-clamp-1 text-muted-foreground group-hover:text-foreground">
-                {q}
+              <span className="flex min-w-0 items-center gap-2">
+                <MessageSquare className="h-3.5 w-3.5 shrink-0 text-muted-foreground group-hover:text-primary" />
+                <span className="line-clamp-1 text-muted-foreground group-hover:text-foreground">
+                  {c.title || 'Untitled chat'}
+                </span>
               </span>
-              <span className="shrink-0 text-xs font-medium text-primary opacity-0 transition-opacity group-hover:opacity-100">
-                Ask again →
+              <span className="shrink-0 text-xs text-muted-foreground/70">
+                {relativeTime(c.updated_at)}
               </span>
             </button>
           </li>
@@ -523,7 +533,8 @@ const RecentQuestions = ({
       </ul>
     ) : (
       <EmptyHint>
-        Your recent questions will appear here so you can revisit or refine them in a tap.
+        Your conversations will appear here so you can pick up any of them right where you left
+        off.
       </EmptyHint>
     )}
   </section>

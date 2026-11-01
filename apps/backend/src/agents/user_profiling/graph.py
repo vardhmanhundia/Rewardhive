@@ -159,18 +159,20 @@ def _message_role(message: Any) -> str:
     return "assistant" if message.type == "ai" else "user"
 
 
-async def load_history(user_id: UUID) -> list[dict[str, Any]]:
-    """Return the user's persisted conversation as ``[{role, content, cards?}, ...]``.
+async def load_history(thread_id: str) -> list[dict[str, Any]]:
+    """Return a persisted conversation as ``[{role, content, cards?}, ...]``.
 
-    Assistant turns carry the cards that were recommended (stored on the message),
-    so a reloaded conversation shows the same text + card layout as it did live.
-    Empty if persistence is disabled or the user has no stored chat. Best-effort:
-    never raises — a storage error yields an empty history.
+    ``thread_id`` identifies the conversation (a conversation id for the recommend
+    chat; a user id for the single-thread profiling chat). Assistant turns carry
+    the cards that were recommended (stored on the message), so a reloaded
+    conversation shows the same text + card layout as it did live. Empty if
+    persistence is disabled or the thread has no stored chat. Best-effort: never
+    raises — a storage error yields an empty history.
     """
     if _persist_graph is None:
         return []
     try:
-        config: RunnableConfig = {"configurable": {"thread_id": str(user_id)}}
+        config: RunnableConfig = {"configurable": {"thread_id": thread_id}}
         snapshot = await _persist_graph.aget_state(config)
         stored = snapshot.values.get("messages", []) if snapshot else []
         messages: list[dict[str, Any]] = []
@@ -189,22 +191,24 @@ async def load_history(user_id: UUID) -> list[dict[str, Any]]:
 
 
 async def persist_turn(
-    user_id: UUID,
+    thread_id: str,
     user_message: str,
     ai_message: str,
     cards: list[dict[str, Any]] | None = None,
 ) -> None:
-    """Append one (user, assistant) turn to the user's persisted conversation.
+    """Append one (user, assistant) turn to a persisted conversation.
 
-    When ``cards`` is given (the recommended cards for this turn), they ride along
-    on the assistant message so history can be rebuilt with the same layout.
-    No-op when persistence is disabled. Best-effort: a storage error is swallowed
-    so it never breaks the chat response.
+    ``thread_id`` identifies the conversation (a conversation id for the recommend
+    chat; a user id for the single-thread profiling chat). When ``cards`` is given
+    (the recommended cards for this turn), they ride along on the assistant
+    message so history can be rebuilt with the same layout. No-op when persistence
+    is disabled. Best-effort: a storage error is swallowed so it never breaks the
+    chat response.
     """
     if _persist_graph is None:
         return
     try:
-        config: RunnableConfig = {"configurable": {"thread_id": str(user_id)}}
+        config: RunnableConfig = {"configurable": {"thread_id": thread_id}}
         ai = AIMessage(
             content=ai_message,
             additional_kwargs={"cards": cards} if cards else {},
@@ -244,7 +248,7 @@ async def run_profiling_turn(
     config: RunnableConfig = {"configurable": {"session": session, "user_id": user_id}}
     final = await compiled_graph.ainvoke(state, config)
     reply = final.get("reply", "")
-    await persist_turn(user_id, message, reply)
+    await persist_turn(str(user_id), message, reply)
     return ProfilingResult(
         reply=reply,
         suggestions=final.get("suggestions", []),
@@ -331,7 +335,7 @@ async def stream_profiling_turn(
         reply = "".join(reply_parts)
 
         # 3. Persist the turn so the conversation survives logout/login.
-        await persist_turn(user_id, message, reply)
+        await persist_turn(str(user_id), message, reply)
 
         # 4. Terminal metadata events.
         yield {"type": "memories", "items": new_memories}

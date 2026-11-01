@@ -77,6 +77,26 @@ def category_matches(text: str, category: str) -> bool:
     return False
 
 
+def keyword_matches(text: str, keywords: list[str]) -> bool:
+    """Does `text` (a reward line) mention any of `keywords`?
+
+    Used to match a specific purchase — "United flight", "Airbnb", "transit" — to
+    the exact reward wording, so a merchant-specific deal (United 9x, IHG 24x) is
+    recognized rather than flattened into a coarse category. Case-insensitive;
+    short tokens (<=2 chars) require a trailing word boundary to avoid false hits.
+    """
+    hay = text.lower()
+    for kw in keywords:
+        kw = kw.strip().lower()
+        if not kw:
+            continue
+        esc = re.escape(kw)
+        pattern = r"\b" + esc + (r"\b" if len(kw) <= 2 else "")
+        if re.search(pattern, hay):
+            return True
+    return False
+
+
 def cents_per_point(name: str, issuer: str) -> float:
     """Estimated cash value of one point/mile, so "x" and "%" rates compare.
 
@@ -110,6 +130,10 @@ class EarnRule:
     cap_annual: float | None = None  # elevated rate applies up to this annual spend
     then_rate_value: float | None = None  # rate beyond the cap (same unit)
     choice: bool = False  # a "pick one category" reward (activates a single category)
+    # The raw reward line this rule came from (e.g. "Eligible United flights 9x").
+    # Kept so a specific merchant/sub-type question ("United flight", "Airbnb") can
+    # match against the exact wording, not just the six coarse categories.
+    source_text: str = ""
 
 
 @dataclass(frozen=True)
@@ -169,11 +193,13 @@ def card_to_optcard(
         text = r.get("category", "")
         rate = r.get("rate", "")
         cats = frozenset(c for c in CATEGORIES if category_matches(text, c))
-        if not cats:
-            continue  # a reward we can't map to a known category — skip, don't guess
         value, unit = _parse_rate(rate)
         cap, then = _parse_cap(text)
         is_choice = "choice category" in text.lower()
+        # Keep every reward line, even one that maps to no coarse category: the
+        # raw `source_text` still lets a specific-merchant question match it (e.g.
+        # "Transit", "Drugstores"). `optimize_wallet` is unaffected — a non-choice
+        # rule with no categories is never selected by `_rule_applies`.
         rules.append(
             EarnRule(
                 categories=cats,
@@ -182,6 +208,7 @@ def card_to_optcard(
                 cap_annual=cap,
                 then_rate_value=then,
                 choice=is_choice,
+                source_text=text,
             )
         )
     return OptCard(
@@ -453,3 +480,205 @@ def evaluate_card(
         worth_it=worth_it,
         verdict=verdict,
     )
+
+
+# ---------------------------------------------------------------------------
+# "Which card should I use for this purchase?" — rank the cards a user holds
+# (or two cards they name) for one purchase, honoring specific merchant deals.
+# ---------------------------------------------------------------------------
+@dataclass
+class CardRewardPick:
+    """One card's best earn on a given purchase, for the which-card ranking."""
+
+    card_id: str
+    card_name: str
+    issuer: str
+    reward_label: str  # the exact reward line that wins on this card
+    rate: str  # human-readable, e.g. "9x" / "6%"
+    effective_pct: float  # cash-equivalent % earned on this purchase
+    est_annual_value: float | None  # $/yr if a monthly amount was given, else None
+    specific: bool  # True when a merchant/sub-type deal matched, not a coarse category
+
+
+# A reward line is often restricted to a booking *channel* or *brand*: "5x Flights
+# booked direct", "8x Chase Travel", "10x Hotels & rental cars via Capital One
+# Travel", "24x IHG Hotels". Crediting those rates to a generic purchase would be
+# wrong — an Airbnb booked directly is not a Chase-Travel booking, nor an IHG stay.
+# So the engine only applies a restricted line when the purchase actually names
+# that channel/brand. This keeps every number honest and explainable.
+_PORTAL_RE = re.compile(r"\b(?:via|through)\b", re.IGNORECASE)
+# Named issuer travel portals. "8x Chase Travel" reads as a plain category but is
+# in fact portal-only (you must book through Chase Travel), so it is a portal line
+# even without a "via/through" word.
+_PORTAL_PHRASES = ("chase travel", "amex travel", "capital one travel")
+_DIRECT_RE = re.compile(r"booked direct|booked with|\bdirect\b", re.IGNORECASE)
+_BRANDS = ("ihg", "united", "delta", "hilton", "marriott", "hyatt", "southwest")
+
+# Keywords that signal the purchase IS booked through an issuer travel portal, so
+# the "via/through ... Travel" lines (Chase/Amex/Capital One Travel) do apply.
+PORTAL_HINTS = {
+    "portal",
+    "travel portal",
+    "chase travel",
+    "amex travel",
+    "capital one travel",
+}
+
+
+# Common merchants / sub-types -> (coarse category, specific keywords). A
+# deterministic safety net so a purchase is classified even when the LLM mislabels
+# it (the agent uses it to backfill the plan). Keyword lists stay specific
+# (brand / sub-type), never the bare category word.
+MERCHANT_HINTS: dict[str, tuple[str | None, list[str]]] = {
+    "airbnb": ("travel", ["airbnb", "vacation rental"]),
+    "vrbo": ("travel", ["vrbo", "vacation rental"]),
+    "vacation rental": ("travel", ["vacation rental"]),
+    "hotel": ("travel", ["hotel"]),
+    "marriott": ("travel", ["hotel", "marriott"]),
+    "hilton": ("travel", ["hotel", "hilton"]),
+    "ihg": ("travel", ["hotel", "ihg"]),
+    "hyatt": ("travel", ["hotel", "hyatt"]),
+    "flight": ("travel", ["flight"]),
+    "airline": ("travel", ["flight", "airline"]),
+    "united": ("travel", ["flight", "united"]),
+    "delta": ("travel", ["flight", "delta"]),
+    "southwest": ("travel", ["flight", "southwest"]),
+    "rental car": ("travel", ["rental car", "car rental"]),
+    "uber eats": ("dining", ["dining", "delivery"]),
+    "doordash": ("dining", ["dining", "delivery"]),
+    "grubhub": ("dining", ["dining", "delivery"]),
+    "restaurant": ("dining", ["dining", "restaurant"]),
+    "whole foods": ("groceries", ["grocer", "supermarket"]),
+    "costco": ("groceries", ["wholesale", "grocer"]),
+    "supermarket": ("groceries", ["grocer", "supermarket"]),
+    "amazon": ("online", ["online"]),
+    "gas station": ("gas", ["gas", "fuel"]),
+    "ev charging": ("gas", ["ev", "charging"]),
+    # Bare category words, so a plain "best card for groceries" still resolves
+    # without the LLM. Keep keywords specific — never the bare "travel" word,
+    # which would spuriously match "...Capital One Travel" portal lines.
+    "grocer": ("groceries", ["grocer", "supermarket"]),
+    "dining": ("dining", ["dining", "restaurant"]),
+    "travel": ("travel", []),
+    "online": ("online", ["online"]),
+    "gas": ("gas", ["gas", "fuel"]),
+}
+
+
+def merchant_hint(text: str) -> tuple[str | None, list[str]]:
+    """Best-effort merchant/sub-type match for free text -> (category, keywords).
+
+    Accumulates across every matching key (so "united flight" yields both the
+    "united" brand and the "flight" sub-type); the category comes from the longest
+    match. Returns (None, []) when nothing matches.
+    """
+    low = text.lower()
+    category: str | None = None
+    keywords: list[str] = []
+    for key in sorted(MERCHANT_HINTS, key=len, reverse=True):
+        if key in low:
+            cat, kws = MERCHANT_HINTS[key]
+            if category is None:
+                category = cat
+            for k in kws:
+                if k not in keywords:
+                    keywords.append(k)
+    return (category, keywords)
+
+
+def _line_requirement(text: str) -> tuple[str, str | None]:
+    """Classify what a reward line requires: a portal, a brand, direct booking, or
+    nothing. Returns ("portal"|"brand"|"direct"|"none", brand_token_or_None)."""
+    low = text.lower()
+    if _PORTAL_RE.search(low) or any(p in low for p in _PORTAL_PHRASES):
+        return ("portal", None)
+    for b in _BRANDS:
+        if re.search(r"\b" + b + r"\b", low):
+            return ("brand", b)
+    if _DIRECT_RE.search(low):
+        return ("direct", None)
+    return ("none", None)
+
+
+def _best_rule_for_purchase(
+    card: OptCard, category: str | None, keywords: list[str], portal: bool
+) -> tuple[EarnRule, bool] | None:
+    """The rule on `card` that earns most on this purchase, and whether it is a
+    specific merchant/sub-type deal (vs. a coarse category / everyday fallback).
+
+    Channel-restricted lines (portal / brand / direct) only apply when the purchase
+    names that channel or brand; otherwise only the card's general category rate or
+    its everyday catch-all is credited. Among the applicable rules we take the
+    highest effective rate — the one the cardholder should actually use.
+    """
+    kws = [k.lower() for k in keywords]
+    best: tuple[float, EarnRule, bool] | None = None
+    for rule in card.rules:
+        kw = bool(kws) and keyword_matches(rule.source_text, keywords)
+        cat = category is not None and category in rule.categories
+        everyday = "everyday" in rule.categories
+        req, brand = _line_requirement(rule.source_text)
+
+        if rule.choice:
+            # A choice card only earns its elevated rate if set to this category.
+            applicable, specific = (kw or cat), kw
+        elif req == "portal":
+            applicable = specific = portal
+        elif req == "brand":
+            applicable = specific = any(brand in k for k in kws) if brand else False
+        elif req == "direct":
+            # e.g. "Flights booked direct" — applies when the purchase is that
+            # sub-type (its wording appears in the line, like "flight"/"hotel").
+            applicable = specific = kw
+        else:  # unconditional line (general category rate or everyday)
+            applicable, specific = (kw or cat or everyday), kw
+
+        if not applicable:
+            continue
+        frac = _elevated_fraction(rule, card.cents_per_point)
+        if best is None or frac > best[0]:
+            best = (frac, rule, specific)
+    if best is None:
+        return None
+    return best[1], best[2]
+
+
+def rank_cards_for_purchase(
+    category: str | None,
+    keywords: list[str],
+    cards: list[OptCard],
+    monthly_amount: float | None = None,
+) -> list[CardRewardPick]:
+    """Rank `cards` by how well each earns on one purchase, best first.
+
+    `category` is the resolved coarse bucket (or None), `keywords` are
+    specific-merchant/sub-type hints ("united", "airbnb", "flight") — never the bare
+    category word. A channel-restricted rate is credited only when the purchase
+    names that channel: a portal hint ("chase travel") or a brand ("united"). Each
+    card contributes its single best applicable rule; ordering is by effective rate.
+    """
+    portal = any(k.lower() in PORTAL_HINTS for k in keywords)
+    picks: list[CardRewardPick] = []
+    for card in cards:
+        chosen = _best_rule_for_purchase(card, category, keywords, portal)
+        if chosen is None:
+            continue
+        rule, specific = chosen
+        frac = _elevated_fraction(rule, card.cents_per_point)
+        est: float | None = None
+        if monthly_amount and monthly_amount > 0:
+            est = round(_earn(rule, card.cents_per_point, monthly_amount * 12.0), 2)
+        picks.append(
+            CardRewardPick(
+                card_id=card.id,
+                card_name=card.name,
+                issuer=card.issuer,
+                reward_label=rule.source_text,
+                rate=_rate_label(rule),
+                effective_pct=round(frac * 100, 2),
+                est_annual_value=est,
+                specific=specific,
+            )
+        )
+    picks.sort(key=lambda p: p.effective_pct, reverse=True)
+    return picks

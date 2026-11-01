@@ -48,6 +48,15 @@ export interface RecMessage {
   cards?: CardProduct[];
 }
 
+/** A past recommend-chat conversation (session) — one tab under "pick up where
+ *  you left off". The title is auto-set from the conversation's first question. */
+export interface Conversation {
+  id: string;
+  title: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 /** One fact the assistant has learned about the user (long-term profile). */
 export interface UserMemory {
   id: string;
@@ -94,6 +103,26 @@ export interface OwnedCardInput {
   category?: string;
 }
 
+/** One card's best earn on a purchase — the "which card should I use?" ranking. */
+export interface CardRewardPick {
+  card_id: string;
+  card_name: string;
+  issuer: string;
+  reward_label: string;
+  rate: string;
+  effective_pct: number;
+  est_annual_value: number | null;
+  specific: boolean;
+}
+
+/** The resolved purchase plus the cards ranked best-first. */
+export interface RewardResult {
+  category: string | null;
+  merchant: string | null;
+  note: string;
+  picks: CardRewardPick[];
+}
+
 /** What the RAG endpoint returns: Muse prose, the cards it drew on, the memories
  *  captured this turn, and three follow-up suggestions. */
 export interface RecommendationResult {
@@ -112,6 +141,9 @@ export interface RecStreamHandlers {
   onCards?: (cards: CardProduct[]) => void;
   onMemories?: (items: string[]) => void;
   onSuggestions?: (items: string[]) => void;
+  /** The conversation this turn was persisted under — a fresh session adopts the
+   *  server-assigned id so follow-ups continue the same thread. */
+  onConversation?: (id: string) => void;
   signal?: AbortSignal;
 }
 
@@ -159,6 +191,33 @@ class CardService {
   async getHistory(): Promise<RecMessage[]> {
     if (USE_MOCK) return [];
     const res = await fetch(`${API_URL}/recommendations/history`, {
+      headers: { ...authHeaders() },
+    });
+    if (!res.ok) return [];
+    const data = await res.json();
+    return (data.messages ?? []).map((m: RecMessage & { cards?: CardProduct[] }) => ({
+      role: m.role,
+      content: m.content,
+      cards: m.cards ?? [],
+    })) as RecMessage[];
+  }
+
+  /** The user's recommend-chat conversations, most recent first (empty in mock /
+   *  logged out) — the tabs under "pick up where you left off". */
+  async listConversations(): Promise<Conversation[]> {
+    if (USE_MOCK) return [];
+    const res = await fetch(`${API_URL}/recommendations/conversations`, {
+      headers: { ...authHeaders() },
+    });
+    if (!res.ok) return [];
+    const data = await res.json();
+    return (data.conversations ?? []) as Conversation[];
+  }
+
+  /** One conversation's persisted transcript (empty in mock / if not found). */
+  async getConversationHistory(id: string): Promise<RecMessage[]> {
+    if (USE_MOCK) return [];
+    const res = await fetch(`${API_URL}/recommendations/conversations/${id}/history`, {
       headers: { ...authHeaders() },
     });
     if (!res.ok) return [];
@@ -250,6 +309,58 @@ class CardService {
   }
 
   /**
+   * Stream the rewards agent: "which of my cards should I use for this purchase?".
+   * It resolves the purchase, ranks the candidate cards with the deterministic
+   * engine, and streams a grounded explanation. Consumes the same named-SSE
+   * format as the advisor stream. When the user has no cards to rank, the backend
+   * emits a single `need_cards` event instead of a result.
+   */
+  async bestCardStream(
+    body: {
+      question: string;
+      card_ids?: string[];
+      monthly_amount?: number;
+    },
+    handlers: {
+      onPlan?: (note: string, category: string | null, merchant: string | null, owned: boolean) => void;
+      onResult?: (picks: CardRewardPick[], owned: boolean) => void;
+      onToken?: (text: string) => void;
+      onNeedCards?: () => void;
+      signal?: AbortSignal;
+    } = {},
+  ): Promise<void> {
+    const res = await fetch(`${API_URL}/rewards/best-card`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      body: JSON.stringify(body),
+      signal: handlers.signal,
+    });
+    if (!res.ok || !res.body) throw new Error('Rewards request failed');
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const frames = buffer.split('\n\n');
+      buffer = frames.pop() ?? '';
+      for (const frame of frames) {
+        const event = /event:\s*(.*)/.exec(frame)?.[1]?.trim();
+        const dataLine = /data:\s*([\s\S]*)/.exec(frame)?.[1];
+        if (!event || !dataLine) continue;
+        const payload = JSON.parse(dataLine);
+        if (event === 'plan') handlers.onPlan?.(payload.note, payload.category, payload.merchant, payload.owned);
+        else if (event === 'result') handlers.onResult?.(payload.picks, payload.owned);
+        else if (event === 'token') handlers.onToken?.(payload.text);
+        else if (event === 'need_cards') handlers.onNeedCards?.();
+        else if (event === 'error') throw new Error(payload.detail ?? 'Rewards error');
+      }
+    }
+  }
+
+  /**
    * Ask for a recommendation. In mock mode this does naive keyword scoring so
    * the workflow is demoable; the real version POSTs to the RAG endpoint, which
    * runs SONAR retrieval + Muse generation on the backend.
@@ -286,13 +397,14 @@ class CardService {
     query: string,
     handlers: RecStreamHandlers = {},
     history: RecMessage[] = [],
+    conversationId?: string,
   ): Promise<RecommendationResult> {
     if (USE_MOCK) return mockRecommendStream(query, handlers);
 
     const res = await fetch(`${API_URL}/recommendations/stream`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...authHeaders() },
-      body: JSON.stringify({ query, history }),
+      body: JSON.stringify({ query, history, conversation_id: conversationId ?? null }),
       signal: handlers.signal,
     });
     if (!res.ok || !res.body) throw new Error('Recommendation failed');
@@ -317,7 +429,8 @@ class CardService {
         const dataLine = /data:\s*([\s\S]*)/.exec(frame)?.[1];
         if (!event || !dataLine) continue;
         const payload = JSON.parse(dataLine);
-        if (event === 'stage') handlers.onStage?.(payload.stage, { count: payload.count });
+        if (event === 'conversation') handlers.onConversation?.(payload.id);
+        else if (event === 'stage') handlers.onStage?.(payload.stage, { count: payload.count });
         else if (event === 'cards') {
           resultCards = payload;
           handlers.onCards?.(resultCards);

@@ -50,7 +50,7 @@ async def best_card_stream(
     card_ids = list(request.card_ids)
     if not card_ids:
         profile = await UserService.get_profile_details(session, user_id)
-        card_ids = [c.get("card_id") for c in profile.cards if c.get("card_id")]
+        card_ids = [str(c["card_id"]) for c in profile.cards if c.get("card_id")]
 
     async def event_source() -> AsyncIterator[str]:
         async for event in stream_rewards(

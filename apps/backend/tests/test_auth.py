@@ -191,3 +191,106 @@ def test_access_token_contains_user_info(client: TestClient, test_user_data: dic
     assert "sub" in decoded  # user_id
     assert "email" in decoded
     assert decoded["email"] == test_user_data["email"]
+
+
+def test_facebook_login_invalid_token(client: TestClient, monkeypatch):
+    """Test Facebook login with invalid token"""
+    from unittest.mock import AsyncMock
+
+    from src.services.social_auth_service import SocialAuthService
+
+    # Mock Facebook token verification to return None
+    monkeypatch.setattr(
+        SocialAuthService, "verify_facebook_token", AsyncMock(return_value=None)
+    )
+
+    response = client.post(
+        "/auth/facebook/login",
+        json={
+            "access_token": "invalid_token",
+            "email": "test@example.com",
+            "first_name": "John",
+            "last_name": "Doe",
+        },
+    )
+
+    assert response.status_code == 401
+    assert "Invalid Facebook token" in response.json()["detail"]
+
+
+def test_facebook_login_new_user(client: TestClient, monkeypatch):
+    """Test Facebook login creating a new user"""
+    from unittest.mock import AsyncMock
+
+    from src.services.social_auth_service import SocialAuthService
+
+    facebook_data = {
+        "facebook_id": "123456789",
+        "email": "fbuser@example.com",
+        "first_name": "Facebook",
+        "last_name": "User",
+    }
+
+    # Mock Facebook token verification
+    monkeypatch.setattr(
+        SocialAuthService,
+        "verify_facebook_token",
+        AsyncMock(return_value=facebook_data),
+    )
+
+    response = client.post(
+        "/auth/facebook/login",
+        json={
+            "access_token": "valid_token",
+            "email": "fbuser@example.com",
+            "first_name": "Facebook",
+            "last_name": "User",
+        },
+    )
+
+    assert response.status_code == 201
+    data = response.json()
+    assert data["access_token"]
+    assert data["token_type"] == "bearer"
+    assert data["user"]["email"] == "fbuser@example.com"
+    assert data["user"]["first_name"] == "Facebook"
+    assert data["user"]["last_name"] == "User"
+
+
+def test_facebook_login_existing_user(client: TestClient, monkeypatch, test_user_data: dict):
+    """Test Facebook login with existing user by email"""
+    from unittest.mock import AsyncMock
+
+    from src.services.social_auth_service import SocialAuthService
+
+    # First create a regular user
+    client.post("/auth/signup", json=test_user_data)
+
+    facebook_data = {
+        "facebook_id": "987654321",
+        "email": test_user_data["email"],
+        "first_name": test_user_data["first_name"],
+        "last_name": test_user_data["last_name"],
+    }
+
+    # Mock Facebook token verification
+    monkeypatch.setattr(
+        SocialAuthService,
+        "verify_facebook_token",
+        AsyncMock(return_value=facebook_data),
+    )
+
+    # Login with Facebook (same email)
+    response = client.post(
+        "/auth/facebook/login",
+        json={
+            "access_token": "valid_token",
+            "email": test_user_data["email"],
+            "first_name": test_user_data["first_name"],
+            "last_name": test_user_data["last_name"],
+        },
+    )
+
+    assert response.status_code == 201
+    data = response.json()
+    assert data["user"]["email"] == test_user_data["email"]

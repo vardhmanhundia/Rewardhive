@@ -91,6 +91,17 @@ class UserLoginRequest(BaseModel):
     password: str
 
 
+class FacebookTokenRequest(BaseModel):
+    access_token: str = Field(..., min_length=1)
+
+
+class FacebookLoginRequest(BaseModel):
+    access_token: str = Field(..., min_length=1)
+    email: Optional[EmailStr] = None
+    first_name: str = Field(..., min_length=1, max_length=100)
+    last_name: str = Field(..., min_length=1, max_length=100)
+
+
 class UserLoginResponse(BaseModel):
     access_token: str
     token_type: str

@@ -20,15 +20,20 @@ class UserService:
         email: str,
         first_name: str,
         last_name: str,
-        password: str,
+        password: str | None = None,
+        facebook_id: str | None = None,
+        oauth_provider: str | None = None,
     ) -> User:
         """Create a new user. Raises ValueError if the email already exists."""
         try:
+            password_hash = hash_password(password) if password else None
             user = User(
                 email=email,
                 first_name=first_name,
                 last_name=last_name,
-                password_hash=hash_password(password),
+                password_hash=password_hash,
+                facebook_id=facebook_id,
+                oauth_provider=oauth_provider,
                 is_active=True,
             )
             session.add(user)
@@ -51,6 +56,12 @@ class UserService:
         return result.scalar_one_or_none()
 
     @staticmethod
+    async def get_user_by_facebook_id(session: AsyncSession, facebook_id: str) -> User | None:
+        """Get user by Facebook ID."""
+        result = await session.execute(select(User).where(User.facebook_id == facebook_id))
+        return result.scalar_one_or_none()
+
+    @staticmethod
     async def verify_password(
         session: AsyncSession,
         email: str,
@@ -59,6 +70,8 @@ class UserService:
         """Verify user credentials, returning the user when valid."""
         user = await UserService.get_user_by_email(session, email)
         if not user:
+            return None
+        if not user.password_hash:
             return None
         if not verify_password(password, user.password_hash):
             return None

@@ -8,8 +8,10 @@ from src.models import (
     UserLoginRequest,
     UserLoginResponse,
     UserProfileResponse,
+    FacebookLoginRequest,
 )
 from src.services.user_service import UserService
+from src.services.social_auth_service import SocialAuthService
 from src.utils.jwt_handler import create_access_token
 from src.utils.redis_session import session_manager
 from src.middleware.auth import verify_user_auth, get_current_user_id
@@ -163,4 +165,94 @@ def logout(
     return {
         "message": "Successfully logged out",
         "status": "ok",
+    }
+
+
+@router.post("/facebook/login", response_model=UserLoginResponse, status_code=status.HTTP_201_CREATED)
+async def facebook_login(
+    request: FacebookLoginRequest,
+    session: AsyncSession = Depends(get_db),
+) -> dict:
+    """
+    Login or signup with Facebook.
+
+    Args:
+        request: Facebook access token and user info
+        session: Database session
+
+    Returns:
+        Access token and user profile
+    """
+    # Verify Facebook token
+    facebook_data = await SocialAuthService.verify_facebook_token(request.access_token)
+    if not facebook_data:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid Facebook token",
+        )
+
+    facebook_id = facebook_data.get("facebook_id")
+
+    # Try to find existing user by Facebook ID
+    user = await UserService.get_user_by_facebook_id(session, facebook_id)
+
+    if not user:
+        # Check if user exists by email (if provided)
+        if request.email:
+            user = await UserService.get_user_by_email(session, request.email)
+            if user:
+                # Link Facebook ID to existing user
+                user.facebook_id = facebook_id
+                user.oauth_provider = "facebook"
+                await session.flush()
+            else:
+                # Create new user
+                try:
+                    user = await UserService.create_user(
+                        session,
+                        email=request.email,
+                        first_name=request.first_name,
+                        last_name=request.last_name,
+                        facebook_id=facebook_id,
+                        oauth_provider="facebook",
+                    )
+                    await session.commit()
+                except ValueError as e:
+                    raise HTTPException(
+                        status_code=status.HTTP_409_CONFLICT,
+                        detail=str(e),
+                    )
+        else:
+            # Create new user without email
+            try:
+                user = await UserService.create_user(
+                    session,
+                    email=f"facebook_{facebook_id}@example.com",
+                    first_name=request.first_name,
+                    last_name=request.last_name,
+                    facebook_id=facebook_id,
+                    oauth_provider="facebook",
+                )
+                await session.commit()
+            except ValueError as e:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail=str(e),
+                )
+
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="User account is inactive",
+        )
+
+    # Generate token and store in Redis
+    token = create_access_token(user.id, user.email)
+    session_manager.store_token(token, user.id, user.email)
+
+    user_schema = UserService.to_schema(user)
+    return {
+        "access_token": token,
+        "token_type": "bearer",
+        "user": user_schema,
     }

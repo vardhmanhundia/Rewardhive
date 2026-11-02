@@ -56,6 +56,7 @@ export interface Conversation {
   created_at: string;
   updated_at: string;
   is_shared?: boolean;
+  shared_by_me?: boolean;
   owner_email?: string | null;
 }
 
@@ -133,6 +134,12 @@ export interface RewardResult {
   picks: CardRewardPick[];
 }
 
+/** A follow-up prompt the agent emits for the UI to render as a button/confirm. */
+export interface FollowUpPrompt {
+  action: 'offer_evaluate' | 'offer_add';
+  card_ids: string[];
+}
+
 /** What the RAG endpoint returns: Muse prose, the cards it drew on, the memories
  *  captured this turn, and three follow-up suggestions. */
 export interface RecommendationResult {
@@ -140,6 +147,9 @@ export interface RecommendationResult {
   cards: CardProduct[];
   newMemories: string[];
   suggestions: string[];
+  intent?: string;
+  prompts?: FollowUpPrompt[];
+  spendBaseline?: Record<string, number>;
 }
 
 /** Stages surfaced to the UI as the RAG pipeline runs. */
@@ -154,6 +164,10 @@ export interface RecStreamHandlers {
   /** The conversation this turn was persisted under — a fresh session adopts the
    *  server-assigned id so follow-ups continue the same thread. */
   onConversation?: (id: string) => void;
+  onRoute?: (intent: string) => void;
+  onPrompt?: (prompt: FollowUpPrompt) => void;
+  onPlan?: (plan: Record<string, unknown>) => void;
+  onResult?: (result: Record<string, unknown>) => void;
   signal?: AbortSignal;
 }
 
@@ -239,7 +253,7 @@ class CardService {
     })) as RecMessage[];
   }
 
-  async shareConversation(conversationId: string, emails: string[]): Promise<{ shared_with: string[]; not_found: string[] }> {
+  async shareConversation(conversationId: string, emails: string[]): Promise<{ shared_with: string[]; invited_new: string[]; not_found: string[] }> {
     const res = await fetch(`${API_URL}/recommendations/conversations/${conversationId}/share`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...authHeaders() },
@@ -452,6 +466,9 @@ class CardService {
     let resultCards: CardProduct[] = [];
     let newMemories: string[] = [];
     let suggestions: string[] = [];
+    let intent: string | undefined;
+    let prompts: FollowUpPrompt[] = [];
+    let spendBaseline: Record<string, number> | undefined;
 
     for (;;) {
       const { done, value } = await reader.read();
@@ -479,11 +496,23 @@ class CardService {
         } else if (event === 'suggestions') {
           suggestions = payload.items ?? [];
           handlers.onSuggestions?.(suggestions);
+        } else if (event === 'route') {
+          intent = payload.intent;
+          handlers.onRoute?.(payload.intent);
+        } else if (event === 'prompt') {
+          const p: FollowUpPrompt = { action: payload.action, card_ids: payload.card_ids ?? [] };
+          prompts.push(p);
+          handlers.onPrompt?.(p);
+        } else if (event === 'plan') {
+          if (payload.spend) spendBaseline = payload.spend;
+          handlers.onPlan?.(payload);
+        } else if (event === 'result') {
+          handlers.onResult?.(payload);
         }
       }
     }
     handlers.onStage?.('done');
-    return { answer, cards: resultCards, newMemories, suggestions };
+    return { answer, cards: resultCards, newMemories, suggestions, intent, prompts, spendBaseline };
   }
 }
 

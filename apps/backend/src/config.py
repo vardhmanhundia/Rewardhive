@@ -41,8 +41,8 @@ class Settings:
     # Note: Muse Spark always reasons, so never send reasoning_effort="none".
     MODEL_API_KEY: str = os.getenv("MODEL_API_KEY", "")
     MUSE_BASE_URL: str = os.getenv("MUSE_BASE_URL", "")
-    PROFILING_CHAT_MODEL: str = os.getenv("PROFILING_CHAT_MODEL", "muse-spark-1.1")
-    PROFILING_EXTRACTOR_MODEL: str = os.getenv("PROFILING_EXTRACTOR_MODEL", "muse-spark-1.1")
+    PROFILING_CHAT_MODEL: str = os.getenv("PROFILING_CHAT_MODEL", "muse-spark-1.3")
+    PROFILING_EXTRACTOR_MODEL: str = os.getenv("PROFILING_EXTRACTOR_MODEL", "muse-spark-1.3")
 
     # When true, LLM calls replay canned responses instead of hitting the API.
     # Useful for offline/deterministic runs; see src.agents.commons.llm.
@@ -83,6 +83,22 @@ class Settings:
     RECOMMENDATION_MODEL: str = os.getenv("RECOMMENDATION_MODEL", "muse-spark-1.1")
     RECOMMENDATION_TOP_K: int = int(os.getenv("RECOMMENDATION_TOP_K", "5"))
     RECOMMENDATION_FETCH_K: int = int(os.getenv("RECOMMENDATION_FETCH_K", "40"))
+
+    # Public base URL of the web app. Used to build links in outgoing emails
+    # (e.g. the conversation link and the sign-up prompt in a share invite).
+    FRONTEND_URL: str = os.getenv("FRONTEND_URL", "http://localhost:3000")
+
+    # Transactional email (conversation share invites). No managed provider is
+    # wired in, so delivery is plain SMTP. In fake mode — the default, so local
+    # dev and tests need no SMTP server — messages are logged instead of sent.
+    # Set EMAIL_FAKE_MODE=false plus the SMTP_* vars to deliver for real.
+    EMAIL_FAKE_MODE: bool = os.getenv("EMAIL_FAKE_MODE", "true").lower() == "true"
+    EMAIL_FROM: str = os.getenv("EMAIL_FROM", "CardPilot <no-reply@cardpilot.app>")
+    SMTP_HOST: str = os.getenv("SMTP_HOST", "localhost")
+    SMTP_PORT: int = int(os.getenv("SMTP_PORT", "587"))
+    SMTP_USERNAME: str = os.getenv("SMTP_USERNAME", "")
+    SMTP_PASSWORD: str = os.getenv("SMTP_PASSWORD", "")
+    SMTP_USE_TLS: bool = os.getenv("SMTP_USE_TLS", "true").lower() == "true"
 
 
 settings = Settings()

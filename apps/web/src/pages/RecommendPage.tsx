@@ -14,7 +14,7 @@ import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Sparkles, Send, Search, FileText, Plus, MessageSquare, MoreHorizontal,
   Trash2, PanelLeftClose, PanelLeft, Pin, PinOff, RefreshCw, Share2, Users, Link2,
-  X, Mail, Copy, Check, UserPlus,
+  X, Mail, Copy, Check, UserPlus, CreditCard, Square,
 } from 'lucide-react';
 import { Navbar } from '@/components/Navbar';
 import { CardTile } from '@/components/CardTile';
@@ -22,10 +22,12 @@ import Markdown from '@/components/Markdown';
 import cardService, {
   type CardProduct,
   type Conversation,
+  type FollowUpPrompt,
   type RecMessage,
   type RecStage,
   type ShareInfo,
 } from '@/services/cardService';
+import profileService from '@/services/profileService';
 
 /* ── Types ────────────────────────────────────────────────────────────── */
 
@@ -39,6 +41,10 @@ interface ChatTurn {
   memories: string[];
   suggestions: string[];
   error?: boolean;
+  interrupted?: boolean;
+  intent?: string;
+  prompts: FollowUpPrompt[];
+  spendBaseline?: Record<string, number>;
 }
 
 type ThreadCategory = 'pinned' | 'shared' | 'self';
@@ -76,6 +82,7 @@ function msgsToTurns(msgs: RecMessage[]): ChatTurn[] {
       found: cards.length,
       memories: [],
       suggestions: [],
+      prompts: [],
     });
     if (isReply) i++;
   }
@@ -135,10 +142,22 @@ export const RecommendPage = () => {
   const convId = useRef<string | null>(urlConversationId);
   const bottomRef = useRef<HTMLDivElement>(null);
   const didInit = useRef(false);
+  const abortRef = useRef<AbortController | null>(null);
+  const activeTurnId = useRef<string | null>(null);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [turns]);
+
+  // Escape key stops a running stream.
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && busy) stop();
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [busy]);
 
   // Load the conversation list from the backend.
   const refreshConversations = useCallback(async () => {
@@ -185,7 +204,8 @@ export const RecommendPage = () => {
     }
   };
 
-  // Fire handoff query once.
+  // Fire handoff query once. The cleanup resets the guard so the effect works
+  // correctly under React StrictMode's mount-unmount-remount cycle.
   useEffect(() => {
     if (!handoffQuery.current || didInit.current) return;
     didInit.current = true;
@@ -193,36 +213,56 @@ export const RecommendPage = () => {
     handoffQuery.current = null;
     navigate(location.pathname, { replace: true, state: null });
     ask(query);
+    return () => { didInit.current = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const patch = (id: string, update: Partial<ChatTurn>) =>
     setTurns((prev) => prev.map((t) => (t.id === id ? { ...t, ...update } : t)));
 
+  const stop = () => {
+    if (abortRef.current) {
+      abortRef.current.abort();
+      abortRef.current = null;
+    }
+    if (activeTurnId.current) {
+      patch(activeTurnId.current, { stage: 'done', interrupted: true });
+      activeTurnId.current = null;
+    }
+    setBusy(false);
+  };
+
   const ask = async (raw: string, retryTurnId?: string) => {
     const query = raw.trim();
-    if (!query || busy) return;
+    if (!query) return;
 
+    // If a stream is running, interrupt it first.
+    if (busy) stop();
+
+    // Build history from completed, non-interrupted turns only.
     const history = turns
-      .filter((t) => !t.error && t.answer)
+      .filter((t) => !t.error && !t.interrupted && t.answer)
       .flatMap((t) => [
         { role: 'user' as const, content: t.query },
         { role: 'assistant' as const, content: t.answer },
       ])
       .filter((m) => m.content.trim());
 
-    // If retrying, reuse the turn id and reset its state.
     const id = retryTurnId ?? crypto.randomUUID();
     if (retryTurnId) {
-      patch(id, { stage: null, answer: '', cards: [], found: 0, memories: [], suggestions: [], error: false });
+      patch(id, { stage: null, answer: '', cards: [], found: 0, memories: [], suggestions: [], prompts: [], error: false, interrupted: false });
     } else {
       setTurns((prev) => [
         ...prev,
-        { id, query, stage: null, answer: '', cards: [], found: 0, memories: [], suggestions: [] },
+        { id, query, stage: null, answer: '', cards: [], found: 0, memories: [], suggestions: [], prompts: [] },
       ]);
     }
     setInput('');
     setBusy(true);
+
+    const controller = new AbortController();
+    abortRef.current = controller;
+    activeTurnId.current = id;
 
     try {
       await cardService.recommendStream(
@@ -242,19 +282,61 @@ export const RecommendPage = () => {
             ),
           onMemories: (items) => patch(id, { memories: items }),
           onSuggestions: (items) => patch(id, { suggestions: items }),
+          onRoute: (intent) => patch(id, { intent }),
+          onPrompt: (prompt) =>
+            setTurns((prev) =>
+              prev.map((t) => (t.id === id ? { ...t, prompts: [...t.prompts, prompt] } : t)),
+            ),
+          onPlan: (plan) => {
+            if (plan.spend) patch(id, { spendBaseline: plan.spend as Record<string, number> });
+          },
+          signal: controller.signal,
         },
         history,
         convId.current ?? undefined,
       );
-    } catch {
+    } catch (err) {
+      if (err instanceof DOMException && err.name === 'AbortError') {
+        // Interrupted by the user — the turn is already marked.
+        return;
+      }
       patch(id, { stage: 'done', answer: 'Something went wrong — please try again.', error: true });
     } finally {
-      setBusy(false);
+      if (activeTurnId.current === id) {
+        activeTurnId.current = null;
+        abortRef.current = null;
+        setBusy(false);
+      }
     }
   };
 
   const handleRetry = (turn: ChatTurn) => {
     ask(turn.query, turn.id);
+  };
+
+  const handleEvaluate = (cardId: string) => {
+    navigate(`/evaluate?card=${encodeURIComponent(cardId)}`);
+  };
+
+  // "Did you buy it?" flow state.
+  const [addCardConfirm, setAddCardConfirm] = useState<{ cardId: string; cardName: string } | null>(null);
+  const [addingCard, setAddingCard] = useState(false);
+
+  const handleAddCard = (cardId: string, cardName: string) => {
+    setAddCardConfirm({ cardId, cardName });
+  };
+
+  const confirmAddCard = async () => {
+    if (!addCardConfirm) return;
+    setAddingCard(true);
+    try {
+      await profileService.addCard({ card_id: addCardConfirm.cardId, category: 'everyday' });
+      setAddCardConfirm(null);
+    } catch {
+      // best effort — the modal stays so the user can retry
+    } finally {
+      setAddingCard(false);
+    }
   };
 
   const handleNewChat = () => {
@@ -470,7 +552,15 @@ export const RecommendPage = () => {
             ) : (
               <div className="flex-1 space-y-8 py-8">
                 {turns.map((turn) => (
-                  <Turn key={turn.id} turn={turn} onPick={ask} onRetry={() => handleRetry(turn)} busy={busy} />
+                  <Turn
+                    key={turn.id}
+                    turn={turn}
+                    onPick={ask}
+                    onRetry={() => handleRetry(turn)}
+                    onEvaluate={handleEvaluate}
+                    onAddCard={handleAddCard}
+                    busy={busy}
+                  />
                 ))}
                 <div ref={bottomRef} />
               </div>
@@ -495,22 +585,38 @@ export const RecommendPage = () => {
                 }}
                 rows={2}
                 placeholder={
-                  empty
-                    ? 'Describe how you spend — e.g. I travel a few times a year and eat out a lot'
-                    : 'Ask a follow-up…'
+                  busy
+                    ? 'Type to interrupt and ask something else…'
+                    : empty
+                      ? 'Describe how you spend — e.g. I travel a few times a year and eat out a lot'
+                      : 'Ask a follow-up…'
                 }
                 className="w-full resize-none bg-transparent p-2 text-sm outline-none placeholder:text-muted-foreground"
               />
               <div className="flex items-center justify-between px-2 pb-1">
-                <span className="text-xs text-muted-foreground">Enter to send · Shift+Enter for newline</span>
-                <button
-                  type="submit"
-                  disabled={!input.trim() || busy}
-                  className="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
-                >
-                  <Send className="h-4 w-4" />
-                  {busy ? 'Thinking…' : 'Ask'}
-                </button>
+                <span className="text-xs text-muted-foreground">
+                  {busy ? 'Esc to stop · Enter to interrupt and ask' : 'Enter to send · Shift+Enter for newline'}
+                </span>
+                <div className="flex items-center gap-2">
+                  {busy && (
+                    <button
+                      type="button"
+                      onClick={stop}
+                      className="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground hover:border-white/20"
+                    >
+                      <Square className="h-3.5 w-3.5 fill-current" />
+                      Stop
+                    </button>
+                  )}
+                  <button
+                    type="submit"
+                    disabled={!input.trim()}
+                    className="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
+                  >
+                    <Send className="h-4 w-4" />
+                    {busy ? 'Interrupt' : 'Ask'}
+                  </button>
+                </div>
               </div>
             </form>
           </div>
@@ -527,6 +633,48 @@ export const RecommendPage = () => {
             if (activeConvId && !sharedIds.has(activeConvId)) toggleShare(activeConvId);
           }}
         />
+      )}
+
+      {/* "Did you buy it?" confirmation dialog */}
+      {addCardConfirm && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+          onClick={() => setAddCardConfirm(null)}
+        >
+          <div
+            className="w-full max-w-sm rounded-2xl border border-border bg-card p-6 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-3 mb-4">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-green-500/10">
+                <CreditCard className="h-5 w-5 text-green-400" />
+              </div>
+              <div>
+                <h3 className="font-display font-semibold text-sm">Add to your wallet?</h3>
+                <p className="text-xs text-muted-foreground">Did you get the {addCardConfirm.cardName}?</p>
+              </div>
+            </div>
+            <p className="text-sm text-muted-foreground mb-5">
+              This will add <strong className="text-foreground">{addCardConfirm.cardName}</strong> to
+              your saved cards so the assistant factors it into future recommendations.
+            </p>
+            <div className="flex gap-2 justify-end">
+              <button
+                onClick={() => setAddCardConfirm(null)}
+                className="rounded-lg border border-border px-3 py-1.5 text-sm font-medium text-muted-foreground hover:text-foreground hover:border-white/20 transition-colors"
+              >
+                Not yet
+              </button>
+              <button
+                onClick={confirmAddCard}
+                disabled={addingCard}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-green-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-green-500 transition-colors disabled:opacity-50"
+              >
+                {addingCard ? 'Adding...' : 'Yes, I got it!'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
@@ -668,84 +816,117 @@ const Turn = ({
   turn,
   onPick,
   onRetry,
+  onEvaluate,
+  onAddCard,
   busy,
 }: {
   turn: ChatTurn;
   onPick: (q: string) => void;
   onRetry: () => void;
+  onEvaluate: (cardId: string) => void;
+  onAddCard: (cardId: string, cardName: string) => void;
   busy: boolean;
-}) => (
-  <div className="space-y-4">
-    {/* User bubble */}
-    <div className="flex justify-end">
-      <div className="max-w-[85%] rounded-2xl rounded-br-sm bg-primary px-4 py-2.5 text-sm text-primary-foreground">
-        {turn.query}
+}) => {
+  const isDone = turn.stage === 'done' || (turn.stage === null && turn.answer);
+
+  return (
+    <div className="space-y-4">
+      {/* User bubble */}
+      <div className="flex justify-end">
+        <div className="max-w-[85%] rounded-2xl rounded-br-sm bg-primary px-4 py-2.5 text-sm text-primary-foreground">
+          {turn.query}
+        </div>
+      </div>
+
+      {/* Assistant response */}
+      <div className="space-y-4">
+        <StageLine turn={turn} />
+
+        {turn.answer && (
+          <div className={`glass rounded-2xl rounded-tl-sm p-4 text-sm leading-relaxed ${turn.error ? 'border border-destructive/30' : ''} ${turn.interrupted ? 'opacity-60' : ''}`}>
+            <Markdown>{turn.answer}</Markdown>
+            {turn.stage === 'generating' && !turn.interrupted && (
+              <span className="ml-0.5 inline-block h-4 w-1.5 animate-pulse bg-primary align-middle" />
+            )}
+            {turn.interrupted && (
+              <span className="mt-2 block text-xs text-muted-foreground italic">— stopped</span>
+            )}
+          </div>
+        )}
+
+        {/* Retry button on error */}
+        {turn.error && turn.stage === 'done' && (
+          <button
+            onClick={onRetry}
+            disabled={busy}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-1.5 text-xs font-medium text-destructive hover:bg-destructive/20 transition-colors disabled:opacity-50"
+          >
+            <RefreshCw className="h-3 w-3" />
+            Retry
+          </button>
+        )}
+
+        {turn.cards.length > 0 && (
+          <div className="grid gap-4 sm:grid-cols-2">
+            {turn.cards.map((card) => (
+              <div key={card.id} className="flex flex-col">
+                <CardTile card={card} />
+                {isDone && !turn.error && (
+                  <div className="flex gap-2 mt-2">
+                    <button
+                      onClick={() => onEvaluate(card.id)}
+                      disabled={busy}
+                      className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg border border-primary/30 bg-primary/10 px-3 py-2 text-xs font-medium text-primary hover:bg-primary/20 transition-colors disabled:opacity-50"
+                    >
+                      <Sparkles className="h-3 w-3" />
+                      Is this worth it?
+                    </button>
+                    <button
+                      onClick={() => onAddCard(card.id, card.name)}
+                      disabled={busy}
+                      className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg border border-green-500/30 bg-green-500/10 px-3 py-2 text-xs font-medium text-green-300 hover:bg-green-500/20 transition-colors disabled:opacity-50"
+                    >
+                      <CreditCard className="h-3 w-3" />
+                      I got this card
+                    </button>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {turn.memories.length > 0 && (
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs text-muted-foreground">Noted about you:</span>
+            {turn.memories.map((m) => (
+              <span
+                key={m}
+                className="rounded-full border border-primary/30 bg-primary/10 px-2.5 py-1 text-xs text-foreground"
+              >
+                {m}
+              </span>
+            ))}
+          </div>
+        )}
+
+        {turn.suggestions.length > 0 && (
+          <div className="flex flex-wrap gap-2 pt-1">
+            {turn.suggestions.map((s) => (
+              <button
+                key={s}
+                onClick={() => onPick(s)}
+                className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
+              >
+                {s}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
     </div>
-
-    {/* Assistant response */}
-    <div className="space-y-4">
-      <StageLine turn={turn} />
-
-      {turn.answer && (
-        <div className={`glass rounded-2xl rounded-tl-sm p-4 text-sm leading-relaxed ${turn.error ? 'border border-destructive/30' : ''}`}>
-          <Markdown>{turn.answer}</Markdown>
-          {turn.stage === 'generating' && (
-            <span className="ml-0.5 inline-block h-4 w-1.5 animate-pulse bg-primary align-middle" />
-          )}
-        </div>
-      )}
-
-      {/* Retry button on error */}
-      {turn.error && turn.stage === 'done' && (
-        <button
-          onClick={onRetry}
-          disabled={busy}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-1.5 text-xs font-medium text-destructive hover:bg-destructive/20 transition-colors disabled:opacity-50"
-        >
-          <RefreshCw className="h-3 w-3" />
-          Retry
-        </button>
-      )}
-
-      {turn.cards.length > 0 && (
-        <div className="grid gap-4 sm:grid-cols-2">
-          {turn.cards.map((card) => (
-            <CardTile key={card.id} card={card} />
-          ))}
-        </div>
-      )}
-
-      {turn.memories.length > 0 && (
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs text-muted-foreground">Noted about you:</span>
-          {turn.memories.map((m) => (
-            <span
-              key={m}
-              className="rounded-full border border-primary/30 bg-primary/10 px-2.5 py-1 text-xs text-foreground"
-            >
-              {m}
-            </span>
-          ))}
-        </div>
-      )}
-
-      {turn.suggestions.length > 0 && (
-        <div className="flex flex-wrap gap-2 pt-1">
-          {turn.suggestions.map((s) => (
-            <button
-              key={s}
-              onClick={() => onPick(s)}
-              className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
-            >
-              {s}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  </div>
-);
+  );
+};
 
 /* ── Share dialog ────────────────────────────────────────────────────── */
 
@@ -760,7 +941,7 @@ const ShareDialog = ({
 }) => {
   const [emails, setEmails] = useState('');
   const [sending, setSending] = useState(false);
-  const [result, setResult] = useState<{ shared: string[]; notFound: string[] } | null>(null);
+  const [result, setResult] = useState<{ shared: string[]; invited: string[]; notFound: string[] } | null>(null);
   const [linkCopied, setLinkCopied] = useState(false);
 
   const shareLink = `${window.location.origin}${window.location.pathname}?c=${conversationId}`;
@@ -780,10 +961,10 @@ const ShareDialog = ({
     setSending(true);
     try {
       const res = await cardService.shareConversation(conversationId, list);
-      setResult({ shared: res.shared_with, notFound: res.not_found });
-      if (res.shared_with.length > 0) onShared();
+      setResult({ shared: res.shared_with, invited: res.invited_new ?? [], notFound: res.not_found });
+      if (res.shared_with.length > 0 || (res.invited_new ?? []).length > 0) onShared();
     } catch {
-      setResult({ shared: [], notFound: list });
+      setResult({ shared: [], invited: [], notFound: list });
     } finally {
       setSending(false);
     }
@@ -805,6 +986,9 @@ const ShareDialog = ({
         {/* Share by email */}
         <div className="space-y-3">
           <label className="block text-sm font-medium text-muted-foreground">Invite by email</label>
+          <p className="text-xs text-muted-foreground">
+            People with an account get a notification; anyone new gets an email invite with a sign-up link.
+          </p>
           <div className="flex gap-2">
             <div className="flex items-center gap-2 flex-1 rounded-xl border border-border bg-secondary px-3 py-2 focus-within:border-primary/40">
               <Mail className="h-4 w-4 text-muted-foreground shrink-0" />
@@ -832,12 +1016,18 @@ const ShareDialog = ({
               {result.shared.length > 0 && (
                 <div className="flex items-center gap-1.5 text-green-400">
                   <Check className="h-3 w-3" />
-                  Shared with {result.shared.join(', ')}
+                  Shared with {result.shared.join(', ')} — we emailed them a notification
+                </div>
+              )}
+              {result.invited.length > 0 && (
+                <div className="flex items-center gap-1.5 text-primary">
+                  <UserPlus className="h-3 w-3" />
+                  New user invited: {result.invited.join(', ')} — we emailed an invite with a sign-up link
                 </div>
               )}
               {result.notFound.length > 0 && (
                 <div className="text-destructive">
-                  Not found: {result.notFound.join(', ')}
+                  Couldn’t send to {result.notFound.join(', ')} — please try again
                 </div>
               )}
             </div>

@@ -27,6 +27,7 @@ from langchain_core.runnables import RunnableConfig
 from langgraph.config import get_stream_writer
 from langgraph.graph import END, START, StateGraph
 
+from src.agents.commons.card_tools import offer_add, offer_evaluate
 from src.agents.commons.llm import get_chat_model
 from src.agents.recommendation.models import RecommendedSelection
 from src.agents.recommendation.prompts import (
@@ -229,7 +230,11 @@ async def select_node(state: AgentState, config: RunnableConfig) -> AgentState:
         query = state.get("query", "")
         await persist_turn(str(conversation_id), query, state.get("answer", ""), cards=serialized)
         await ConversationService.touch(session, conversation_id, first_question=query)
-    return {"cards": recommended}
+    # Offer the two frontend-driven follow-ups on the recommended cards: evaluate
+    # a chosen card (runs the Card Evaluator), or add one to the wallet.
+    card_ids = [str(c.id) for c in recommended]
+    prompts = [p for p in (offer_evaluate(writer, card_ids), offer_add(writer, card_ids)) if p]
+    return {"cards": recommended, "prompts": prompts}
 
 
 async def suggest_node(state: AgentState, config: RunnableConfig) -> AgentState:

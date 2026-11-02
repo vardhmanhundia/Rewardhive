@@ -4,7 +4,7 @@
  */
 import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Home, CreditCard, Wallet, User, LogOut, ChevronDown, Sparkles } from 'lucide-react';
+import { Home, CreditCard, Wallet, User, LogOut, ChevronDown, Sparkles, MessageSquare, Bell } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 
 const baseLinks = [{ to: '/cards', label: 'Browse cards', icon: CreditCard }];
@@ -13,12 +13,12 @@ export const Navbar = () => {
   const { pathname } = useLocation();
   const { user, isAuthenticated, isLoading } = useAuth();
 
-  // Signed-in users get a Home link to their summary page, and the logo takes
+  // Signed-in users get a Home link to their For You page, and the logo takes
   // them there rather than to the marketing landing.
   const links = isAuthenticated
     ? [
-        { to: '/for-you', label: 'My Space', icon: Home },
-        { to: '/for-you-2', label: 'For You', icon: Sparkles },
+        { to: '/for-you', label: 'For You', icon: Home },
+        { to: '/recommend', label: 'Chat', icon: MessageSquare },
         { to: '/which-card', label: 'Which card?', icon: Sparkles },
         { to: '/evaluate', label: 'Evaluate', icon: Wallet },
         ...baseLinks,
@@ -27,7 +27,7 @@ export const Navbar = () => {
 
   return (
     <header className="sticky top-0 z-30 border-b border-white/5 bg-background/70 backdrop-blur-md">
-      <nav className="max-w-7xl mx-auto flex items-center justify-between px-4 h-14">
+      <nav className="max-w-[1400px] mx-auto flex items-center justify-between px-4 h-14">
         <Link to="/" className="font-display text-lg font-bold tracking-tight">
           Card<span className="text-gradient">Agent</span>
         </Link>
@@ -56,7 +56,16 @@ export const Navbar = () => {
           {isLoading ? (
             <div className="ml-2 h-8 w-8 animate-pulse rounded-full bg-white/10" />
           ) : isAuthenticated && user ? (
-            <UserMenu />
+            <>
+              <button
+                type="button"
+                aria-label="Notifications"
+                className="ml-2 grid h-8 w-8 place-items-center rounded-md text-muted-foreground transition-colors hover:text-foreground hover:bg-white/5"
+              >
+                <Bell className="w-4 h-4" />
+              </button>
+              <UserMenu />
+            </>
           ) : (
             <div className="ml-2 flex items-center gap-1.5">
               <Link

@@ -1,6 +1,6 @@
 """Pydantic schemas for request/response validation"""
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, model_validator
 from datetime import datetime
 from typing import Literal, Optional
 from uuid import UUID
@@ -170,6 +170,7 @@ class ConversationSummary(BaseModel):
     created_at: datetime
     updated_at: datetime
     is_shared: bool = False
+    shared_by_me: bool = False
     owner_email: Optional[str] = None
 
 
@@ -184,7 +185,15 @@ class ShareConversationRequest(BaseModel):
 
 
 class ShareConversationResponse(BaseModel):
+    """Outcome of a share, split by what happened to each address.
+
+    - ``shared_with``: existing users given access (in-app + email notification).
+    - ``invited_new``: non-registered addresses emailed a sign-up invitation.
+    - ``not_found``: non-registered addresses whose invite email failed to send.
+    """
+
     shared_with: list[str]
+    invited_new: list[str] = []
     not_found: list[str]
 
 
@@ -260,16 +269,31 @@ class ProfileConflictInfo(BaseModel):
     mentioned: str
 
 
+class FollowUpPrompt(BaseModel):
+    """A frontend-driven follow-up the chat offers after an agent turn.
+
+    ``action`` is "offer_evaluate" (run the Card Evaluator on a chosen card) or
+    "offer_add" (add a card to the wallet; the UI confirms "did you buy it?"
+    before calling the add-card endpoint). ``card_ids`` are the cards the offer
+    applies to."""
+
+    action: str
+    card_ids: list[str] = Field(default_factory=list)
+
+
 class RecommendationResponse(BaseModel):
     """Non-streaming recommendation: Muse's prose, the cards it drew on, any
-    memories captured this turn, three follow-up suggestions, and a marker for
-    any unconfirmed profile conflicts to reconcile on the profile page."""
+    memories captured this turn, three follow-up suggestions, a marker for any
+    unconfirmed profile conflicts to reconcile on the profile page, which agent
+    the router picked, and any follow-up prompts."""
 
     answer: str
     cards: list[CardProductSchema]
     new_memories: list[str]
     suggestions: list[str]
     conflicts: list[ProfileConflictInfo] = Field(default_factory=list)
+    intent: str = "new_card"
+    prompts: list[FollowUpPrompt] = Field(default_factory=list)
 
 
 # --- Extended user profile ---------------------------------------------------
@@ -331,6 +355,26 @@ class UserProfileDetails(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class AddCardRequest(BaseModel):
+    """Add a single card to the user's wallet from chat.
+
+    Identify the card by catalog ``card_id`` or by free-text ``name`` with
+    ``custom=True``. ``category`` is the spend bucket it's used for (defaults to
+    everyday). Confirmed by the UI ("did you finally buy it?") before this call.
+    """
+
+    card_id: Optional[str] = None
+    name: Optional[str] = None
+    category: str = "everyday"
+    custom: bool = False
+
+    @model_validator(mode="after")
+    def _require_identifier(self) -> "AddCardRequest":
+        if not self.card_id and not self.name:
+            raise ValueError("either card_id or name is required")
+        return self
 
 
 class UserProfileUpdate(BaseModel):

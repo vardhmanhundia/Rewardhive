@@ -30,6 +30,7 @@ from src.models import (
     ConversationMembersResponse,
     ConversationShareInfo,
     ConversationSummary,
+    FollowUpPrompt,
     MemberActionRequest,
     NotificationListResponse,
     NotificationSchema,
@@ -83,7 +84,7 @@ async def recommend(
     user_id = get_current_user_id(payload)
     history = [turn.model_dump() for turn in request.history]
     conversation_id = await _resolve_conversation_id(session, user_id, request.conversation_id)
-    answer, cards, new_memories, suggestions, conflicts = await run_recommendation(
+    answer, cards, new_memories, suggestions, conflicts, intent, prompts = await run_recommendation(
         session, user_id, request.query, history=history, conversation_id=conversation_id
     )
     # The agent flushes new memories; commit so they persist across turns.
@@ -94,6 +95,8 @@ async def recommend(
         new_memories=new_memories,
         suggestions=suggestions,
         conflicts=[ProfileConflictInfo.model_validate(c) for c in conflicts],
+        intent=intent,
+        prompts=[FollowUpPrompt.model_validate(p) for p in prompts],
     )
 
 
@@ -168,6 +171,25 @@ async def recommend_stream(
                     yield _sse("token", {"text": event["text"]})
                 elif kind in ("memories", "suggestions", "conflicts"):
                     yield _sse(kind, {"items": event["items"]})
+                elif kind == "route":
+                    yield _sse("route", {"intent": event.get("intent")})
+                elif kind == "prompt":
+                    yield _sse("prompt", {
+                        "action": event.get("action"),
+                        "card_ids": event.get("card_ids", []),
+                    })
+                elif kind == "plan":
+                    yield _sse("plan", {
+                        k: v for k, v in event.items() if k != "kind"
+                    })
+                elif kind == "result":
+                    yield _sse("result", {
+                        k: v for k, v in event.items() if k != "kind"
+                    })
+                elif kind == "need_cards":
+                    yield _sse("need_cards", {
+                        k: v for k, v in event.items() if k != "kind"
+                    })
                 elif kind == "done":
                     yield _sse("done", {})
                 elif kind == "error":
@@ -196,9 +218,11 @@ async def list_conversations(
     user_id = get_current_user_id(payload)
     own = await ConversationService.list_for_user(session, user_id)
     shared = await ConversationService.list_shared_with_user(session, user_id)
+    shared_by_me = await ConversationService.list_ids_shared_by_user(session, user_id)
     summaries: list[ConversationSummary] = []
     for c in own:
         s = ConversationSummary.model_validate(c, from_attributes=True)
+        s.shared_by_me = c.id in shared_by_me
         summaries.append(s)
     for c in shared:
         owner = await session.get(User, c.user_id)
@@ -245,11 +269,13 @@ async def share_conversation(
     conversation = await ConversationService.get_by_id(session, conversation_id)
     if conversation is None:
         raise HTTPException(status_code=404, detail="Conversation not found")
-    shared_with, not_found = await ConversationService.share_with_emails(
+    shared_with, invited_new, not_found = await ConversationService.share_with_emails(
         session, conversation_id, user_id, request.emails
     )
     await session.commit()
-    return ShareConversationResponse(shared_with=shared_with, not_found=not_found)
+    return ShareConversationResponse(
+        shared_with=shared_with, invited_new=invited_new, not_found=not_found
+    )
 
 
 @router.get(

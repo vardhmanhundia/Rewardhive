@@ -57,7 +57,27 @@ function authHeaders(): Record<string, string> {
   return { Authorization: `Bearer ${token}` };
 }
 
+export interface AddCardPayload {
+  card_id?: string;
+  name?: string;
+  category?: string;
+  custom?: boolean;
+}
+
 class ProfileService {
+  async addCard(payload: AddCardPayload): Promise<ProfileDetails> {
+    const res = await fetch(`${API_URL}/profile/cards/add`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      const error = await res.json().catch(() => ({}));
+      throw new Error(error.detail || 'Failed to add card');
+    }
+    return res.json();
+  }
+
   async getDetails(): Promise<ProfileDetails> {
     const res = await fetch(`${API_URL}/profile/details`, {
       headers: authHeaders(),

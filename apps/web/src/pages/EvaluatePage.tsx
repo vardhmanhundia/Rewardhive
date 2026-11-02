@@ -6,7 +6,8 @@
  * optimizer returns three scenarios — keep / reallocate / add — and a verdict.
  * The payload is privacy-friendly: approximate spend and card names only.
  */
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { Sparkles, CreditCard } from 'lucide-react';
 import { Navbar } from '@/components/Navbar';
@@ -16,6 +17,7 @@ import cardService, {
   type ScenarioComparison,
   type WalletResult,
 } from '@/services/cardService';
+import profileService from '@/services/profileService';
 
 const SPEND_CATEGORIES = [
   { key: 'dining', label: 'Dining', fallback: 300 },
@@ -30,7 +32,11 @@ const USAGE_OPTIONS = SPEND_CATEGORIES.map((c) => ({ key: c.key, label: c.label 
 const money = (n: number) => `$${Math.round(n).toLocaleString()}`;
 
 export const EvaluatePage = () => {
+  const [searchParams] = useSearchParams();
+  const preselectedCard = searchParams.get('card');
+
   const { data: catalog } = useQuery({ queryKey: ['cards'], queryFn: () => cardService.getAllCards() });
+  const { data: profile } = useQuery({ queryKey: ['profileDetails'], queryFn: () => profileService.getDetails() });
 
   // Monthly spend per category (what people can actually estimate).
   const [spend, setSpend] = useState<Record<string, number>>(
@@ -39,6 +45,22 @@ export const EvaluatePage = () => {
   // Owned cards → the category the user mostly puts on each.
   const [ownedUsage, setOwnedUsage] = useState<Record<string, string>>({});
   const [candidateId, setCandidateId] = useState('');
+  const [profileLoaded, setProfileLoaded] = useState(false);
+
+  // Pre-fill owned cards from the user's saved profile and the candidate from the URL.
+  useEffect(() => {
+    if (profileLoaded || !profile) return;
+    setProfileLoaded(true);
+    const usage: Record<string, string> = {};
+    for (const card of profile.cards) {
+      if (card.card_id) usage[card.card_id] = card.category || 'everyday';
+    }
+    setOwnedUsage(usage);
+  }, [profile, profileLoaded]);
+
+  useEffect(() => {
+    if (preselectedCard && !candidateId) setCandidateId(preselectedCard);
+  }, [preselectedCard, candidateId]);
 
   const ownedIds = Object.keys(ownedUsage);
   const monthlyTotal = Object.values(spend).reduce((a, b) => a + b, 0);

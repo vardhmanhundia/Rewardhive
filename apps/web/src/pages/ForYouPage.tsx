@@ -2,56 +2,17 @@ import React, {useMemo, useState, useCallback} from "react";
 import {useNavigate, Link} from "react-router-dom";
 import {useQuery} from "@tanstack/react-query";
 import {useAuth} from "@/context/AuthContext";
-import cardService, {type CardProduct} from "@/services/cardService";
+import cardService, {type CardProduct, type Conversation} from "@/services/cardService";
 import {Button} from "@/components/ui/button";
 import {Input} from "@/components/ui/input";
 import {Card} from "@/components/ui/card";
 import {CardTile} from "@/components/CardTile";
+import {Navbar} from "@/components/Navbar";
 import {Sparkles} from "lucide-react";
 
 /* ------------------------------------------------------------------ */
 /*  SVG icons                                                          */
 /* ------------------------------------------------------------------ */
-
-const TandemLogo = () => (
-  <svg viewBox="0 0 24 24" fill="none" className="w-[19px] h-[19px]">
-    <circle cx="8" cy="12" r="4.4" stroke="currentColor" strokeWidth="1.7" />
-    <circle cx="16" cy="12" r="4.4" stroke="currentColor" strokeWidth="1.7" />
-  </svg>
-);
-
-const SearchIcon = () => (
-  <svg
-    viewBox="0 0 24 24"
-    fill="none"
-    className="w-4 h-4 text-muted-foreground shrink-0"
-  >
-    <circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="1.8" />
-    <path
-      d="m20 20-3-3"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-    />
-  </svg>
-);
-
-const BellIcon = () => (
-  <svg viewBox="0 0 24 24" fill="none" className="w-[18px] h-[18px]">
-    <path
-      d="M6 9a6 6 0 1 1 12 0c0 5 2 6 2 6H4s2-1 2-6Z"
-      stroke="currentColor"
-      strokeWidth="1.7"
-      strokeLinejoin="round"
-    />
-    <path
-      d="M10 19a2 2 0 0 0 4 0"
-      stroke="currentColor"
-      strokeWidth="1.7"
-      strokeLinecap="round"
-    />
-  </svg>
-);
 
 const SparkleIcon = () => (
   <svg viewBox="0 0 24 24" fill="none" className="w-3.5 h-3.5">
@@ -237,29 +198,6 @@ const CATEGORY_ICONS: Record<string, React.ReactNode> = {
   ),
 };
 
-const PLAN_ICONS: Record<string, React.ReactNode> = {
-  travel: (
-    <svg viewBox="0 0 24 24" fill="none" className="w-[18px] h-[18px]">
-      <path
-        d="M3 16l7-1 4-9 2 1-2 8 5-1 2 2-6 3-1 3-2-1v-3l-9 2-1-2 3-2Z"
-        stroke="currentColor"
-        strokeWidth="1.4"
-        strokeLinejoin="round"
-      />
-    </svg>
-  ),
-  home: (
-    <svg viewBox="0 0 24 24" fill="none" className="w-[18px] h-[18px]">
-      <path
-        d="M4 11l8-7 8 7M6 9.5V20h12V9.5"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinejoin="round"
-      />
-    </svg>
-  ),
-};
-
 /* ------------------------------------------------------------------ */
 /*  Data                                                               */
 /* ------------------------------------------------------------------ */
@@ -395,27 +333,6 @@ const MOCK_NEWS = [
   },
 ];
 
-const MOCK_PLANS = [
-  {
-    name: "Cancún Trip",
-    people: [
-      {init: "VH", color: "hsl(30 88% 48%)"},
-      {init: "SL", color: "hsl(280 50% 54%)"},
-    ],
-    note: "Sarah added 3 cards · last active yesterday",
-    icon: "travel",
-  },
-  {
-    name: "New Apartment",
-    people: [
-      {init: "VH", color: "hsl(30 88% 48%)"},
-      {init: "AK", color: "hsl(200 60% 46%)"},
-    ],
-    note: "Alex invited · furniture + moving costs",
-    icon: "home",
-  },
-];
-
 /* ------------------------------------------------------------------ */
 /*  Helpers                                                            */
 /* ------------------------------------------------------------------ */
@@ -495,7 +412,7 @@ const NEWS_BG: Record<string, string> = {
 /*  Page                                                               */
 /* ------------------------------------------------------------------ */
 
-export const ForYouV2Page = () => {
+export const ForYouPage = () => {
   const {user} = useAuth();
   const navigate = useNavigate();
 
@@ -513,70 +430,10 @@ export const ForYouV2Page = () => {
   );
 
   const firstName = user?.first_name ?? "there";
-  const initials = user
-    ? `${user.first_name?.[0] ?? ""}${user.last_name?.[0] ?? ""}`.toUpperCase()
-    : "";
 
   return (
     <div className="bg-background min-h-screen text-foreground">
-      {/* ---- STICKY TOP BAR ---- */}
-      <header className="sticky top-0 z-30 bg-background border-b border-border px-[0.8rem]">
-        <div className="flex items-center gap-3.5 max-w-[1400px] mx-auto py-3.5">
-          <Link
-            to="/for-you-2"
-            className="flex items-center gap-2.5 font-display font-bold text-[19px] tracking-tight no-underline text-foreground"
-          >
-            <span className="w-[34px] h-[34px] rounded-[10px] shrink-0 grid place-items-center bg-gradient-to-br from-primary to-primary/80 text-primary-foreground shadow-md shadow-primary/30">
-              <TandemLogo />
-            </span>
-            Tandem
-          </Link>
-          <nav className="flex gap-0.5 ml-2 max-sm:hidden">
-            <button className="relative text-foreground font-semibold text-sm px-[15px] py-2 rounded-[10px] bg-transparent border-none after:absolute after:left-[15px] after:right-[15px] after:bottom-[3px] after:h-0.5 after:rounded-sm after:bg-primary">
-              Home
-            </button>
-            <button
-              onClick={() => navigate("/recommend")}
-              className="text-muted-foreground font-semibold text-sm px-[15px] py-2 rounded-[10px] bg-transparent border-none hover:text-foreground hover:bg-secondary"
-            >
-              Chat
-            </button>
-            <button
-              onClick={() => navigate("/cards")}
-              className="text-muted-foreground font-semibold text-sm px-[15px] py-2 rounded-[10px] bg-transparent border-none hover:text-foreground hover:bg-secondary"
-            >
-              Cards
-            </button>
-            <button
-              onClick={() => navigate("/recommend")}
-              className="text-muted-foreground font-semibold text-sm px-[15px] py-2 rounded-[10px] bg-transparent border-none hover:text-foreground hover:bg-secondary"
-            >
-              Plans
-            </button>
-          </nav>
-          <div className="flex-1" />
-          <label className="hidden xl:flex items-center gap-2 bg-card border border-border rounded-full px-[15px] py-2 w-[260px] shadow-sm">
-            <SearchIcon />
-            <input
-              className="border-none bg-transparent outline-none text-foreground text-[13.5px] w-full min-w-0 placeholder:text-muted-foreground"
-              placeholder="Search a card or topic…"
-              aria-label="Search"
-            />
-          </label>
-          <button
-            className="w-10 h-10 rounded-full border border-border bg-card text-muted-foreground grid place-items-center shrink-0 shadow-sm hover:text-foreground"
-            aria-label="Notifications"
-          >
-            <BellIcon />
-          </button>
-          <span
-            className="w-10 h-10 rounded-full shrink-0 grid place-items-center font-display font-bold text-sm text-primary-foreground bg-gradient-to-br from-primary to-primary/80 shadow-sm"
-            title={user ? `${user.first_name} ${user.last_name}` : ""}
-          >
-            {initials || "?"}
-          </span>
-        </div>
-      </header>
+      <Navbar />
 
       <div className="max-w-[1400px] mx-auto px-[0.8rem] pb-12">
         {/* ---- GREETING ---- */}
@@ -598,9 +455,9 @@ export const ForYouV2Page = () => {
         </div>
 
         {/* ---- ROW 2 ---- */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4 items-start">
+        <div className="grid grid-cols-1 lg:grid-cols-1 gap-4 mt-4 items-start">
           <BestCardFinder cards={cards} loading={cardsLoading} onAsk={ask} />
-          <NewsSection />
+          {/* <NewsSection /> */}
         </div>
       </div>
     </div>
@@ -968,63 +825,155 @@ const NewsSection = () => (
 /*  Plans                                                              */
 /* ------------------------------------------------------------------ */
 
-const PlansSection = ({onNavigate}: {onNavigate: (path: string) => void}) => (
-  <Card className="p-[22px]">
-    <div className="flex items-end justify-between gap-3 mb-3.5">
-      <h2 className="font-display font-semibold text-lg tracking-tight">
-        Shared plans
-      </h2>
-      <button
-        className="text-primary font-semibold text-[13px] hover:underline whitespace-nowrap bg-transparent border-none"
-        onClick={() => onNavigate("/recommend")}
-      >
-        New plan →
-      </button>
-    </div>
-    <p className="text-muted-foreground text-[13.5px] mb-3.5 mt-0">
-      Plan with a partner, roommate or friend — Tandem advises across both your
-      cards.
-    </p>
-    <div className="flex flex-col gap-2.5">
-      {MOCK_PLANS.map((p) => (
+/** Initials from an email local-part, e.g. "sarah.lee@x.com" → "SL". */
+function initialsFromEmail(email?: string | null): string {
+  if (!email) return "?";
+  const local = email.split("@")[0];
+  const parts = local.split(/[._+-]+/).filter(Boolean);
+  if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+  return local.slice(0, 2).toUpperCase();
+}
+
+/** Initials from a user's name, falling back to "ME". */
+function initialsFromName(first?: string, last?: string): string {
+  const s = ((first?.[0] ?? "") + (last?.[0] ?? "")).toUpperCase();
+  return s || "ME";
+}
+
+/** Deterministic avatar color so the same person keeps the same hue. */
+function colorFromString(s: string): string {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) % 360;
+  return `hsl(${h} 55% 48%)`;
+}
+
+function relativeTime(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime();
+  const mins = Math.floor(diff / 60_000);
+  if (mins < 1) return "Just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  if (days < 7) return `${days}d ago`;
+  return new Date(iso).toLocaleDateString();
+}
+
+/** A conversation either shared with me or shared by me — one shared plan row. */
+const PlanRow = ({
+  conversation,
+  currentEmail,
+  currentInitials,
+  onOpen,
+}: {
+  conversation: Conversation;
+  currentEmail: string;
+  currentInitials: string;
+  onOpen: () => void;
+}) => {
+  const sharedWithMe = !!conversation.is_shared;
+  const avatarSeed = sharedWithMe ? conversation.owner_email ?? "shared" : currentEmail;
+  const initials = sharedWithMe
+    ? initialsFromEmail(conversation.owner_email)
+    : currentInitials;
+  const note = sharedWithMe
+    ? `Shared by ${conversation.owner_email ?? "someone"}`
+    : "Shared with others";
+
+  return (
+    <button
+      className="bg-secondary border border-border rounded-xl p-[15px] flex flex-col gap-2.5 text-left transition-colors hover:border-amber-500/30 focus-visible:outline-2 focus-visible:outline-amber-500 focus-visible:outline-offset-2"
+      onClick={onOpen}
+    >
+      <div className="flex items-center gap-2.5">
+        <span
+          className="w-[38px] h-[38px] rounded-[10px] shrink-0 grid place-items-center"
+          style={{
+            background: "hsl(34 60% 50%/.12)",
+            border: "1px solid hsl(34 50% 30%)",
+            color: "hsl(32 84% 50%)",
+          }}
+        >
+          <UsersIcon />
+        </span>
+        <div className="flex-1 min-w-0">
+          <div className="font-display font-semibold text-[15px] truncate">
+            {conversation.title || "Untitled conversation"}
+          </div>
+          <div className="text-muted-foreground text-[12.5px] mt-px truncate">
+            {note} · {relativeTime(conversation.updated_at)}
+          </div>
+        </div>
+        <span
+          className="w-[26px] h-[26px] rounded-full grid place-items-center text-[10px] font-bold text-white border-2 border-secondary shrink-0"
+          style={{background: colorFromString(avatarSeed)}}
+        >
+          {initials}
+        </span>
+      </div>
+    </button>
+  );
+};
+
+const PlansSection = ({onNavigate}: {onNavigate: (path: string) => void}) => {
+  const {user} = useAuth();
+  const {data: conversations = [], isLoading} = useQuery({
+    queryKey: ["conversations"],
+    queryFn: () => cardService.listConversations(),
+  });
+
+  const shared = useMemo(
+    () => conversations.filter((c) => c.is_shared || c.shared_by_me),
+    [conversations],
+  );
+
+  const currentEmail = user?.email ?? "me";
+  const currentInitials = initialsFromName(user?.first_name, user?.last_name);
+
+  return (
+    <Card className="p-[22px]">
+      <div className="flex items-end justify-between gap-3 mb-3.5">
+        <h2 className="font-display font-semibold text-lg tracking-tight">
+          Shared plans
+        </h2>
         <button
-          key={p.name}
-          className="bg-secondary border border-border rounded-xl p-[15px] flex flex-col gap-2.5 text-left transition-colors hover:border-amber-500/30 focus-visible:outline-2 focus-visible:outline-amber-500 focus-visible:outline-offset-2"
+          className="text-primary font-semibold text-[13px] hover:underline whitespace-nowrap bg-transparent border-none"
           onClick={() => onNavigate("/recommend")}
         >
-          <div className="flex items-center gap-2.5">
-            <span
-              className="w-[38px] h-[38px] rounded-[10px] shrink-0 grid place-items-center"
-              style={{
-                background: "hsl(34 60% 50%/.12)",
-                border: "1px solid hsl(34 50% 30%)",
-                color: "hsl(32 84% 50%)",
-              }}
-            >
-              {PLAN_ICONS[p.icon]}
-            </span>
-            <div className="flex-1 min-w-0">
-              <div className="font-display font-semibold text-[15px]">
-                {p.name}
-              </div>
-              <div className="text-muted-foreground text-[12.5px] mt-px">
-                {p.note}
-              </div>
-            </div>
-            <div className="flex items-center">
-              {p.people.map((a, i) => (
-                <span
-                  key={a.init}
-                  className="w-[26px] h-[26px] rounded-full grid place-items-center text-[10px] font-bold text-white border-2 border-secondary"
-                  style={{background: a.color, marginLeft: i > 0 ? -6 : 0}}
-                >
-                  {a.init}
-                </span>
-              ))}
-            </div>
-          </div>
+          New plan →
         </button>
-      ))}
-    </div>
-  </Card>
-);
+      </div>
+      <p className="text-muted-foreground text-[13.5px] mb-3.5 mt-0">
+        Plan with a partner, roommate or friend — Tandem advises across both your
+        cards.
+      </p>
+      {isLoading ? (
+        <div className="flex flex-col gap-2.5">
+          {Array.from({length: 2}).map((_, i) => (
+            <div
+              key={i}
+              className="h-[70px] rounded-xl bg-secondary border border-border animate-pulse"
+            />
+          ))}
+        </div>
+      ) : shared.length === 0 ? (
+        <EmptyHint>
+          No shared plans yet. Open a conversation and use Share to plan with
+          someone — it’ll show up here.
+        </EmptyHint>
+      ) : (
+        <div className="flex flex-col gap-2.5">
+          {shared.map((c) => (
+            <PlanRow
+              key={c.id}
+              conversation={c}
+              currentEmail={currentEmail}
+              currentInitials={currentInitials}
+              onOpen={() => onNavigate(`/recommend?c=${c.id}`)}
+            />
+          ))}
+        </div>
+      )}
+    </Card>
+  );
+};

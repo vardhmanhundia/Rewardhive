@@ -7,7 +7,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.db.models import User, UserProfile
-from src.models import UserSchema, UserProfileUpdate
+from src.models import SavedCard, UserSchema, UserProfileUpdate
 from src.utils.password import hash_password, verify_password
 
 
@@ -131,6 +131,31 @@ class UserService:
         for key, value in data.model_dump(exclude_unset=True).items():
             setattr(profile, key, value)
         await session.flush()
+        return profile
+
+    @staticmethod
+    async def add_card_to_profile(
+        session: AsyncSession, user_id: UUID, card: SavedCard
+    ) -> UserProfile:
+        """Append a card to the user's wallet, no-op if it's already saved.
+
+        Dedupes catalog cards by ``card_id`` and custom cards by ``name`` (case-
+        insensitive), so confirming the same add twice doesn't duplicate it.
+        """
+        profile = await UserService.get_profile_details(session, user_id)
+        existing = list(profile.cards or [])
+
+        def _same(saved: dict) -> bool:
+            if card.card_id and saved.get("card_id"):
+                return str(saved["card_id"]) == str(card.card_id)
+            if card.name and saved.get("name"):
+                return str(saved["name"]).lower() == card.name.lower()
+            return False
+
+        if not any(_same(c) for c in existing):
+            # Reassign (don't mutate in place) so SQLAlchemy sees the JSON change.
+            profile.cards = [*existing, card.model_dump(exclude_none=True)]
+            await session.flush()
         return profile
 
     @staticmethod

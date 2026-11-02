@@ -17,6 +17,7 @@ from sqlalchemy import select, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.db.models import Conversation, ConversationShare, Notification, User
+from src.services.email_service import EmailService
 
 # Longest first-question snippet kept as a conversation title.
 _TITLE_MAX = 80
@@ -103,17 +104,27 @@ class ConversationService:
         conversation_id: UUID,
         shared_by_user_id: UUID,
         emails: list[str],
-    ) -> tuple[list[str], list[str]]:
-        """Send invite to users by email. Creates pending shares + notifications.
+    ) -> tuple[list[str], list[str], list[str]]:
+        """Share a conversation with people by email, tailored to the recipient.
 
-        Returns (invited_emails, not_found_emails).
+        - Existing users get a pending share, an in-app notification, and an
+          email notification linking straight to the conversation.
+        - Addresses with no account get an invitation email that also prompts
+          them to sign up; the share-link flow lets them join once registered.
+
+        Returns ``(shared_with, invited_new, not_found)``:
+        - ``shared_with`` — existing users the conversation was shared with.
+        - ``invited_new`` — non-registered addresses the sign-up invite reached.
+        - ``not_found`` — non-registered addresses whose invite email failed to
+          send (always empty in email fake mode).
         """
         inviter = await session.get(User, shared_by_user_id)
         inviter_name = f"{inviter.first_name} {inviter.last_name}" if inviter else "Someone"
         conversation = await session.get(Conversation, conversation_id)
         conv_title = conversation.title or "Untitled conversation" if conversation else "a conversation"
 
-        invited: list[str] = []
+        shared_with: list[str] = []
+        invited_new: list[str] = []
         not_found: list[str] = []
         for raw_email in emails:
             email = raw_email.strip().lower()
@@ -124,7 +135,14 @@ class ConversationService:
             )
             user = result.scalar_one_or_none()
             if user is None:
-                not_found.append(email)
+                # Not a member yet: invite them and nudge them to sign up.
+                sent = await EmailService.send_signup_invite(
+                    to=email,
+                    inviter_name=inviter_name,
+                    conversation_title=conv_title,
+                    conversation_id=conversation_id,
+                )
+                (invited_new if sent else not_found).append(email)
                 continue
             if user.id == shared_by_user_id:
                 continue
@@ -138,7 +156,8 @@ class ConversationService:
                 )
             )
             if existing.scalar_one_or_none() is not None:
-                invited.append(email)
+                # Already shared — don't duplicate the share, notification or email.
+                shared_with.append(email)
                 continue
             share = ConversationShare(
                 conversation_id=conversation_id,
@@ -148,7 +167,7 @@ class ConversationService:
                 role="member",
             )
             session.add(share)
-            # Notify the invitee
+            # Notify the invitee in-app…
             notification = Notification(
                 user_id=user.id,
                 type="invite",
@@ -158,9 +177,16 @@ class ConversationService:
                 actor_user_id=shared_by_user_id,
             )
             session.add(notification)
-            invited.append(email)
+            # …and by email. Best effort: the in-app share stands regardless.
+            await EmailService.send_share_notification(
+                to=email,
+                inviter_name=inviter_name,
+                conversation_title=conv_title,
+                conversation_id=conversation_id,
+            )
+            shared_with.append(email)
         await session.flush()
-        return invited, not_found
+        return shared_with, invited_new, not_found
 
     @staticmethod
     async def accept_invite(
@@ -294,6 +320,26 @@ class ConversationService:
             .order_by(Conversation.updated_at.desc())
         )
         return list(result.scalars().all())
+
+    @staticmethod
+    async def list_ids_shared_by_user(
+        session: AsyncSession, user_id: UUID
+    ) -> set[UUID]:
+        """Return ids of the user's own conversations that they've shared out.
+
+        A conversation counts as shared once it has any share row (invited,
+        pending or accepted) — it drives the "Shared plans" panel so the owner
+        sees chats they're collaborating on, not just ones shared with them.
+        """
+        result = await session.execute(
+            select(ConversationShare.conversation_id)
+            .join(
+                Conversation,
+                Conversation.id == ConversationShare.conversation_id,
+            )
+            .where(Conversation.user_id == user_id)
+        )
+        return {row[0] for row in result.all()}
 
     @staticmethod
     async def is_shared_with(

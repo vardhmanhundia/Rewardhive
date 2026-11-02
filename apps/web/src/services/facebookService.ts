@@ -22,7 +22,11 @@ class FacebookService {
   private tokenKey = 'auth_token';
 
   /**
-   * Initialize Facebook SDK
+   * Initialize Facebook SDK.
+   *
+   * The SDK script in index.html loads async, so it may not be present yet when
+   * this runs. If FB is already available we init immediately; otherwise we hand
+   * the init off to fbAsyncInit, which the SDK invokes once it finishes loading.
    */
   initializeFacebook(): void {
     if (!FACEBOOK_APP_ID) {
@@ -30,16 +34,19 @@ class FacebookService {
       return;
     }
 
-    if (typeof window.FB === 'undefined') {
-      console.error('Facebook SDK not loaded');
-      return;
-    }
+    const init = () => {
+      window.FB.init({
+        appId: FACEBOOK_APP_ID,
+        xfbml: false,
+        version: 'v18.0',
+      });
+    };
 
-    window.FB.init({
-      appId: FACEBOOK_APP_ID,
-      xfbml: false,
-      version: 'v18.0',
-    });
+    if (typeof window.FB !== 'undefined') {
+      init();
+    } else {
+      window.fbAsyncInit = init;
+    }
   }
 
   /**
@@ -152,5 +159,6 @@ export default new FacebookService();
 declare global {
   interface Window {
     FB: any;
+    fbAsyncInit?: () => void;
   }
 }

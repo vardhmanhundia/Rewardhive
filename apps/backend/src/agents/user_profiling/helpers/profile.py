@@ -31,8 +31,11 @@ from src.services.user_service import UserService
 SINGLE_FIELDS: dict[str, str] = {
     "occupation": "occupation",
     "company": "company",
+    "date_of_birth": "date of birth",
+    "gender": "gender",
     "relationship_status": "relationship",
     "family_size": "family size",
+    "city": "city",
     "location_state": "state",
     "location_country": "country",
     "household": "household",
@@ -45,6 +48,7 @@ SINGLE_FIELDS: dict[str, str] = {
 # Plain string lists.
 STR_LIST_FIELDS: dict[str, str] = {
     "airline_ranking": "airlines",
+    "hotel_ranking": "hotels",
     "online_shopping_ranking": "online shopping",
     "offline_shopping_ranking": "offline shopping",
 }
@@ -186,11 +190,14 @@ def render_profile(details: UserProfileDetails) -> str:
 
     add("Occupation", details.occupation)
     add("Company", details.company)
+    add("Date of birth", details.date_of_birth)
+    add("Gender", details.gender)
     if details.relationship_status:
         rel = str(details.relationship_status)
         if details.family_size is not None:
             rel += f" (size {details.family_size})"
         lines.append(f"- Relationship: {rel}")
+    add("City", details.city)
     location = ", ".join(p for p in (details.location_state, details.location_country) if p)
     add("Location", location)
     add("Household", details.household)
@@ -203,6 +210,8 @@ def render_profile(details: UserProfileDetails) -> str:
         lines.append(f"- US status: {status}")
     if details.airline_ranking:
         lines.append(f"- Preferred airlines: {' > '.join(details.airline_ranking)}")
+    if details.hotel_ranking:
+        lines.append(f"- Preferred hotels: {' > '.join(details.hotel_ranking)}")
     if details.online_shopping_ranking:
         lines.append(f"- Online shopping: {' > '.join(details.online_shopping_ranking)}")
     if details.offline_shopping_ranking:

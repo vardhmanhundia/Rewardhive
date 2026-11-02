@@ -11,6 +11,8 @@ import {CardsPage} from "./pages/CardsPage";
 import {CardDetailPage} from "./pages/CardDetailPage";
 import {RecommendPage} from "./pages/RecommendPage";
 import {EvaluatePage} from "./pages/EvaluatePage";
+import {ForYouV2Page} from "./pages/ForYouV2Page";
+import {OnboardingPage2} from "./pages/OnboardingPage2";
 import {WhichCardPage} from "./pages/WhichCardPage";
 
 function App() {
@@ -48,6 +50,14 @@ function App() {
             }
           />
           <Route
+            path="/for-you-2"
+            element={
+              <ProtectedRoute>
+                 <ForYouV2Page />
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/which-card"
             element={
               <ProtectedRoute>
@@ -60,6 +70,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <OnboardingPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/onboarding-2"
+            element={
+              <ProtectedRoute>
+                <OnboardingPage2 />
               </ProtectedRoute>
             }
           />

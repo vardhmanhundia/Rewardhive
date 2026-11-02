@@ -20,16 +20,25 @@ from src.agents.graph import run_recommendation, stream_recommendation
 from src.agents.user_profiling.graph import load_history
 from src.db.database import get_db
 from src.middleware.auth import get_current_user_id, verify_user_auth
+from src.db.models import User
 from src.models import (
     CardProductSchema,
     ChatHistoryMessage,
     ChatHistoryResponse,
     ConversationListResponse,
+    ConversationMember,
+    ConversationMembersResponse,
+    ConversationShareInfo,
     ConversationSummary,
+    MemberActionRequest,
+    NotificationListResponse,
+    NotificationSchema,
     ProfileSummaryResponse,
     ProfileConflictInfo,
     RecommendationRequest,
     RecommendationResponse,
+    ShareConversationRequest,
+    ShareConversationResponse,
     UserMemorySchema,
 )
 from src.services.conversation_service import ConversationService
@@ -41,12 +50,12 @@ async def _resolve_conversation_id(
 ) -> UUID:
     """Return the conversation to persist this turn under.
 
-    Uses the requested conversation when it exists and belongs to the user;
-    otherwise starts a fresh one. A newly created conversation is committed so
-    its id is stable before the turn streams.
+    Uses the requested conversation when it exists (any authenticated user may
+    continue a shared conversation — the UUID acts as the access token);
+    otherwise starts a fresh one owned by the requesting user.
     """
     if conversation_id is not None:
-        existing = await ConversationService.get(session, conversation_id, user_id)
+        existing = await ConversationService.get_by_id(session, conversation_id)
         if existing is not None:
             return existing.id
     conversation = await ConversationService.create(session, user_id)
@@ -183,14 +192,23 @@ async def list_conversations(
     payload: dict = Depends(verify_user_auth),
     session: AsyncSession = Depends(get_db),
 ) -> ConversationListResponse:
-    """List the user's recommend-chat conversations, most recent first."""
+    """List the user's own + shared conversations, most recent first."""
     user_id = get_current_user_id(payload)
-    conversations = await ConversationService.list_for_user(session, user_id)
-    return ConversationListResponse(
-        conversations=[
-            ConversationSummary.model_validate(c, from_attributes=True) for c in conversations
-        ]
-    )
+    own = await ConversationService.list_for_user(session, user_id)
+    shared = await ConversationService.list_shared_with_user(session, user_id)
+    summaries: list[ConversationSummary] = []
+    for c in own:
+        s = ConversationSummary.model_validate(c, from_attributes=True)
+        summaries.append(s)
+    for c in shared:
+        owner = await session.get(User, c.user_id)
+        s = ConversationSummary.model_validate(c, from_attributes=True)
+        s.is_shared = True
+        s.owner_email = owner.email if owner else None
+        summaries.append(s)
+
+    summaries.sort(key=lambda s: s.updated_at, reverse=True)
+    return ConversationListResponse(conversations=summaries)
 
 
 @router.get("/conversations/{conversation_id}/history", response_model=ChatHistoryResponse)
@@ -199,9 +217,8 @@ async def conversation_history(
     payload: dict = Depends(verify_user_auth),
     session: AsyncSession = Depends(get_db),
 ) -> ChatHistoryResponse:
-    """Return one conversation's persisted transcript (404 if not the user's)."""
-    user_id = get_current_user_id(payload)
-    conversation = await ConversationService.get(session, conversation_id, user_id)
+    """Return one conversation's persisted transcript (shared via link)."""
+    conversation = await ConversationService.get_by_id(session, conversation_id)
     if conversation is None:
         raise HTTPException(status_code=404, detail="Conversation not found")
     messages = await load_history(str(conversation_id))
@@ -211,3 +228,196 @@ async def conversation_history(
             for m in messages
         ]
     )
+
+
+@router.post(
+    "/conversations/{conversation_id}/share",
+    response_model=ShareConversationResponse,
+)
+async def share_conversation(
+    conversation_id: UUID,
+    request: ShareConversationRequest,
+    payload: dict = Depends(verify_user_auth),
+    session: AsyncSession = Depends(get_db),
+) -> ShareConversationResponse:
+    """Share a conversation with other users by email."""
+    user_id = get_current_user_id(payload)
+    conversation = await ConversationService.get_by_id(session, conversation_id)
+    if conversation is None:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    shared_with, not_found = await ConversationService.share_with_emails(
+        session, conversation_id, user_id, request.emails
+    )
+    await session.commit()
+    return ShareConversationResponse(shared_with=shared_with, not_found=not_found)
+
+
+@router.get(
+    "/conversations/{conversation_id}/share-info",
+    response_model=ConversationShareInfo,
+)
+async def conversation_share_info(
+    conversation_id: UUID,
+    payload: dict = Depends(verify_user_auth),
+    session: AsyncSession = Depends(get_db),
+) -> ConversationShareInfo:
+    """Get sharing info for a conversation — drives banner and join flow."""
+    user_id = get_current_user_id(payload)
+    conversation = await ConversationService.get_by_id(session, conversation_id)
+    if conversation is None:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    owner = await session.get(User, conversation.user_id)
+    owner_name = f"{owner.first_name} {owner.last_name}" if owner else "Unknown"
+    is_mine = conversation.user_id == user_id
+    invite_status = await ConversationService.get_share_status(
+        session, conversation_id, user_id
+    )
+    already_added = is_mine or invite_status == "accepted"
+    return ConversationShareInfo(
+        conversation_id=conversation.id,
+        title=conversation.title,
+        owner_name=owner_name,
+        is_mine=is_mine,
+        already_added=already_added,
+        invite_status=invite_status,
+    )
+
+
+@router.post("/conversations/{conversation_id}/add-to-mine")
+async def add_conversation_to_mine(
+    conversation_id: UUID,
+    payload: dict = Depends(verify_user_auth),
+    session: AsyncSession = Depends(get_db),
+) -> dict[str, bool]:
+    """Self-join via a share link — accepted immediately, owner notified."""
+    user_id = get_current_user_id(payload)
+    ok = await ConversationService.add_via_link(session, conversation_id, user_id)
+    if not ok:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    await session.commit()
+    return {"ok": True}
+
+
+@router.post("/conversations/{conversation_id}/accept-invite")
+async def accept_invite(
+    conversation_id: UUID,
+    payload: dict = Depends(verify_user_auth),
+    session: AsyncSession = Depends(get_db),
+) -> dict[str, bool]:
+    """Accept a pending conversation invite."""
+    user_id = get_current_user_id(payload)
+    ok = await ConversationService.accept_invite(session, conversation_id, user_id)
+    if not ok:
+        raise HTTPException(status_code=404, detail="No pending invite found")
+    await session.commit()
+    return {"ok": True}
+
+
+@router.post("/conversations/{conversation_id}/decline-invite")
+async def decline_invite(
+    conversation_id: UUID,
+    payload: dict = Depends(verify_user_auth),
+    session: AsyncSession = Depends(get_db),
+) -> dict[str, bool]:
+    """Decline a pending conversation invite."""
+    user_id = get_current_user_id(payload)
+    ok = await ConversationService.decline_invite(session, conversation_id, user_id)
+    if not ok:
+        raise HTTPException(status_code=404, detail="No pending invite found")
+    await session.commit()
+    return {"ok": True}
+
+
+@router.get(
+    "/conversations/{conversation_id}/members",
+    response_model=ConversationMembersResponse,
+)
+async def list_members(
+    conversation_id: UUID,
+    payload: dict = Depends(verify_user_auth),
+    session: AsyncSession = Depends(get_db),
+) -> ConversationMembersResponse:
+    """List all members of a conversation."""
+    members = await ConversationService.list_members(session, conversation_id)
+    return ConversationMembersResponse(
+        members=[ConversationMember(**m) for m in members]
+    )
+
+
+@router.post("/conversations/{conversation_id}/members/remove")
+async def remove_member(
+    conversation_id: UUID,
+    request: MemberActionRequest,
+    payload: dict = Depends(verify_user_auth),
+    session: AsyncSession = Depends(get_db),
+) -> dict[str, bool]:
+    """Remove a member from a conversation (owner only)."""
+    user_id = get_current_user_id(payload)
+    ok = await ConversationService.remove_member(
+        session, conversation_id, user_id, request.target_user_id
+    )
+    if not ok:
+        raise HTTPException(status_code=403, detail="Not allowed or member not found")
+    await session.commit()
+    return {"ok": True}
+
+
+@router.post("/conversations/{conversation_id}/members/promote")
+async def promote_member(
+    conversation_id: UUID,
+    request: MemberActionRequest,
+    payload: dict = Depends(verify_user_auth),
+    session: AsyncSession = Depends(get_db),
+) -> dict[str, bool]:
+    """Promote a member to owner (owner only)."""
+    user_id = get_current_user_id(payload)
+    ok = await ConversationService.promote_to_owner(
+        session, conversation_id, user_id, request.target_user_id
+    )
+    if not ok:
+        raise HTTPException(status_code=403, detail="Not allowed or member not found")
+    await session.commit()
+    return {"ok": True}
+
+
+# ── Notifications ──────────────────────────────────────────────────────
+
+
+@router.get("/notifications", response_model=NotificationListResponse)
+async def list_notifications(
+    payload: dict = Depends(verify_user_auth),
+    session: AsyncSession = Depends(get_db),
+) -> NotificationListResponse:
+    """List the user's notifications (most recent first)."""
+    user_id = get_current_user_id(payload)
+    notifications = await ConversationService.list_notifications(session, user_id)
+    count = await ConversationService.unread_count(session, user_id)
+    return NotificationListResponse(
+        notifications=[
+            NotificationSchema.model_validate(n, from_attributes=True) for n in notifications
+        ],
+        unread_count=count,
+    )
+
+
+@router.post("/notifications/{notification_id}/read")
+async def mark_notification_read(
+    notification_id: UUID,
+    payload: dict = Depends(verify_user_auth),
+    session: AsyncSession = Depends(get_db),
+) -> dict[str, bool]:
+    user_id = get_current_user_id(payload)
+    await ConversationService.mark_read(session, notification_id, user_id)
+    await session.commit()
+    return {"ok": True}
+
+
+@router.post("/notifications/read-all")
+async def mark_all_notifications_read(
+    payload: dict = Depends(verify_user_auth),
+    session: AsyncSession = Depends(get_db),
+) -> dict[str, bool]:
+    user_id = get_current_user_id(payload)
+    await ConversationService.mark_all_read(session, user_id)
+    await session.commit()
+    return {"ok": True}

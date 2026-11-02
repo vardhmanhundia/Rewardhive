@@ -173,8 +173,11 @@ class UserProfile(Base):
 
     occupation: Mapped[str | None] = mapped_column(String(200), nullable=True)
     company: Mapped[str | None] = mapped_column(String(200), nullable=True)
-    relationship_status: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    date_of_birth: Mapped[str | None] = mapped_column(String(10), nullable=True)
+    gender: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    relationship_status: Mapped[str | None] = mapped_column(String(30), nullable=True)
     family_size: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    city: Mapped[str | None] = mapped_column(String(200), nullable=True)
     location_state: Mapped[str | None] = mapped_column(String(100), nullable=True)
     location_country: Mapped[str | None] = mapped_column(String(100), nullable=True)
     household: Mapped[str | None] = mapped_column(String(20), nullable=True)
@@ -186,6 +189,8 @@ class UserProfile(Base):
 
     # Ordered airline preference (most preferred first): ["Delta", "United", ...]
     airline_ranking: Mapped[list[str]] = mapped_column(JSONList, default=list, nullable=False)
+    # Ordered hotel preference (most preferred first): ["Marriott", "Hilton", ...]
+    hotel_ranking: Mapped[list[str]] = mapped_column(JSONList, default=list, nullable=False)
     # Ordered shopping preferences (most preferred first): ["Amazon", "Costco", ...]
     online_shopping_ranking: Mapped[list[str]] = mapped_column(
         JSONList, default=list, nullable=False
@@ -234,3 +239,78 @@ class Conversation(Base):
 
     def __repr__(self) -> str:
         return f"<Conversation(id={self.id}, user_id={self.user_id})>"
+
+
+class ConversationShare(Base):
+    """A conversation shared with another user.
+
+    ``status`` tracks the invite lifecycle: pending → accepted (or declined).
+    ``role`` controls permissions: 'owner' can manage members, 'member' can chat.
+    The original conversation creator always has an implicit owner role via
+    ``Conversation.user_id``; additional owners are promoted via this table.
+    """
+
+    __tablename__ = "conversation_shares"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4,
+        nullable=False,
+    )
+    conversation_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("conversations.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    shared_by_user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), nullable=False
+    )
+    shared_with_user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), nullable=False, index=True
+    )
+    status: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="pending"
+    )
+    role: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="member"
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow, nullable=False
+    )
+
+    def __repr__(self) -> str:
+        return f"<ConversationShare(id={self.id}, conversation_id={self.conversation_id}, status={self.status})>"
+
+
+class Notification(Base):
+    """In-app notification for a user (invite received, user joined, etc.)."""
+
+    __tablename__ = "notifications"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4,
+        nullable=False,
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), nullable=False, index=True
+    )
+    type: Mapped[str] = mapped_column(String(50), nullable=False)
+    title: Mapped[str] = mapped_column(String(300), nullable=False)
+    body: Mapped[str | None] = mapped_column(Text, nullable=True)
+    conversation_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), nullable=True
+    )
+    actor_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), nullable=True
+    )
+    is_read: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow, nullable=False
+    )
+
+    def __repr__(self) -> str:
+        return f"<Notification(id={self.id}, type={self.type}, user_id={self.user_id})>"

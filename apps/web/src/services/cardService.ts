@@ -55,6 +55,16 @@ export interface Conversation {
   title: string | null;
   created_at: string;
   updated_at: string;
+  is_shared?: boolean;
+  owner_email?: string | null;
+}
+
+export interface ShareInfo {
+  conversation_id: string;
+  title: string | null;
+  owner_name: string;
+  is_mine: boolean;
+  already_added: boolean;
 }
 
 /** One fact the assistant has learned about the user (long-term profile). */
@@ -227,6 +237,32 @@ class CardService {
       content: m.content,
       cards: m.cards ?? [],
     })) as RecMessage[];
+  }
+
+  async shareConversation(conversationId: string, emails: string[]): Promise<{ shared_with: string[]; not_found: string[] }> {
+    const res = await fetch(`${API_URL}/recommendations/conversations/${conversationId}/share`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      body: JSON.stringify({ emails }),
+    });
+    if (!res.ok) throw new Error('Could not share conversation');
+    return res.json();
+  }
+
+  async getShareInfo(conversationId: string): Promise<ShareInfo | null> {
+    const res = await fetch(`${API_URL}/recommendations/conversations/${conversationId}/share-info`, {
+      headers: { ...authHeaders() },
+    });
+    if (!res.ok) return null;
+    return res.json();
+  }
+
+  async addConversationToMine(conversationId: string): Promise<boolean> {
+    const res = await fetch(`${API_URL}/recommendations/conversations/${conversationId}/add-to-mine`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    });
+    return res.ok;
   }
 
   /** Optimize a wallet for a spend profile (annual $ per category). Hits the

@@ -7,7 +7,10 @@ from uuid import UUID
 
 # Enum-style option sets. Kept here so the API documents the allowed values in
 # OpenAPI; "other" lets the UI offer a free-text fallback where listed.
-RelationshipStatus = Literal["single", "partner", "family"]
+RelationshipStatus = Literal[
+    "single", "relationship", "living_together", "engaged",
+    "married", "married_with_kids", "divorced", "widowed", "other",
+]
 Household = Literal["owning", "renting", "mortgaging"]
 CarStatus = Literal["financed", "owned", "rental"]
 TravelPreference = Literal["economy", "leisure", "savings"]
@@ -155,10 +158,66 @@ class ConversationSummary(BaseModel):
     title: Optional[str] = None
     created_at: datetime
     updated_at: datetime
+    is_shared: bool = False
+    owner_email: Optional[str] = None
 
 
 class ConversationListResponse(BaseModel):
     conversations: list[ConversationSummary]
+
+
+class ShareConversationRequest(BaseModel):
+    """Share a conversation with one or more users by email."""
+
+    emails: list[str] = Field(..., min_length=1)
+
+
+class ShareConversationResponse(BaseModel):
+    shared_with: list[str]
+    not_found: list[str]
+
+
+class ConversationShareInfo(BaseModel):
+    """Info about a shared conversation — drives the banner and join flow."""
+
+    conversation_id: UUID
+    title: Optional[str] = None
+    owner_name: str
+    is_mine: bool
+    already_added: bool
+    invite_status: Optional[str] = None
+
+
+class ConversationMember(BaseModel):
+    user_id: str
+    email: str
+    name: str
+    role: str
+    status: str
+
+
+class ConversationMembersResponse(BaseModel):
+    members: list[ConversationMember]
+
+
+class MemberActionRequest(BaseModel):
+    target_user_id: UUID
+
+
+class NotificationSchema(BaseModel):
+    id: UUID
+    type: str
+    title: str
+    body: Optional[str] = None
+    conversation_id: Optional[UUID] = None
+    actor_user_id: Optional[UUID] = None
+    is_read: bool
+    created_at: datetime
+
+
+class NotificationListResponse(BaseModel):
+    notifications: list[NotificationSchema]
+    unread_count: int
 
 
 class ProfileSummaryResponse(BaseModel):
@@ -235,8 +294,11 @@ class UserProfileDetails(BaseModel):
 
     occupation: Optional[str] = None
     company: Optional[str] = None
+    date_of_birth: Optional[str] = None
+    gender: Optional[str] = None
     relationship_status: Optional[RelationshipStatus] = None
     family_size: Optional[int] = None
+    city: Optional[str] = None
     location_state: Optional[str] = None
     location_country: Optional[str] = None
     household: Optional[Household] = None
@@ -246,6 +308,8 @@ class UserProfileDetails(BaseModel):
     us_status_detail: Optional[str] = None
     # Ordered airline preference, most preferred first.
     airline_ranking: list[str] = Field(default_factory=list)
+    # Ordered hotel preference, most preferred first.
+    hotel_ranking: list[str] = Field(default_factory=list)
     # Ordered shopping preferences, most preferred first.
     online_shopping_ranking: list[str] = Field(default_factory=list)
     offline_shopping_ranking: list[str] = Field(default_factory=list)
@@ -263,8 +327,11 @@ class UserProfileUpdate(BaseModel):
 
     occupation: Optional[str] = Field(None, max_length=200)
     company: Optional[str] = Field(None, max_length=200)
+    date_of_birth: Optional[str] = Field(None, max_length=10)
+    gender: Optional[str] = Field(None, max_length=50)
     relationship_status: Optional[RelationshipStatus] = None
     family_size: Optional[int] = Field(None, ge=0, le=50)
+    city: Optional[str] = Field(None, max_length=200)
     location_state: Optional[str] = Field(None, max_length=100)
     location_country: Optional[str] = Field(None, max_length=100)
     household: Optional[Household] = None
@@ -273,6 +340,7 @@ class UserProfileUpdate(BaseModel):
     us_status: Optional[USStatus] = None
     us_status_detail: Optional[str] = Field(None, max_length=100)
     airline_ranking: Optional[list[str]] = None
+    hotel_ranking: Optional[list[str]] = None
     online_shopping_ranking: Optional[list[str]] = None
     offline_shopping_ranking: Optional[list[str]] = None
     cards: Optional[list[SavedCard]] = None

@@ -9,8 +9,21 @@ export interface Option {
 
 export const RELATIONSHIP_OPTIONS: Option[] = [
   { value: 'single', label: 'Single' },
-  { value: 'partner', label: 'Partner' },
-  { value: 'family', label: 'Family' },
+  { value: 'relationship', label: 'In a relationship' },
+  { value: 'living_together', label: 'Living together' },
+  { value: 'engaged', label: 'Engaged' },
+  { value: 'married', label: 'Married' },
+  { value: 'married_with_kids', label: 'Married with kids' },
+  { value: 'divorced', label: 'Divorced' },
+  { value: 'widowed', label: 'Widowed' },
+  { value: 'other', label: 'Other' },
+];
+
+export const GENDER_OPTIONS: Option[] = [
+  { value: 'male', label: 'Male' },
+  { value: 'female', label: 'Female' },
+  { value: 'non_binary', label: 'Non-binary' },
+  { value: 'prefer_not_to_say', label: 'Prefer not to say' },
 ];
 
 export const HOUSEHOLD_OPTIONS: Option[] = [
@@ -29,6 +42,22 @@ export const TRAVEL_OPTIONS: Option[] = [
   { value: 'economy', label: 'Economy' },
   { value: 'leisure', label: 'Leisure' },
   { value: 'savings', label: 'Savings' },
+];
+
+export const HOTEL_STAY_OPTIONS: Option[] = [
+  { value: 'budget', label: 'Budget-friendly' },
+  { value: 'mid_range', label: 'Mid-range comfort' },
+  { value: 'luxury', label: 'Luxury & resorts' },
+  { value: 'boutique', label: 'Boutique & unique' },
+];
+
+export const GOAL_OPTIONS: Option[] = [
+  { value: 'travel_rewards', label: 'Maximize travel rewards' },
+  { value: 'cashback', label: 'Earn cash back on spending' },
+  { value: 'build_credit', label: 'Build or improve credit' },
+  { value: 'low_interest', label: 'Get a low interest rate' },
+  { value: 'premium_perks', label: 'Access premium perks & lounges' },
+  { value: 'balance_transfer', label: 'Transfer a balance' },
 ];
 
 export const US_STATUS_OPTIONS: Option[] = [
@@ -80,6 +109,21 @@ export const AIRLINES: string[] = [
   'Frontier',
   'Spirit',
   'Hawaiian Airlines',
+];
+
+/** Hotels offered for ranking (ordered preference). */
+export const HOTELS: string[] = [
+  'Marriott',
+  'Hilton',
+  'Hyatt',
+  'IHG',
+  'Wyndham',
+  'Best Western',
+  'Choice Hotels',
+  'Accor',
+  'Radisson',
+  'Four Seasons',
+  'Airbnb',
 ];
 
 /**

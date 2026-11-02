@@ -465,3 +465,69 @@ class RewardResultSchema(BaseModel):
     merchant: Optional[str] = None
     note: str = ""
     picks: list[CardRewardPickSchema] = Field(default_factory=list)
+
+
+# --- Instagram Posts & News ---------------------------------------------------
+
+
+class InstagramPostSchema(BaseModel):
+    """An Instagram post related to a card."""
+
+    id: UUID
+    card_id: UUID
+    instagram_post_id: str
+    url: str
+    caption: Optional[str] = None
+    image_url: Optional[str] = None
+    likes: int
+    engagement_score: float
+    hashtags: list[str] = Field(default_factory=list)
+    posted_at: Optional[datetime] = None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class InstagramPostCreateRequest(BaseModel):
+    """Request to create/store an Instagram post."""
+
+    instagram_post_id: str
+    url: str
+    caption: Optional[str] = None
+    image_url: Optional[str] = None
+    likes: int = 0
+    engagement_score: float = 0.0
+    hashtags: list[str] = Field(default_factory=list)
+    posted_at: Optional[datetime] = None
+
+
+class CardNewsKeywordSchema(BaseModel):
+    """A news keyword for a card."""
+
+    id: UUID
+    card_id: UUID
+    keyword: str
+    last_searched: Optional[datetime] = None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class CardNewsKeywordCreateRequest(BaseModel):
+    """Request to create/store a news keyword."""
+
+    keyword: str = Field(..., min_length=1, max_length=255)
+
+
+class InstagramPostListResponse(BaseModel):
+    """List of Instagram posts."""
+
+    posts: list[InstagramPostSchema]
+
+
+class CardNewsKeywordListResponse(BaseModel):
+    """List of news keywords for a card."""
+
+    keywords: list[CardNewsKeywordSchema]

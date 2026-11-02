@@ -96,6 +96,30 @@ class ConversationService:
         # to keep ordering correct even when the title didn't change.
         conversation.updated_at = datetime.utcnow()
 
+    @staticmethod
+    async def delete(
+        session: AsyncSession, conversation_id: UUID, user_id: UUID
+    ) -> bool:
+        """Delete a conversation owned by the user. Returns True if deleted."""
+        conversation = await ConversationService.get(session, conversation_id, user_id)
+        if conversation is None:
+            return False
+        # Remove associated shares and notifications first.
+        shares = await session.execute(
+            select(ConversationShare).where(
+                ConversationShare.conversation_id == conversation_id
+            )
+        )
+        for share in shares.scalars().all():
+            await session.delete(share)
+        notifications = await session.execute(
+            select(Notification).where(Notification.conversation_id == conversation_id)
+        )
+        for notif in notifications.scalars().all():
+            await session.delete(notif)
+        await session.delete(conversation)
+        return True
+
     # ── Sharing ──────────────────────────────────────────────────────
 
     @staticmethod

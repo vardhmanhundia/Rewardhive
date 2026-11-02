@@ -158,42 +158,49 @@ async def recommend_stream(
         # Tell the client which conversation this turn belongs to, so a fresh
         # session can adopt the new id (and update its URL) for follow-ups.
         yield _sse("conversation", {"id": str(conversation_id)})
+        print(f"[SSE DEBUG] starting stream_recommendation")
         try:
             async for event in stream_recommendation(
                 session, user_id, request.query, history=history, conversation_id=conversation_id
             ):
-                kind = event["kind"]
-                if kind == "stage":
-                    yield _sse("stage", {"stage": event["stage"], "count": event.get("count")})
-                elif kind == "cards":
-                    yield _sse("cards", event["cards"])
-                elif kind == "token":
-                    yield _sse("token", {"text": event["text"]})
-                elif kind in ("memories", "suggestions", "conflicts"):
-                    yield _sse(kind, {"items": event["items"]})
-                elif kind == "route":
-                    yield _sse("route", {"intent": event.get("intent")})
-                elif kind == "prompt":
-                    yield _sse("prompt", {
-                        "action": event.get("action"),
-                        "card_ids": event.get("card_ids", []),
-                    })
-                elif kind == "plan":
-                    yield _sse("plan", {
-                        k: v for k, v in event.items() if k != "kind"
-                    })
-                elif kind == "result":
-                    yield _sse("result", {
-                        k: v for k, v in event.items() if k != "kind"
-                    })
-                elif kind == "need_cards":
-                    yield _sse("need_cards", {
-                        k: v for k, v in event.items() if k != "kind"
-                    })
-                elif kind == "done":
-                    yield _sse("done", {})
-                elif kind == "error":
-                    yield _sse("error", {"detail": event["detail"]})
+                try:
+                    print(f"[SSE DEBUG] received event: {repr(event)[:200]}")
+                    kind = event.get("kind") if isinstance(event, dict) else None
+                    if not kind:
+                        continue
+                    if kind == "stage":
+                        yield _sse("stage", {"stage": event["stage"], "count": event.get("count")})
+                    elif kind == "cards":
+                        yield _sse("cards", event["cards"])
+                    elif kind == "token":
+                        yield _sse("token", {"text": event["text"]})
+                    elif kind in ("memories", "suggestions", "conflicts"):
+                        yield _sse(kind, {"items": event["items"]})
+                    elif kind == "route":
+                        yield _sse("route", {"intent": event.get("intent")})
+                    elif kind == "prompt":
+                        yield _sse("prompt", {
+                            "action": event.get("action"),
+                            "card_ids": event.get("card_ids", []),
+                        })
+                    elif kind == "plan":
+                        yield _sse("plan", {
+                            k: v for k, v in event.items() if k != "kind"
+                        })
+                    elif kind == "result":
+                        yield _sse("result", {
+                            k: v for k, v in event.items() if k != "kind"
+                        })
+                    elif kind == "need_cards":
+                        yield _sse("need_cards", {
+                            k: v for k, v in event.items() if k != "kind"
+                        })
+                    elif kind == "done":
+                        yield _sse("done", {})
+                    elif kind == "error":
+                        yield _sse("error", {"detail": event["detail"]})
+                except Exception:  # noqa: BLE001
+                    continue
         finally:
             # Persist the conversation bump (title/updated_at) and any profile
             # writes made while streaming; roll back if the commit fails.
@@ -207,6 +214,21 @@ async def recommend_stream(
         media_type="text/event-stream",
         headers=_STREAM_HEADERS,
     )
+
+
+@router.delete("/conversations/{conversation_id}")
+async def delete_conversation(
+    conversation_id: UUID,
+    payload: dict = Depends(verify_user_auth),
+    session: AsyncSession = Depends(get_db),
+) -> dict[str, bool]:
+    """Delete a conversation (owner only)."""
+    user_id = get_current_user_id(payload)
+    ok = await ConversationService.delete(session, conversation_id, user_id)
+    if not ok:
+        raise HTTPException(status_code=404, detail="Conversation not found or not owned")
+    await session.commit()
+    return {"ok": True}
 
 
 @router.get("/conversations", response_model=ConversationListResponse)

@@ -263,6 +263,14 @@ class CardService {
     return res.json();
   }
 
+  async deleteConversation(conversationId: string): Promise<boolean> {
+    const res = await fetch(`${API_URL}/recommendations/conversations/${conversationId}`, {
+      method: 'DELETE',
+      headers: authHeaders(),
+    });
+    return res.ok;
+  }
+
   async getShareInfo(conversationId: string): Promise<ShareInfo | null> {
     const res = await fetch(`${API_URL}/recommendations/conversations/${conversationId}/share-info`, {
       headers: { ...authHeaders() },
@@ -451,12 +459,14 @@ class CardService {
   ): Promise<RecommendationResult> {
     if (USE_MOCK) return mockRecommendStream(query, handlers);
 
+    console.log('[RECOMMEND] starting stream fetch');
     const res = await fetch(`${API_URL}/recommendations/stream`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...authHeaders() },
       body: JSON.stringify({ query, history, conversation_id: conversationId ?? null }),
       signal: handlers.signal,
     });
+    console.log('[RECOMMEND] fetch status:', res.status, 'body:', !!res.body);
     if (!res.ok || !res.body) throw new Error('Recommendation failed');
 
     const reader = res.body.getReader();
@@ -482,6 +492,7 @@ class CardService {
         const dataLine = /data:\s*([\s\S]*)/.exec(frame)?.[1];
         if (!event || !dataLine) continue;
         const payload = JSON.parse(dataLine);
+        console.log('[SSE]', event, payload);
         if (event === 'conversation') handlers.onConversation?.(payload.id);
         else if (event === 'stage') handlers.onStage?.(payload.stage, { count: payload.count });
         else if (event === 'cards') {
@@ -508,6 +519,8 @@ class CardService {
           handlers.onPlan?.(payload);
         } else if (event === 'result') {
           handlers.onResult?.(payload);
+        } else if (event === 'error') {
+          throw new Error(payload.detail ?? 'Recommendation error');
         }
       }
     }

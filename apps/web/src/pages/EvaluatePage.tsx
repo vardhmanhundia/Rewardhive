@@ -28,7 +28,6 @@ const SPEND_CATEGORIES = [
   { key: 'everyday', label: 'Everyday', fallback: 800 },
 ] as const;
 
-const USAGE_OPTIONS = SPEND_CATEGORIES.map((c) => ({ key: c.key, label: c.label }));
 const money = (n: number) => `$${Math.round(n).toLocaleString()}`;
 
 export const EvaluatePage = () => {
@@ -42,27 +41,26 @@ export const EvaluatePage = () => {
   const [spend, setSpend] = useState<Record<string, number>>(
     Object.fromEntries(SPEND_CATEGORIES.map((c) => [c.key, c.fallback])),
   );
-  // Owned cards → the category the user mostly puts on each.
-  const [ownedUsage, setOwnedUsage] = useState<Record<string, string>>({});
+  // Owned card ids (checked = in wallet).
+  const [ownedIds, setOwnedIds] = useState<Set<string>>(new Set());
   const [candidateId, setCandidateId] = useState('');
   const [profileLoaded, setProfileLoaded] = useState(false);
 
-  // Pre-fill owned cards from the user's saved profile and the candidate from the URL.
+  // Pre-fill owned cards from the user's saved profile.
   useEffect(() => {
     if (profileLoaded || !profile) return;
     setProfileLoaded(true);
-    const usage: Record<string, string> = {};
+    const ids = new Set<string>();
     for (const card of profile.cards) {
-      if (card.card_id) usage[card.card_id] = card.category || 'everyday';
+      if (card.card_id) ids.add(card.card_id);
     }
-    setOwnedUsage(usage);
+    setOwnedIds(ids);
   }, [profile, profileLoaded]);
 
   useEffect(() => {
     if (preselectedCard && !candidateId) setCandidateId(preselectedCard);
   }, [preselectedCard, candidateId]);
 
-  const ownedIds = Object.keys(ownedUsage);
   const monthlyTotal = Object.values(spend).reduce((a, b) => a + b, 0);
 
   const annualSpend = useMemo(
@@ -70,27 +68,24 @@ export const EvaluatePage = () => {
     [spend],
   );
   const ownedPayload = useMemo(
-    () => Object.entries(ownedUsage).map(([card_id, category]) => ({ card_id, category })),
-    [ownedUsage],
+    () => Array.from(ownedIds).map((card_id) => ({ card_id })),
+    [ownedIds],
   );
 
   const evaluate = useMutation({
     mutationFn: () => cardService.evaluateCard(annualSpend, ownedPayload, candidateId),
   });
 
-  const toggleOwned = (id: string) =>
-    setOwnedUsage((prev) => {
-      const next = { ...prev };
-      if (id in next) {
-        delete next[id];
-      } else {
-        next[id] = 'everyday';
-      }
-      if (candidateId === id) setCandidateId('');
+  const toggleOwned = (id: string) => {
+    setOwnedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
       return next;
     });
+    if (candidateId === id) setCandidateId('');
+  };
 
-  const candidates = (catalog ?? []).filter((c) => !(c.id in ownedUsage));
+  const candidates = (catalog ?? []).filter((c) => !ownedIds.has(c.id));
 
   return (
     <div className="min-h-screen bg-glow text-foreground">
@@ -119,51 +114,29 @@ export const EvaluatePage = () => {
             ) : (
               <div className="max-h-72 space-y-1.5 overflow-y-auto pr-1">
                 {catalog.map((card) => {
-                  const owned = card.id in ownedUsage;
+                  const owned = ownedIds.has(card.id);
                   return (
-                    <div
+                    <button
                       key={card.id}
-                      className={`rounded-lg border p-2.5 transition-colors ${
+                      onClick={() => toggleOwned(card.id)}
+                      className={`flex w-full items-center gap-2 rounded-lg border p-2.5 text-left transition-colors ${
                         owned ? 'border-primary/40 bg-primary/10' : 'border-white/5 bg-white/[0.02]'
                       }`}
                     >
-                      <div className="flex items-center justify-between gap-2">
-                        <button
-                          onClick={() => toggleOwned(card.id)}
-                          className="flex min-w-0 flex-1 items-center gap-2 text-left"
-                        >
-                          <span
-                            className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border ${
-                              owned ? 'border-primary bg-primary text-primary-foreground' : 'border-white/20'
-                            }`}
-                          >
-                            {owned && <span className="text-[0.6rem] leading-none">✓</span>}
-                          </span>
-                          <span className="min-w-0">
-                            <span className="block truncate text-sm font-medium">{card.name}</span>
-                            <span className="block truncate text-xs text-muted-foreground">
-                              {card.issuer}
-                            </span>
-                          </span>
-                        </button>
-                        {owned && (
-                          <select
-                            value={ownedUsage[card.id]}
-                            onChange={(e) =>
-                              setOwnedUsage((p) => ({ ...p, [card.id]: e.target.value }))
-                            }
-                            className="h-8 rounded-md border border-input bg-background/60 px-2 text-xs outline-none focus:ring-2 focus:ring-ring"
-                            title="What you mostly use it for"
-                          >
-                            {USAGE_OPTIONS.map((o) => (
-                              <option key={o.key} value={o.key}>
-                                {o.label}
-                              </option>
-                            ))}
-                          </select>
-                        )}
-                      </div>
-                    </div>
+                      <span
+                        className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border ${
+                          owned ? 'border-primary bg-primary text-primary-foreground' : 'border-white/20'
+                        }`}
+                      >
+                        {owned && <span className="text-[0.6rem] leading-none">✓</span>}
+                      </span>
+                      <span className="min-w-0">
+                        <span className="block truncate text-sm font-medium">{card.name}</span>
+                        <span className="block truncate text-xs text-muted-foreground">
+                          {card.issuer}
+                        </span>
+                      </span>
+                    </button>
                   );
                 })}
               </div>

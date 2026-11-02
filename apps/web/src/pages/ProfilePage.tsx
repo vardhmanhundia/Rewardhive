@@ -345,15 +345,6 @@ export const ProfilePage = () => {
           />
         </Section>
 
-        {/* Raw JSON */}
-        <details className="glass rounded-2xl p-5">
-          <summary className="cursor-pointer font-display font-semibold">
-            Full profile data (JSON)
-          </summary>
-          <pre className="mt-3 overflow-x-auto rounded-lg bg-black/40 p-4 text-xs text-muted-foreground">
-            {JSON.stringify(form, null, 2)}
-          </pre>
-        </details>
       </main>
 
       {/* Save bar */}
@@ -852,7 +843,7 @@ const CardsEditor = ({
   catalog: CardProduct[];
   onChange: (cards: SavedCard[]) => void;
 }) => {
-  const [category, setCategory] = useState(CARD_CATEGORIES[0]);
+  const category = 'all';
   const [picked, setPicked] = useState('');
   const [customName, setCustomName] = useState('');
 
@@ -886,8 +877,6 @@ const CardsEditor = ({
     return Array.from(g.entries());
   }, [matching]);
 
-  // Reset the picked catalog card when the category (hence the list) changes.
-  useEffect(() => setPicked(''), [category]);
 
   // Group held cards by category for display.
   const grouped = useMemo(() => {
@@ -927,26 +916,10 @@ const CardsEditor = ({
     <div className="space-y-6">
       {/* Picker: choose a category first, then a matching catalog card. */}
       <div className="space-y-3 rounded-xl border border-border bg-background/40 p-4">
-        <div className="flex flex-col gap-2 sm:flex-row">
-          <label className="sm:w-44">
-            <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Category
-            </span>
-            <select
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              className={inputClass}
-            >
-              {CARD_CATEGORIES.map((c) => (
-                <option key={c} value={c}>
-                  {c[0].toUpperCase() + c.slice(1)}
-                </option>
-              ))}
-            </select>
-          </label>
+        <div>
           <label className="flex-1">
             <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Card in this category
+              Select a card
             </span>
             <div className="flex gap-2">
               <select
@@ -957,9 +930,7 @@ const CardsEditor = ({
               >
                 <option value="">
                   {matching.length === 0
-                    ? category === 'all'
-                      ? 'No catalog cards available'
-                      : 'No catalog cards in this category'
+                    ? 'No catalog cards available'
                     : 'Choose a card…'}
                 </option>
                 {matchingGroups.map(([group, cards]) => (

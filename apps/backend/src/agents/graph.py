@@ -132,7 +132,6 @@ async def run_recommendation(
     )
 
 
-@traceable(run_type="chain", name="recommendation_stream")
 async def stream_recommendation(
     session: AsyncSession,
     user_id: UUID,
@@ -166,9 +165,21 @@ async def stream_recommendation(
         }
     }
     try:
-        async for _namespace, event in compiled_graph.astream(
+        async for item in compiled_graph.astream(
             state, config, stream_mode="custom", subgraphs=True
         ):
-            yield cast(dict[str, Any], event)
+            print(f"[STREAM DEBUG] type={type(item).__name__}, repr={repr(item)[:300]}")
+            # With subgraphs=True the stream yields (namespace_tuple, event)
+            # pairs, but some LangGraph versions yield bare dicts for events
+            # from direct function nodes (e.g. the router).  Handle both.
+            if isinstance(item, tuple):
+                event = item[-1]
+            else:
+                event = item
+            if isinstance(event, dict):
+                yield cast(dict[str, Any], event)
+            else:
+                print(f"[STREAM DEBUG] skipped non-dict event: {repr(event)[:200]}")
     except Exception as exc:  # noqa: BLE001 — surface any failure to the client
+        print(f"[STREAM DEBUG] exception: {exc!r}")
         yield {"kind": "error", "detail": str(exc)}

@@ -175,15 +175,19 @@ export const RecommendPage = () => {
       const msgs = id
         ? await cardService.getConversationHistory(id)
         : await cardService.getHistory();
+      if (activeTurnId.current) return;
       setTurns(msgsToTurns(msgs));
     } catch {
+      if (activeTurnId.current) return;
       setTurns([]);
     }
   }, []);
 
-  // On mount: load from URL param or legacy history (unless we have a handoff query).
+  // On mount: load from URL param or legacy history (unless we have a handoff query
+  // or a stream is already running — the latter guards against React StrictMode's
+  // double-mount wiping a turn that the handoff effect just added).
   useEffect(() => {
-    if (handoffQuery.current) return;
+    if (handoffQuery.current || activeTurnId.current) return;
     convId.current = urlConversationId;
     loadConversation(urlConversationId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -252,6 +256,7 @@ export const RecommendPage = () => {
     if (retryTurnId) {
       patch(id, { stage: null, answer: '', cards: [], found: 0, memories: [], suggestions: [], prompts: [], error: false, interrupted: false });
     } else {
+      console.log('[ASK] adding turn', id);
       setTurns((prev) => [
         ...prev,
         { id, query, stage: null, answer: '', cards: [], found: 0, memories: [], suggestions: [], prompts: [] },
@@ -277,9 +282,11 @@ export const RecommendPage = () => {
             patch(id, meta?.count != null ? { stage, found: meta.count } : { stage }),
           onCards: (cards) => patch(id, { cards }),
           onToken: (chunk) =>
-            setTurns((prev) =>
-              prev.map((t) => (t.id === id ? { ...t, answer: t.answer + chunk } : t)),
-            ),
+            setTurns((prev) => {
+              const match = prev.find((t) => t.id === id);
+              if (!match) console.warn('[TOKEN] turn NOT found!', id, 'turns:', prev.length, prev.map(t => t.id));
+              return prev.map((t) => (t.id === id ? { ...t, answer: t.answer + chunk } : t));
+            }),
           onMemories: (items) => patch(id, { memories: items }),
           onSuggestions: (items) => patch(id, { suggestions: items }),
           onRoute: (intent) => patch(id, { intent }),
@@ -369,6 +376,17 @@ export const RecommendPage = () => {
     });
   };
 
+  const handleDeleteThread = async (id: string) => {
+    const ok = await cardService.deleteConversation(id);
+    if (!ok) return;
+    if (convId.current === id) {
+      convId.current = null;
+      setSearchParams({}, { replace: true });
+      setTurns([]);
+    }
+    refreshConversations();
+  };
+
   const copyShareLink = (id: string) => {
     const url = `${window.location.origin}${window.location.pathname}?c=${id}`;
     navigator.clipboard.writeText(url).catch(() => {});
@@ -450,6 +468,7 @@ export const RecommendPage = () => {
                     onSelect={() => handleSelectThread(t.conversation.id)}
                     onTogglePin={() => togglePin(t.conversation.id)}
                     onCopyLink={() => copyShareLink(t.conversation.id)}
+                    onDelete={() => handleDeleteThread(t.conversation.id)}
                   />
                 ))}
               </SidebarSection>
@@ -466,6 +485,7 @@ export const RecommendPage = () => {
                     onSelect={() => handleSelectThread(t.conversation.id)}
                     onTogglePin={() => togglePin(t.conversation.id)}
                     onCopyLink={() => copyShareLink(t.conversation.id)}
+                    onDelete={() => handleDeleteThread(t.conversation.id)}
                   />
                 ))}
               </SidebarSection>
@@ -482,6 +502,7 @@ export const RecommendPage = () => {
                     onSelect={() => handleSelectThread(t.conversation.id)}
                     onTogglePin={() => togglePin(t.conversation.id)}
                     onCopyLink={() => copyShareLink(t.conversation.id)}
+                    onDelete={() => handleDeleteThread(t.conversation.id)}
                   />
                 ))
               ) : (
@@ -708,20 +729,25 @@ const ThreadItem = ({
   onSelect,
   onTogglePin,
   onCopyLink,
+  onDelete,
 }: {
   thread: SidebarThread;
   active: boolean;
   onSelect: () => void;
   onTogglePin: () => void;
   onCopyLink: () => void;
+  onDelete: () => void;
 }) => {
   const [menuOpen, setMenuOpen] = useState(false);
   const c = thread.conversation;
 
   return (
-    <button
+    <div
+      role="button"
+      tabIndex={0}
       onClick={onSelect}
-      className={`group relative flex w-full flex-col gap-0.5 rounded-lg mx-1.5 px-2.5 py-2 text-left transition-colors ${
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onSelect(); }}
+      className={`group relative flex w-full flex-col gap-0.5 rounded-lg mx-1.5 px-2.5 py-2 text-left transition-colors cursor-pointer ${
         active
           ? 'bg-primary/10 border border-primary/20'
           : 'border border-transparent hover:bg-white/5'
@@ -768,7 +794,7 @@ const ThreadItem = ({
               Copy share link
             </button>
             <button
-              onClick={() => setMenuOpen(false)}
+              onClick={() => { onDelete(); setMenuOpen(false); }}
               className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs text-destructive hover:bg-destructive/10 transition-colors"
             >
               <Trash2 className="h-3 w-3" />
@@ -777,7 +803,7 @@ const ThreadItem = ({
           </div>
         )}
       </div>
-    </button>
+    </div>
   );
 };
 

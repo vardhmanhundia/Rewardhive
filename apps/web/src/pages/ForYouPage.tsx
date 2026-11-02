@@ -447,7 +447,7 @@ export const ForYouPage = () => {
         </section>
 
         {/* ---- ROW 1 ---- */}
-        <div className="grid grid-cols-1 lg:grid-cols-[1.55fr_1fr] gap-4 items-start">
+        <div className="grid grid-cols-1 lg:grid-cols-[1.55fr_1fr] gap-4 items-stretch">
           <AdvisorHero onAsk={ask} onNavigate={navigate} />
           <div className="flex flex-col gap-4 min-w-0">
             <PlansSection onNavigate={navigate} />
@@ -663,15 +663,17 @@ const BestCardFinder = ({
         </div>
       ) : ranked.length > 0 ? (
         <>
-          <div className="grid gap-5 sm:grid-cols-2">
-            {ranked.map((r, i) => (
-              <CardTile
-                key={r.card.id}
-                card={r.card}
-                badge={r.rate}
-                highlight={i === 0}
-              />
-            ))}
+          <div className="max-h-[480px] overflow-y-auto scrollbar-thin pr-1">
+            <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+              {ranked.map((r, i) => (
+                <CardTile
+                  key={r.card.id}
+                  card={r.card}
+                  badge={r.rate}
+                  highlight={i === 0}
+                />
+              ))}
+            </div>
           </div>
           <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
             <button
@@ -931,8 +933,8 @@ const PlansSection = ({onNavigate}: {onNavigate: (path: string) => void}) => {
   const currentInitials = initialsFromName(user?.first_name, user?.last_name);
 
   return (
-    <Card className="p-[22px]">
-      <div className="flex items-end justify-between gap-3 mb-3.5">
+    <Card className="p-[22px] flex flex-col flex-1">
+      <div className="flex items-end justify-between gap-3 mb-3.5 shrink-0">
         <h2 className="font-display font-semibold text-lg tracking-tight">
           Shared plans
         </h2>
@@ -943,12 +945,12 @@ const PlansSection = ({onNavigate}: {onNavigate: (path: string) => void}) => {
           New plan →
         </button>
       </div>
-      <p className="text-muted-foreground text-[13.5px] mb-3.5 mt-0">
+      <p className="text-muted-foreground text-[13.5px] mb-3.5 mt-0 shrink-0">
         Plan with a partner, roommate or friend — Tandem advises across both your
         cards.
       </p>
       {isLoading ? (
-        <div className="flex flex-col gap-2.5">
+        <div className="flex flex-col gap-2.5 flex-1">
           {Array.from({length: 2}).map((_, i) => (
             <div
               key={i}
@@ -957,12 +959,14 @@ const PlansSection = ({onNavigate}: {onNavigate: (path: string) => void}) => {
           ))}
         </div>
       ) : shared.length === 0 ? (
-        <EmptyHint>
-          No shared plans yet. Open a conversation and use Share to plan with
-          someone — it’ll show up here.
-        </EmptyHint>
+        <div className="flex-1 flex items-start">
+          <EmptyHint>
+            No shared plans yet. Open a conversation and use Share to plan with
+            someone — it’ll show up here.
+          </EmptyHint>
+        </div>
       ) : (
-        <div className="flex flex-col gap-2.5">
+        <div className="flex flex-col gap-2.5 flex-1 overflow-y-auto scrollbar-thin pr-1">
           {shared.map((c) => (
             <PlanRow
               key={c.id}

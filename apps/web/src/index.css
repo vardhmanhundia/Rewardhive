@@ -99,3 +99,22 @@
 .animate-float {
   animation: float 6s ease-in-out infinite;
 }
+
+.scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: hsl(0 0% 100% / 0.15) transparent;
+}
+.scrollbar-thin::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: hsl(0 0% 100% / 0.15);
+  border-radius: 4px;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background: hsl(0 0% 100% / 0.25);
+}

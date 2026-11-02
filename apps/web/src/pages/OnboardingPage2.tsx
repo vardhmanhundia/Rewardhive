@@ -4,14 +4,15 @@ import { useMutation } from '@tanstack/react-query';
 import { useAuth } from '@/context/AuthContext';
 import profileService, { type ProfileDetails } from '@/services/profileService';
 import authService from '@/services/authService';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import Markdown from '@/components/Markdown';
 import {
-  RELATIONSHIP_OPTIONS,
-  GENDER_OPTIONS,
   HOUSEHOLD_OPTIONS,
-  CAR_OPTIONS,
   TRAVEL_OPTIONS,
-  US_STATUS_OPTIONS,
-  US_STATUS_DETAILS,
+  HOTEL_STAY_OPTIONS,
+  GOAL_OPTIONS,
   AIRLINES,
   ONLINE_SHOPPING,
   OFFLINE_SHOPPING,
@@ -21,7 +22,6 @@ import {
   HOTELS,
   type Option,
 } from '@/data/profileOptions';
-import './OnboardingPage2.css';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
@@ -88,6 +88,7 @@ const HOTEL_BRANDS: Record<string, { bg: string; label: string }> = {
   'Accor': { bg: '#1B1B4B', label: 'AC' },
   'Radisson': { bg: '#003366', label: 'RD' },
   'Four Seasons': { bg: '#2E2E2E', label: 'FS' },
+  'Airbnb': { bg: '#FF5A5F', label: 'AB' },
 };
 
 const BANK_BRANDS: Record<string, { bg: string; label: string }> = {
@@ -138,6 +139,7 @@ const EMPTY: ProfileDetails = {
   household: null,
   car: null,
   travel_preference: null,
+  hotel_stay_style: null,
   us_status: null,
   us_status_detail: null,
   airline_ranking: [],
@@ -162,18 +164,13 @@ interface StepDef {
 }
 
 const STEP_META: StepDef[] = [
-  { key: 'about', title: 'About you', subtitle: 'Choose the details that describe your situation so we can match better cards.', label: 'About' },
-  { key: 'lifestyle', title: 'Lifestyle & status', subtitle: 'Your living situation and residency, for perk eligibility.', label: 'Lifestyle' },
+  { key: 'about', title: 'About you', subtitle: 'A few basics so we can match cards to your situation.', label: 'About' },
   { key: 'travel', title: 'Travel preferences', subtitle: 'How you fly and stay, so travel rewards actually fit you.', label: 'Travel' },
   { key: 'hotels', title: 'Hotel preferences', subtitle: 'Where you stay, so we match hotel cards and loyalty programs.', label: 'Hotels' },
   { key: 'shopping', title: 'Shopping', subtitle: 'Where you spend most, to match store-specific rewards.', label: 'Shopping' },
   { key: 'banks', title: 'Banks & goals', subtitle: 'Who you bank with and what you want from your cards.', label: 'Banks' },
 ];
 
-const REL_EMOJI: Record<string, string> = {
-  single: '\u{1F464}', relationship: '\u{1F491}', living_together: '\u{1F3E0}', engaged: '\u{1F48D}',
-  married: '\u{1F492}', married_with_kids: '\u{1F468}‍\u{1F469}‍\u{1F467}‍\u{1F466}', divorced: '\u{1F4DD}', widowed: '\u{1F54A}️', other: '\u{1F300}',
-};
 
 interface ChatMsg {
   role: 'user' | 'assistant';
@@ -187,54 +184,53 @@ interface ChatMsg {
 const TRAVEL_OPTIONS_REF = TRAVEL_OPTIONS;
 
 const ProfileAvatar = ({ form }: { form: ProfileDetails }) => {
-  const gender = form.gender;
   const skinFill = '#F4C6A0';
-  const hairColor = gender === 'female' ? '#5B3A29' : gender === 'male' ? '#3B2F2F' : '#6B5B73';
-  const shirtColor = gender === 'female' ? 'var(--th-primary)' : gender === 'male' ? 'var(--amber)' : 'var(--info)';
+  const hairColor = '#6B5B73';
+  const shirtColor = 'hsl(252 95% 68%)';
 
   const tags = useMemo(() => {
     const t: { label: string; filled: boolean }[] = [];
-    t.push({ label: form.gender ? (GENDER_OPTIONS.find((o) => o.value === form.gender)?.label ?? form.gender) : 'Gender', filled: !!form.gender });
     t.push({ label: form.occupation ?? 'Occupation', filled: !!form.occupation });
-    t.push({ label: form.relationship_status ? (RELATIONSHIP_OPTIONS.find((o) => o.value === form.relationship_status)?.label ?? form.relationship_status) : 'Status', filled: !!form.relationship_status });
     t.push({ label: form.city ?? form.location_state ?? 'Location', filled: !!(form.city || form.location_state) });
     if (form.travel_preference) t.push({ label: TRAVEL_OPTIONS_REF.find((o) => o.value === form.travel_preference)?.label ?? form.travel_preference, filled: true });
     if (form.airline_ranking.length) t.push({ label: `${form.airline_ranking[0]} fan`, filled: true });
     if (form.hotel_ranking.length) t.push({ label: `${form.hotel_ranking[0]} guest`, filled: true });
     if (form.banks.length) t.push({ label: `${form.banks[0].name}`, filled: true });
+    if (form.goals.length) t.push({ label: form.goals[0].text, filled: true });
     return t;
   }, [form]);
 
   return (
-    <div className="ob2-avatar-panel">
-      <h3>Your profile</h3>
-      <div className="ob2-avatar-wrap">
-        <svg viewBox="0 0 200 200" fill="none">
-          <ellipse cx="100" cy="85" rx="42" ry="46" fill={skinFill} />
-          {gender === 'female' ? (
-            <>
-              <ellipse cx="100" cy="62" rx="44" ry="32" fill={hairColor} />
-              <path d="M56 72c-4 25-2 55 10 70" stroke={hairColor} strokeWidth="12" strokeLinecap="round" fill="none" />
-              <path d="M144 72c4 25 2 55-10 70" stroke={hairColor} strokeWidth="12" strokeLinecap="round" fill="none" />
-            </>
-          ) : (
+    <Card className="text-center overflow-hidden">
+      <CardContent className="p-6">
+        <h3 className="font-display text-[15px] font-semibold mb-4">Your profile</h3>
+        <div className="w-[200px] h-[200px] mx-auto mb-4 rounded-full overflow-hidden bg-gradient-to-br from-primary/15 to-muted border-[3px] border-primary/40 grid place-items-center transition-all duration-400">
+          <svg viewBox="0 0 200 200" fill="none" className="w-[180px] h-[180px]">
+            <ellipse cx="100" cy="85" rx="42" ry="46" fill={skinFill} />
             <ellipse cx="100" cy="60" rx="44" ry="28" fill={hairColor} />
-          )}
-          <circle cx="82" cy="88" r="4" fill="#2D2D2D" />
-          <circle cx="118" cy="88" r="4" fill="#2D2D2D" />
-          <path d="M88 104c4 6 20 6 24 0" stroke="#C47A5B" strokeWidth="2.5" strokeLinecap="round" fill="none" />
-          <path d="M55 170c0-28 20-44 45-44s45 16 45 44" fill={shirtColor} />
-          <path d="M85 126l15 14 15-14" stroke="rgba(255,255,255,0.3)" strokeWidth="2" fill="none" />
-        </svg>
-      </div>
-      <div className="ob2-avatar-tags">
-        {tags.map((t, i) => (
-          <span key={i} className={`ob2-avatar-tag ${t.filled ? 'filled' : ''}`}>
-            {t.filled && '✓ '}{t.label}
-          </span>
-        ))}
-      </div>
-    </div>
+            <circle cx="82" cy="88" r="4" fill="#2D2D2D" />
+            <circle cx="118" cy="88" r="4" fill="#2D2D2D" />
+            <path d="M88 104c4 6 20 6 24 0" stroke="#C47A5B" strokeWidth="2.5" strokeLinecap="round" fill="none" />
+            <path d="M55 170c0-28 20-44 45-44s45 16 45 44" fill={shirtColor} />
+            <path d="M85 126l15 14 15-14" stroke="rgba(255,255,255,0.3)" strokeWidth="2" fill="none" />
+          </svg>
+        </div>
+        <div className="flex flex-wrap gap-1.5 justify-center">
+          {tags.map((t, i) => (
+            <span
+              key={i}
+              className={`text-[11px] font-semibold px-2.5 py-1 rounded-full inline-flex items-center gap-1 ${
+                t.filled
+                  ? 'bg-primary/15 border border-primary/40 text-primary'
+                  : 'bg-muted border border-border text-muted-foreground'
+              }`}
+            >
+              {t.filled && '✓ '}{t.label}
+            </span>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
   );
 };
 
@@ -375,114 +371,171 @@ export const OnboardingPage2 = () => {
   };
 
   return (
-    <div className="ob2" data-theme={themeAttr}>
-      <header className="ob2-header">
-        <div className="ob2-header-inner">
-          <Link to="/" className="ob2-brand">
-            <span className="ob2-logo"><TandemLogo /></span>
+    <div className="bg-background text-foreground min-h-screen antialiased leading-relaxed tracking-tight" data-theme={themeAttr}>
+      {/* Header */}
+      <header className="sticky top-0 z-30 bg-background border-b border-border px-4">
+        <div className="max-w-[1200px] mx-auto flex items-center justify-between h-14">
+          <Link to="/" className="flex items-center gap-2.5 font-display font-bold text-[19px] tracking-tight no-underline text-foreground">
+            <span className="w-[34px] h-[34px] rounded-[10px] shrink-0 grid place-items-center bg-gradient-to-br from-primary to-primary/80 text-primary-foreground shadow-md shadow-primary/30">
+              <TandemLogo />
+            </span>
             Tandem
           </Link>
-          <div className="ob2-header-actions">
-            <button className="ob2-theme-toggle" onClick={toggleTheme} aria-label="Toggle theme">
-              {theme === 'dark' ? <SunSvg /> : <MoonSvg />}
+          <div className="flex items-center gap-2.5">
+            <button
+              className="w-9 h-9 rounded-full border border-border bg-card text-muted-foreground grid place-items-center shrink-0 hover:text-foreground transition-colors"
+              onClick={toggleTheme}
+              aria-label="Toggle theme"
+            >
+              <span className="w-4 h-4">{theme === 'dark' ? <SunSvg /> : <MoonSvg />}</span>
             </button>
-            <button className="ob2-skip" onClick={finish} disabled={mutation.isPending}>
+            <button
+              className="inline-flex items-center gap-1.5 bg-transparent border-none text-muted-foreground text-sm font-semibold hover:text-foreground transition-colors"
+              onClick={finish}
+              disabled={mutation.isPending}
+            >
               Skip for now →
             </button>
           </div>
         </div>
       </header>
 
-      <div className="ob2-stepper">
+      {/* Stepper */}
+      <div className="max-w-[1200px] mx-auto px-4 pt-5 flex items-center">
         {STEP_META.map((s, i) => {
           const done = i < stepIndex;
           const active = i === stepIndex;
           return (
             <React.Fragment key={s.key}>
-              {i > 0 && <div className={`ob2-step-line ${done ? 'done' : ''}`} />}
-              <button className={`ob2-step-dot ${active ? 'active' : ''}`} onClick={() => setStepIndex(i)}>
-                <span className={`ob2-step-num ${active ? 'active' : done ? 'done' : ''}`}>
+              {i > 0 && (
+                <div className={`flex-1 h-0.5 mx-2 min-w-[16px] ${done ? 'bg-primary/40' : 'bg-border'}`} />
+              )}
+              <button
+                className="flex items-center gap-2 bg-transparent border-none p-2 whitespace-nowrap text-muted-foreground"
+                onClick={() => setStepIndex(i)}
+              >
+                <span
+                  className={`w-8 h-8 rounded-full shrink-0 grid place-items-center font-display font-bold text-[13px] border-2 transition-all duration-300 ${
+                    active
+                      ? 'border-primary text-primary-foreground bg-primary'
+                      : done
+                        ? 'border-primary text-primary bg-primary/15'
+                        : 'border-border text-muted-foreground'
+                  }`}
+                >
                   {done ? '✓' : i + 1}
                 </span>
-                <span className="ob2-step-label">{s.label}</span>
+                <span className={`text-[13px] font-semibold hidden sm:inline ${active ? 'text-foreground' : ''}`}>
+                  {s.label}
+                </span>
               </button>
             </React.Fragment>
           );
         })}
       </div>
 
-      <div className="ob2-body">
-        <div className="ob2-main">
-          <h1 className="ob2-step-title">{step.title}</h1>
-          <p className="ob2-step-sub">{step.subtitle}</p>
+      {/* Body: form left + sidebar right */}
+      <div className="max-w-[1200px] mx-auto px-4 pt-6 pb-12 grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-8 items-start">
+        {/* Left: step content */}
+        <div className="min-w-0">
+          <h1 className="font-display font-bold text-[clamp(24px,3vw,32px)] mb-1">{step.title}</h1>
+          <p className="text-muted-foreground text-[15px] mb-6 max-w-[52ch]">{step.subtitle}</p>
 
-          <StepContent stepKey={step.key} form={form} set={set} setForm={setForm} />
+          <StepContent stepKey={step.key} form={form} set={set} />
 
           {mutation.isError && (
-            <p style={{ color: 'var(--alert)', fontSize: 14, marginTop: 12 }}>
+            <p className="text-destructive text-sm mt-3">
               Couldn't save: {(mutation.error as Error).message}
             </p>
           )}
 
-          <div className="ob2-nav">
-            <button className="ob2-btn ob2-btn-ghost" onClick={goBack} disabled={stepIndex === 0}>
+          {/* Nav buttons */}
+          <div className="flex gap-2.5 mt-7">
+            <Button variant="outline" onClick={goBack} disabled={stepIndex === 0}>
               ← Back
-            </button>
+            </Button>
             {!isLast && (
-              <button className="ob2-btn ob2-btn-text" onClick={goNext}>
+              <button
+                className="bg-transparent border-none text-muted-foreground text-sm font-semibold px-4 py-3 hover:text-foreground transition-colors"
+                onClick={goNext}
+              >
                 Skip
               </button>
             )}
             {isLast ? (
-              <button className="ob2-btn ob2-btn-primary" onClick={finish} disabled={mutation.isPending}>
+              <Button onClick={finish} disabled={mutation.isPending}>
                 {mutation.isPending ? 'Saving…' : '✓ Finish'}
-              </button>
+              </Button>
             ) : (
-              <button className="ob2-btn ob2-btn-primary" onClick={goNext}>
+              <Button onClick={goNext}>
                 Continue →
-              </button>
+              </Button>
             )}
           </div>
         </div>
 
-        <aside className="ob2-sidebar">
+        {/* Right sidebar */}
+        <aside className="sticky top-20 max-lg:static">
           <ProfileAvatar form={form} />
 
-          <div className="ob2-chat">
-            <div className="ob2-chat-header">
-              <ChatSvg />
-              Chat with Tandem
-            </div>
-            <div className="ob2-chat-messages">
+          {/* Chat panel */}
+          <Card className="mt-4 overflow-hidden">
+            <CardHeader className="flex flex-row items-center gap-2 px-4 py-3.5 border-b border-border">
+              <span className="w-[18px] h-[18px] text-primary"><ChatSvg /></span>
+              <span className="font-display font-semibold text-sm">Chat with Tandem</span>
+            </CardHeader>
+            <div className="h-[200px] overflow-y-auto p-3 px-4 flex flex-col gap-2.5">
               {chatMessages.map((m, i) => (
-                <div key={i} className={`ob2-chat-msg ${m.role}`}>
-                  {m.content || (chatLoading && i === chatMessages.length - 1 ? '…' : '')}
+                <div
+                  key={i}
+                  className={`max-w-[85%] px-3.5 py-2.5 text-[13px] leading-snug ${
+                    m.role === 'user'
+                      ? 'self-end bg-primary text-primary-foreground rounded-[14px] rounded-br-[4px]'
+                      : 'self-start bg-muted text-foreground rounded-[14px] rounded-bl-[4px]'
+                  }`}
+                >
+                  {m.content
+                    ? m.role === 'assistant'
+                      ? <Markdown>{m.content}</Markdown>
+                      : m.content
+                    : chatLoading && i === chatMessages.length - 1
+                      ? '…'
+                      : ''}
                 </div>
               ))}
               <div ref={chatEndRef} />
             </div>
             {chatSuggestions.length > 0 && (
-              <div className="ob2-chat-suggestions">
+              <div className="flex flex-wrap gap-1.5 px-4 pb-3">
                 {chatSuggestions.map((s) => (
-                  <button key={s} className="ob2-chat-sug" onClick={() => sendChat(s)}>
+                  <button
+                    key={s}
+                    className="bg-muted border border-border rounded-full px-2.5 py-1 text-[11px] text-muted-foreground font-medium hover:border-primary/40 hover:text-foreground transition-colors"
+                    onClick={() => sendChat(s)}
+                  >
                     {s}
                   </button>
                 ))}
               </div>
             )}
-            <div className="ob2-chat-input">
+            <div className="flex gap-2 px-4 py-3 border-t border-border">
               <input
                 value={chatInput}
                 onChange={(e) => setChatInput(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter') sendChat(chatInput); }}
                 placeholder="Tell me about yourself…"
                 disabled={chatLoading}
+                className="flex-1 h-10 rounded-[10px] border-[1.5px] border-border bg-muted px-3 text-[13px] text-foreground outline-none focus:border-primary/40 placeholder:text-muted-foreground"
               />
-              <button className="ob2-chat-send" onClick={() => sendChat(chatInput)} disabled={chatLoading || !chatInput.trim()}>
-                <SendSvg />
+              <button
+                className="w-10 h-10 rounded-[10px] border-none bg-primary text-primary-foreground grid place-items-center shrink-0 hover:bg-primary/80 disabled:opacity-50 transition-colors"
+                onClick={() => sendChat(chatInput)}
+                disabled={chatLoading || !chatInput.trim()}
+              >
+                <span className="w-4 h-4"><SendSvg /></span>
               </button>
             </div>
-          </div>
+          </Card>
         </aside>
       </div>
     </div>
@@ -500,18 +553,14 @@ const StepContent = ({
   stepKey,
   form,
   set,
-  setForm,
 }: {
   stepKey: string;
   form: FormState;
   set: SetFn;
-  setForm: React.Dispatch<React.SetStateAction<FormState>>;
 }) => {
   switch (stepKey) {
     case 'about':
       return <AboutStep form={form} set={set} />;
-    case 'lifestyle':
-      return <LifestyleStep form={form} set={set} setForm={setForm} />;
     case 'travel':
       return <TravelStep form={form} set={set} />;
     case 'hotels':
@@ -529,373 +578,296 @@ const StepContent = ({
 /*  Brand badge helper                                                 */
 /* ------------------------------------------------------------------ */
 
-const BrandBadge = ({ name, brands }: { name: string; brands: Record<string, { bg: string; label: string }> }) => {
-  const brand = brands[name];
-  if (!brand) return <span className="ob2-option-icon">{name.charAt(0)}</span>;
-  return (
-    <span className="ob2-option-icon">
-      <span className="ob2-brand-badge" style={{ background: brand.bg }}>{brand.label}</span>
+/* ---- Shared option card (single-select items like household, travel style) ---- */
+const OptionCard = ({
+  selected,
+  onClick,
+  icon,
+  label,
+}: {
+  selected: boolean;
+  onClick: () => void;
+  icon: React.ReactNode;
+  label: string;
+}) => (
+  <button
+    className={`relative text-center border-2 rounded-xl p-[18px_12px] flex flex-col items-center gap-2 transition-all duration-150 hover:-translate-y-0.5 hover:shadow-md ${
+      selected
+        ? 'border-primary bg-primary/15 shadow-[0_0_0_3px_hsl(var(--primary)/0.15)]'
+        : 'bg-card border-border hover:border-primary/40'
+    }`}
+    onClick={onClick}
+  >
+    <span className={`absolute top-2.5 left-2.5 w-[18px] h-[18px] rounded-full border-2 grid place-items-center transition-all duration-150 ${
+      selected ? 'border-primary bg-primary' : 'border-border bg-card'
+    }`}>
+      <span className={`w-[7px] h-[7px] rounded-full bg-white transition-opacity duration-150 ${selected ? 'opacity-100' : 'opacity-0'}`} />
     </span>
-  );
-};
+    {icon}
+    <span className="font-display font-semibold text-[13px]">{label}</span>
+  </button>
+);
+
+/* ---- Chip toggle (multi-select pill for brands) ---- */
+const ChipToggle = ({
+  label,
+  selected,
+  onClick,
+  brandColor,
+}: {
+  label: string;
+  selected: boolean;
+  onClick: () => void;
+  brandColor?: string;
+}) => (
+  <button
+    className={`inline-flex items-center gap-2 rounded-full px-3.5 py-2 text-[13px] font-semibold border-[1.5px] transition-all duration-150 ${
+      selected
+        ? 'border-primary bg-primary/15 text-foreground'
+        : 'border-border bg-card text-muted-foreground hover:border-primary/30 hover:text-foreground'
+    }`}
+    onClick={onClick}
+  >
+    {brandColor && (
+      <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: brandColor }} />
+    )}
+    {label}
+    {selected && (
+      <svg viewBox="0 0 24 24" fill="none" className="w-3.5 h-3.5 text-primary ml-0.5">
+        <path d="M20 6L9 17l-5-5" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    )}
+  </button>
+);
+
+/* ---- Field label ---- */
+const FieldLabel = ({ children, className = '' }: { children: React.ReactNode; className?: string }) => (
+  <label className={`block text-xs font-bold tracking-widest uppercase text-muted-foreground mb-1.5 ${className}`}>
+    {children}
+  </label>
+);
 
 /* ---- About ---- */
 const AboutStep = ({ form, set }: { form: FormState; set: SetFn }) => (
   <div>
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-      <div className="ob2-field">
-        <label>Occupation</label>
-        <input className="ob2-input" value={form.occupation ?? ''} onChange={(e) => set('occupation', e.target.value || null)} placeholder="e.g. Software Engineer" />
+    <div className="grid grid-cols-2 gap-3">
+      <div className="mb-4">
+        <FieldLabel>Occupation</FieldLabel>
+        <Input value={form.occupation ?? ''} onChange={(e) => set('occupation', e.target.value || null)} placeholder="e.g. Software Engineer" />
       </div>
-      <div className="ob2-field">
-        <label>Company</label>
-        <input className="ob2-input" value={form.company ?? ''} onChange={(e) => set('company', e.target.value || null)} placeholder="e.g. Acme Corp" />
+      <div className="mb-4">
+        <FieldLabel>Company</FieldLabel>
+        <Input value={form.company ?? ''} onChange={(e) => set('company', e.target.value || null)} placeholder="e.g. Acme Corp" />
       </div>
     </div>
 
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
-      <div className="ob2-field">
-        <label>Date of birth</label>
-        <input className="ob2-input" type="date" value={form.date_of_birth ?? ''} onChange={(e) => set('date_of_birth', e.target.value || null)} />
+    <div className="grid grid-cols-3 gap-3">
+      <div className="mb-4">
+        <FieldLabel>Date of birth</FieldLabel>
+        <Input type="date" value={form.date_of_birth ?? ''} onChange={(e) => set('date_of_birth', e.target.value || null)} />
       </div>
-      <div className="ob2-field">
-        <label>City / Town</label>
-        <input className="ob2-input" value={form.city ?? ''} onChange={(e) => set('city', e.target.value || null)} placeholder="e.g. San Francisco" />
+      <div className="mb-4">
+        <FieldLabel>City / Town</FieldLabel>
+        <Input value={form.city ?? ''} onChange={(e) => set('city', e.target.value || null)} placeholder="e.g. San Francisco" />
       </div>
-      <div className="ob2-field">
-        <label>State</label>
-        <select className="ob2-select" value={form.location_state ?? ''} onChange={(e) => set('location_state', e.target.value || null)}>
+      <div className="mb-4">
+        <FieldLabel>State</FieldLabel>
+        <select
+          className="w-full h-11 rounded-xl border-[1.5px] border-border bg-card px-3.5 text-[14.5px] text-foreground outline-none transition-colors focus:border-primary/40"
+          value={form.location_state ?? ''}
+          onChange={(e) => set('location_state', e.target.value || null)}
+        >
           <option value="">Select state…</option>
           {US_STATES.map((s) => <option key={s} value={s}>{s}</option>)}
         </select>
       </div>
     </div>
 
-    <label className="ob2-field-label" style={{ marginTop: 8 }}>Gender</label>
-    <div className="ob2-card-grid">
-      {GENDER_OPTIONS.map((o) => (
-        <button
-          key={o.value}
-          className={`ob2-option-card ${form.gender === o.value ? 'selected' : ''}`}
-          onClick={() => set('gender', form.gender === o.value ? null : o.value)}
-        >
-          <span className="ob2-radio"><span className="ob2-radio-dot" /></span>
-          <span className="ob2-option-icon">{o.value === 'male' ? '♂️' : o.value === 'female' ? '♀️' : o.value === 'non_binary' ? '⚧️' : '\u{1F91D}'}</span>
-          <span className="ob2-option-label">{o.label}</span>
-        </button>
-      ))}
-    </div>
-
-    <label className="ob2-field-label" style={{ marginTop: 20 }}>Relationship status</label>
-    <div className="ob2-card-grid">
-      {RELATIONSHIP_OPTIONS.map((o) => (
-        <button
-          key={o.value}
-          className={`ob2-option-card ${form.relationship_status === o.value ? 'selected' : ''}`}
-          onClick={() => set('relationship_status', form.relationship_status === o.value ? null : o.value)}
-        >
-          <span className="ob2-radio"><span className="ob2-radio-dot" /></span>
-          <span className="ob2-option-icon">{REL_EMOJI[o.value] ?? '\u{1F300}'}</span>
-          <span className="ob2-option-label">{o.label}</span>
-        </button>
-      ))}
-    </div>
-
-    {(form.relationship_status === 'married_with_kids' || form.relationship_status === 'living_together') && (
-      <div className="ob2-field" style={{ marginTop: 16 }}>
-        <label>Family size</label>
-        <input className="ob2-input" type="number" value={form.family_size?.toString() ?? ''} onChange={(e) => set('family_size', e.target.value ? Number(e.target.value) : null)} placeholder="e.g. 4" />
-      </div>
-    )}
-
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 12, marginTop: 16 }}>
-      <div className="ob2-field">
-        <label>Country</label>
-        <input className="ob2-input" value={form.location_country ?? ''} onChange={(e) => set('location_country', e.target.value || null)} placeholder="e.g. United States" />
-      </div>
-    </div>
-  </div>
-);
-
-/* ---- Lifestyle ---- */
-const LifestyleStep = ({ form, set, setForm }: { form: FormState; set: SetFn; setForm: React.Dispatch<React.SetStateAction<FormState>> }) => (
-  <div>
-    <label className="ob2-field-label">Household</label>
-    <div className="ob2-card-grid">
+    <FieldLabel className="mt-2">Household</FieldLabel>
+    <div className="grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-3">
       {HOUSEHOLD_OPTIONS.map((o) => (
-        <button key={o.value} className={`ob2-option-card ${form.household === o.value ? 'selected' : ''}`} onClick={() => set('household', form.household === o.value ? null : o.value)}>
-          <span className="ob2-radio"><span className="ob2-radio-dot" /></span>
-          <span className="ob2-option-icon">{o.value === 'owning' ? '\u{1F3E0}' : o.value === 'renting' ? '\u{1F511}' : '\u{1F3E6}'}</span>
-          <span className="ob2-option-label">{o.label}</span>
-        </button>
+        <OptionCard
+          key={o.value}
+          selected={form.household === o.value}
+          onClick={() => set('household', form.household === o.value ? null : o.value)}
+          icon={<span className="w-12 h-12 rounded-xl grid place-items-center text-2xl bg-muted border border-border">{o.value === 'owning' ? '\u{1F3E0}' : o.value === 'renting' ? '\u{1F511}' : '\u{1F3E6}'}</span>}
+          label={o.label}
+        />
       ))}
     </div>
-
-    <label className="ob2-field-label" style={{ marginTop: 20 }}>Car</label>
-    <div className="ob2-card-grid">
-      {CAR_OPTIONS.map((o) => (
-        <button key={o.value} className={`ob2-option-card ${form.car === o.value ? 'selected' : ''}`} onClick={() => set('car', form.car === o.value ? null : o.value)}>
-          <span className="ob2-radio"><span className="ob2-radio-dot" /></span>
-          <span className="ob2-option-icon">{o.value === 'financed' ? '\u{1F4B3}' : o.value === 'owned' ? '\u{1F697}' : '\u{1F699}'}</span>
-          <span className="ob2-option-label">{o.label}</span>
-        </button>
-      ))}
-    </div>
-
-    <label className="ob2-field-label" style={{ marginTop: 20 }}>US status</label>
-    <div className="ob2-card-grid">
-      {US_STATUS_OPTIONS.map((o) => (
-        <button key={o.value} className={`ob2-option-card ${form.us_status === o.value ? 'selected' : ''}`} onClick={() => setForm((prev) => ({ ...prev, us_status: prev.us_status === o.value ? null : o.value, us_status_detail: null }))}>
-          <span className="ob2-radio"><span className="ob2-radio-dot" /></span>
-          <span className="ob2-option-icon">{o.value === 'citizen' ? '\u{1F1FA}\u{1F1F8}' : o.value === 'visa' ? '\u{1F4CB}' : o.value === 'green_card' ? '\u{1F49A}' : '✈️'}</span>
-          <span className="ob2-option-label">{o.label}</span>
-        </button>
-      ))}
-    </div>
-
-    {form.us_status && US_STATUS_DETAILS[form.us_status] && (
-      <div className="ob2-field" style={{ marginTop: 16 }}>
-        <label>{form.us_status === 'visa' ? 'Visa type' : 'Green card category'}</label>
-        <select className="ob2-select" value={form.us_status_detail ?? ''} onChange={(e) => set('us_status_detail', e.target.value || null)}>
-          <option value="">Select…</option>
-          {US_STATUS_DETAILS[form.us_status].map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-        </select>
-      </div>
-    )}
   </div>
 );
 
 /* ---- Travel ---- */
 const TravelStep = ({ form, set }: { form: FormState; set: SetFn }) => (
   <div>
-    <label className="ob2-field-label">Travel style</label>
-    <div className="ob2-card-grid">
+    <FieldLabel>Travel style</FieldLabel>
+    <div className="grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-3">
       {TRAVEL_OPTIONS.map((o) => (
-        <button key={o.value} className={`ob2-option-card ${form.travel_preference === o.value ? 'selected' : ''}`} onClick={() => set('travel_preference', form.travel_preference === o.value ? null : o.value)}>
-          <span className="ob2-radio"><span className="ob2-radio-dot" /></span>
-          <span className="ob2-option-icon">{o.value === 'economy' ? '\u{1F4BA}' : o.value === 'leisure' ? '\u{1F334}' : '\u{1F4B0}'}</span>
-          <span className="ob2-option-label">{o.label}</span>
-        </button>
+        <OptionCard
+          key={o.value}
+          selected={form.travel_preference === o.value}
+          onClick={() => set('travel_preference', form.travel_preference === o.value ? null : o.value)}
+          icon={<span className="w-12 h-12 rounded-xl grid place-items-center text-2xl bg-muted border border-border">{o.value === 'economy' ? '\u{1F4BA}' : o.value === 'leisure' ? '\u{1F334}' : '\u{1F4B0}'}</span>}
+          label={o.label}
+        />
       ))}
     </div>
 
-    <label className="ob2-field-label" style={{ marginTop: 24 }}>Airline ranking — most preferred first</label>
-    <div className="ob2-card-grid" style={{ marginBottom: 16 }}>
+    <FieldLabel className="mt-6">Preferred airlines</FieldLabel>
+    <div className="flex flex-wrap gap-2">
       {AIRLINES.map((a) => {
         const isSelected = form.airline_ranking.includes(a);
         return (
-          <button
+          <ChipToggle
             key={a}
-            className={`ob2-option-card ${isSelected ? 'selected' : ''}`}
+            label={a}
+            selected={isSelected}
+            brandColor={AIRLINE_BRANDS[a]?.bg}
             onClick={() => {
               if (isSelected) set('airline_ranking', form.airline_ranking.filter((x) => x !== a));
               else set('airline_ranking', [...form.airline_ranking, a]);
             }}
-          >
-            <span className="ob2-radio"><span className="ob2-radio-dot" /></span>
-            <BrandBadge name={a} brands={AIRLINE_BRANDS} />
-            <span className="ob2-option-label">{a}</span>
-          </button>
+          />
         );
       })}
     </div>
-
-    {form.airline_ranking.length > 0 && (
-      <RankingList ranking={form.airline_ranking} options={AIRLINES} onChange={(r) => set('airline_ranking', r)} addLabel="Add an airline…" brands={AIRLINE_BRANDS} />
-    )}
   </div>
 );
 
 /* ---- Hotels ---- */
+const STAY_EMOJI: Record<string, string> = {
+  budget: '\u{1F4B0}',
+  mid_range: '\u{1F3E8}',
+  luxury: '\u{2B50}',
+  boutique: '\u{1F3E1}',
+};
+
 const HotelStep = ({ form, set }: { form: FormState; set: SetFn }) => (
   <div>
-    <label className="ob2-field-label">Pick your preferred hotel chains</label>
-    <div className="ob2-card-grid" style={{ marginBottom: 16 }}>
+    <FieldLabel>Stay style</FieldLabel>
+    <div className="grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-3 mb-6">
+      {HOTEL_STAY_OPTIONS.map((o) => (
+        <OptionCard
+          key={o.value}
+          selected={form.hotel_stay_style === o.value}
+          onClick={() => set('hotel_stay_style', form.hotel_stay_style === o.value ? null : o.value)}
+          icon={<span className="w-12 h-12 rounded-xl grid place-items-center text-2xl bg-muted border border-border">{STAY_EMOJI[o.value] ?? '\u{1F3E8}'}</span>}
+          label={o.label}
+        />
+      ))}
+    </div>
+
+    <FieldLabel>Preferred hotels & stays</FieldLabel>
+    <div className="flex flex-wrap gap-2">
       {HOTELS.map((h) => {
         const isSelected = form.hotel_ranking.includes(h);
         return (
-          <button
+          <ChipToggle
             key={h}
-            className={`ob2-option-card ${isSelected ? 'selected' : ''}`}
+            label={h}
+            selected={isSelected}
+            brandColor={HOTEL_BRANDS[h]?.bg}
             onClick={() => {
               if (isSelected) set('hotel_ranking', form.hotel_ranking.filter((x) => x !== h));
               else set('hotel_ranking', [...form.hotel_ranking, h]);
             }}
-          >
-            <span className="ob2-radio"><span className="ob2-radio-dot" /></span>
-            <BrandBadge name={h} brands={HOTEL_BRANDS} />
-            <span className="ob2-option-label">{h}</span>
-          </button>
+          />
         );
       })}
     </div>
-
-    {form.hotel_ranking.length > 0 && (
-      <div>
-        <label className="ob2-field-label">Rank your favorites</label>
-        <RankingList ranking={form.hotel_ranking} options={HOTELS} onChange={(r) => set('hotel_ranking', r)} addLabel="Add another hotel…" brands={HOTEL_BRANDS} />
-      </div>
-    )}
   </div>
 );
 
 /* ---- Shopping ---- */
 const ShoppingStep = ({ form, set }: { form: FormState; set: SetFn }) => (
   <div>
-    <label className="ob2-field-label">Online shopping — most preferred first</label>
-    <div className="ob2-card-grid" style={{ marginBottom: 16 }}>
-      {ONLINE_SHOPPING.slice(0, 10).map((s) => {
+    <FieldLabel>Online shopping</FieldLabel>
+    <div className="flex flex-wrap gap-2 mb-6">
+      {ONLINE_SHOPPING.map((s) => {
         const isSelected = form.online_shopping_ranking.includes(s);
         return (
-          <button key={s} className={`ob2-option-card ${isSelected ? 'selected' : ''}`} onClick={() => {
-            if (isSelected) set('online_shopping_ranking', form.online_shopping_ranking.filter((x) => x !== s));
-            else set('online_shopping_ranking', [...form.online_shopping_ranking, s]);
-          }}>
-            <span className="ob2-radio"><span className="ob2-radio-dot" /></span>
-            <BrandBadge name={s} brands={SHOP_BRANDS} />
-            <span className="ob2-option-label">{s}</span>
-          </button>
+          <ChipToggle
+            key={s}
+            label={s}
+            selected={isSelected}
+            brandColor={SHOP_BRANDS[s]?.bg}
+            onClick={() => {
+              if (isSelected) set('online_shopping_ranking', form.online_shopping_ranking.filter((x) => x !== s));
+              else set('online_shopping_ranking', [...form.online_shopping_ranking, s]);
+            }}
+          />
         );
       })}
     </div>
-    <RankingList ranking={form.online_shopping_ranking} options={ONLINE_SHOPPING} onChange={(r) => set('online_shopping_ranking', r)} addLabel="Add a retailer…" brands={SHOP_BRANDS} />
 
-    <label className="ob2-field-label" style={{ marginTop: 24 }}>Offline shopping — most preferred first</label>
-    <RankingList ranking={form.offline_shopping_ranking} options={OFFLINE_SHOPPING} onChange={(r) => set('offline_shopping_ranking', r)} addLabel="Add a store…" brands={SHOP_BRANDS} />
+    <FieldLabel>In-store shopping</FieldLabel>
+    <div className="flex flex-wrap gap-2">
+      {OFFLINE_SHOPPING.map((s) => {
+        const isSelected = form.offline_shopping_ranking.includes(s);
+        return (
+          <ChipToggle
+            key={s}
+            label={s}
+            selected={isSelected}
+            brandColor={SHOP_BRANDS[s]?.bg}
+            onClick={() => {
+              if (isSelected) set('offline_shopping_ranking', form.offline_shopping_ranking.filter((x) => x !== s));
+              else set('offline_shopping_ranking', [...form.offline_shopping_ranking, s]);
+            }}
+          />
+        );
+      })}
+    </div>
   </div>
 );
 
 /* ---- Banks & Goals ---- */
-const BanksStep = ({ form, set }: { form: FormState; set: SetFn }) => {
-  const [goalDraft, setGoalDraft] = useState('');
-  const [loanDraft, setLoanDraft] = useState('');
+const GOAL_EMOJI: Record<string, string> = {
+  travel_rewards: '✈️',
+  cashback: '\u{1F4B5}',
+  build_credit: '\u{1F4C8}',
+  low_interest: '\u{1F4B0}',
+  premium_perks: '\u{1F451}',
+  balance_transfer: '\u{1F504}',
+};
 
-  return (
-    <div>
-      <label className="ob2-field-label">Banks you use</label>
-      <div className="ob2-card-grid" style={{ marginBottom: 16 }}>
-        {KNOWN_BANKS.map((b) => {
-          const selected = form.banks.some((x) => x.name === b);
-          return (
-            <button key={b} className={`ob2-option-card ${selected ? 'selected' : ''}`} onClick={() => {
+const BanksStep = ({ form, set }: { form: FormState; set: SetFn }) => (
+  <div>
+    <FieldLabel>Banks you use</FieldLabel>
+    <div className="flex flex-wrap gap-2 mb-6">
+      {KNOWN_BANKS.map((b) => {
+        const selected = form.banks.some((x) => x.name === b);
+        return (
+          <ChipToggle
+            key={b}
+            label={b}
+            selected={selected}
+            brandColor={BANK_BRANDS[b]?.bg}
+            onClick={() => {
               if (selected) set('banks', form.banks.filter((x) => x.name !== b));
               else set('banks', [...form.banks, { name: b }]);
-            }}>
-              <span className="ob2-radio"><span className="ob2-radio-dot" /></span>
-              <BrandBadge name={b} brands={BANK_BRANDS} />
-              <span className="ob2-option-label">{b}</span>
-            </button>
-          );
-        })}
-      </div>
-
-      <label className="ob2-field-label" style={{ marginTop: 20 }}>Goals</label>
-      <div className="ob2-chips">
-        {form.goals.map((g, i) => (
-          <span key={i} className="ob2-chip selected">
-            {g.text}
-            <button className="ob2-chip-remove" onClick={() => set('goals', form.goals.filter((_, idx) => idx !== i))}>
-              <svg viewBox="0 0 24 24" fill="none"><path d="M18 6L6 18M6 6l12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /></svg>
-            </button>
-          </span>
-        ))}
-      </div>
-      <div style={{ display: 'flex', gap: 8 }}>
-        <input
-          className="ob2-input"
-          value={goalDraft}
-          onChange={(e) => setGoalDraft(e.target.value)}
-          onKeyDown={(e) => { if (e.key === 'Enter' && goalDraft.trim()) { set('goals', [...form.goals, { text: goalDraft.trim() }]); setGoalDraft(''); } }}
-          placeholder="e.g. build credit, travel rewards…"
-        />
-        <button className="ob2-btn ob2-btn-ghost" style={{ padding: '0 16px' }} onClick={() => { if (goalDraft.trim()) { set('goals', [...form.goals, { text: goalDraft.trim() }]); setGoalDraft(''); } }}>Add</button>
-      </div>
-
-      <label className="ob2-field-label" style={{ marginTop: 20 }}>Loans</label>
-      <div className="ob2-chips">
-        {form.loans.map((l, i) => (
-          <span key={i} className="ob2-chip selected">
-            {l.loan_type}
-            <button className="ob2-chip-remove" onClick={() => set('loans', form.loans.filter((_, idx) => idx !== i))}>
-              <svg viewBox="0 0 24 24" fill="none"><path d="M18 6L6 18M6 6l12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /></svg>
-            </button>
-          </span>
-        ))}
-      </div>
-      <div style={{ display: 'flex', gap: 8 }}>
-        <input
-          className="ob2-input"
-          value={loanDraft}
-          onChange={(e) => setLoanDraft(e.target.value)}
-          onKeyDown={(e) => { if (e.key === 'Enter' && loanDraft.trim()) { set('loans', [...form.loans, { loan_type: loanDraft.trim() }]); setLoanDraft(''); } }}
-          placeholder="e.g. mortgage, auto, student…"
-        />
-        <button className="ob2-btn ob2-btn-ghost" style={{ padding: '0 16px' }} onClick={() => { if (loanDraft.trim()) { set('loans', [...form.loans, { loan_type: loanDraft.trim() }]); setLoanDraft(''); } }}>Add</button>
-      </div>
+            }}
+          />
+        );
+      })}
     </div>
-  );
-};
 
-/* ------------------------------------------------------------------ */
-/*  Shared: ranking list                                               */
-/* ------------------------------------------------------------------ */
-
-const RankingList = ({
-  ranking,
-  options,
-  onChange,
-  addLabel,
-  brands,
-}: {
-  ranking: string[];
-  options: string[];
-  onChange: (r: string[]) => void;
-  addLabel: string;
-  brands?: Record<string, { bg: string; label: string }>;
-}) => {
-  const available = options.filter((o) => !ranking.includes(o));
-
-  const move = (from: number, to: number) => {
-    if (to < 0 || to >= ranking.length) return;
-    const next = [...ranking];
-    const [item] = next.splice(from, 1);
-    next.splice(to, 0, item);
-    onChange(next);
-  };
-
-  return (
-    <div>
-      {ranking.length > 0 && (
-        <div className="ob2-rank-list">
-          {ranking.map((item, i) => {
-            const brand = brands?.[item];
-            return (
-              <div key={item} className="ob2-rank-item">
-                <span className="ob2-rank-num">{i + 1}</span>
-                {brand && (
-                  <span className="ob2-rank-badge" style={{ background: brand.bg }}>{brand.label}</span>
-                )}
-                <span className="ob2-rank-name">{item}</span>
-                <button className="ob2-rank-btn" onClick={() => move(i, i - 1)} disabled={i === 0} aria-label="Move up">
-                  <svg viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12l7-7 7 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
-                </button>
-                <button className="ob2-rank-btn" onClick={() => move(i, i + 1)} disabled={i === ranking.length - 1} aria-label="Move down">
-                  <svg viewBox="0 0 24 24" fill="none"><path d="M12 19V5M5 12l7 7 7-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
-                </button>
-                <button className="ob2-rank-btn" onClick={() => onChange(ranking.filter((x) => x !== item))} aria-label="Remove">
-                  <svg viewBox="0 0 24 24" fill="none"><path d="M18 6L6 18M6 6l12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /></svg>
-                </button>
-              </div>
-            );
-          })}
-        </div>
-      )}
-      {available.length > 0 && (
-        <select className="ob2-select" value="" onChange={(e) => e.target.value && onChange([...ranking, e.target.value])}>
-          <option value="">{addLabel}</option>
-          {available.map((o) => <option key={o} value={o}>{o}</option>)}
-        </select>
-      )}
+    <FieldLabel className="mt-2">What's your main goal?</FieldLabel>
+    <div className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-3">
+      {GOAL_OPTIONS.map((o) => {
+        const selected = form.goals.length > 0 && form.goals[0].text === o.value;
+        return (
+          <OptionCard
+            key={o.value}
+            selected={selected}
+            onClick={() => set('goals', selected ? [] : [{ text: o.value }])}
+            icon={<span className="w-12 h-12 rounded-xl grid place-items-center text-2xl bg-muted border border-border">{GOAL_EMOJI[o.value] ?? '\u{1F3AF}'}</span>}
+            label={o.label}
+          />
+        );
+      })}
     </div>
-  );
-};
+  </div>
+);
+

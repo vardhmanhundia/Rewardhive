@@ -158,10 +158,66 @@ class ConversationSummary(BaseModel):
     title: Optional[str] = None
     created_at: datetime
     updated_at: datetime
+    is_shared: bool = False
+    owner_email: Optional[str] = None
 
 
 class ConversationListResponse(BaseModel):
     conversations: list[ConversationSummary]
+
+
+class ShareConversationRequest(BaseModel):
+    """Share a conversation with one or more users by email."""
+
+    emails: list[str] = Field(..., min_length=1)
+
+
+class ShareConversationResponse(BaseModel):
+    shared_with: list[str]
+    not_found: list[str]
+
+
+class ConversationShareInfo(BaseModel):
+    """Info about a shared conversation — drives the banner and join flow."""
+
+    conversation_id: UUID
+    title: Optional[str] = None
+    owner_name: str
+    is_mine: bool
+    already_added: bool
+    invite_status: Optional[str] = None
+
+
+class ConversationMember(BaseModel):
+    user_id: str
+    email: str
+    name: str
+    role: str
+    status: str
+
+
+class ConversationMembersResponse(BaseModel):
+    members: list[ConversationMember]
+
+
+class MemberActionRequest(BaseModel):
+    target_user_id: UUID
+
+
+class NotificationSchema(BaseModel):
+    id: UUID
+    type: str
+    title: str
+    body: Optional[str] = None
+    conversation_id: Optional[UUID] = None
+    actor_user_id: Optional[UUID] = None
+    is_read: bool
+    created_at: datetime
+
+
+class NotificationListResponse(BaseModel):
+    notifications: list[NotificationSchema]
+    unread_count: int
 
 
 class ProfileSummaryResponse(BaseModel):

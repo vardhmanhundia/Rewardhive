@@ -35,6 +35,7 @@ export interface ProfileDetails {
   household: string | null;
   car: string | null;
   travel_preference: string | null;
+  hotel_stay_style: string | null;
   us_status: string | null;
   us_status_detail: string | null;
   airline_ranking: string[];

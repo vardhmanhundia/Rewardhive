@@ -44,6 +44,22 @@ export const TRAVEL_OPTIONS: Option[] = [
   { value: 'savings', label: 'Savings' },
 ];
 
+export const HOTEL_STAY_OPTIONS: Option[] = [
+  { value: 'budget', label: 'Budget-friendly' },
+  { value: 'mid_range', label: 'Mid-range comfort' },
+  { value: 'luxury', label: 'Luxury & resorts' },
+  { value: 'boutique', label: 'Boutique & unique' },
+];
+
+export const GOAL_OPTIONS: Option[] = [
+  { value: 'travel_rewards', label: 'Maximize travel rewards' },
+  { value: 'cashback', label: 'Earn cash back on spending' },
+  { value: 'build_credit', label: 'Build or improve credit' },
+  { value: 'low_interest', label: 'Get a low interest rate' },
+  { value: 'premium_perks', label: 'Access premium perks & lounges' },
+  { value: 'balance_transfer', label: 'Transfer a balance' },
+];
+
 export const US_STATUS_OPTIONS: Option[] = [
   { value: 'citizen', label: 'Citizen' },
   { value: 'visa', label: 'Visa' },
@@ -107,6 +123,7 @@ export const HOTELS: string[] = [
   'Accor',
   'Radisson',
   'Four Seasons',
+  'Airbnb',
 ];
 
 /**

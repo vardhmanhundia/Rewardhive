@@ -13,7 +13,7 @@ UV := uv run --directory $(BACKEND)
 .DEFAULT_GOAL := help
 
 .PHONY: help install dev web test lint format typecheck check \
-	infra infra-down migrate seed setup
+	infra infra-down migrate seed setup kill
 
 help:  ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
@@ -57,3 +57,8 @@ typecheck:  ## Type-check with mypy
 	$(UV) mypy src
 
 check: format lint typecheck test  ## Run the full pre-commit check
+
+kill:  ## Force-stop backend (port 8000) and frontend (port 3000)
+	-fuser -k 8000/tcp 2>/dev/null
+	-fuser -k 3000/tcp 2>/dev/null
+	@echo "Backend and frontend stopped."

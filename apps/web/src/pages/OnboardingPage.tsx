@@ -51,6 +51,7 @@ const EMPTY: ProfileDetails = {
   household: null,
   car: null,
   travel_preference: null,
+  hotel_stay_style: null,
   us_status: null,
   us_status_detail: null,
   airline_ranking: [],

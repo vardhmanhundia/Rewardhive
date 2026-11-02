@@ -53,7 +53,7 @@ class FacebookService {
       }
 
       window.FB.login(
-        (response) => {
+        (response: { authResponse?: { accessToken: string } }) => {
           if (response.authResponse) {
             resolve(response.authResponse.accessToken);
           } else {
@@ -80,7 +80,7 @@ class FacebookService {
         return;
       }
 
-      window.FB.api('/me', { fields: 'id,email,first_name,last_name', access_token: accessToken }, (response) => {
+      window.FB.api('/me', { fields: 'id,email,first_name,last_name', access_token: accessToken }, (response: { error?: { message: string }; id: string; email: string; first_name: string; last_name: string }) => {
         if (response.error) {
           console.error('Facebook API error:', response.error);
           resolve(null);

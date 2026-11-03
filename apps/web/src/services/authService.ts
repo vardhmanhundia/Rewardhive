@@ -16,13 +16,6 @@ export interface LoginData {
   password: string;
 }
 
-export interface FacebookLoginData {
-  access_token: string;
-  email?: string;
-  first_name: string;
-  last_name: string;
-}
-
 export interface AuthResponse {
   access_token: string;
   token_type: string;
@@ -78,28 +71,6 @@ class AuthService {
     if (!response.ok) {
       const error = await response.json();
       throw new Error(error.detail || 'Login failed');
-    }
-
-    const authData: AuthResponse = await response.json();
-    this.setToken(authData.access_token);
-    return authData;
-  }
-
-  /**
-   * Login with Facebook
-   */
-  async facebookLogin(data: FacebookLoginData): Promise<AuthResponse> {
-    const response = await fetch(`${API_URL}/auth/facebook/login`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(data),
-    });
-
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.detail || 'Facebook login failed');
     }
 
     const authData: AuthResponse = await response.json();

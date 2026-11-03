@@ -20,13 +20,14 @@ import cardService, {
 } from '@/services/cardService';
 import profileService from '@/services/profileService';
 
+// Monthly defaults from BLS 2024 Consumer Expenditure Survey
 const SPEND_CATEGORIES = [
-  { key: 'dining', label: 'Dining', fallback: 300 },
-  { key: 'travel', label: 'Travel', fallback: 200 },
-  { key: 'groceries', label: 'Groceries', fallback: 500 },
-  { key: 'gas', label: 'Gas & EV', fallback: 120 },
-  { key: 'online', label: 'Online', fallback: 150 },
-  { key: 'everyday', label: 'Everyday', fallback: 800 },
+  { key: 'dining', label: 'Dining', fallback: 329 },
+  { key: 'travel', label: 'Travel', fallback: 217 },
+  { key: 'groceries', label: 'Groceries', fallback: 519 },
+  { key: 'gas', label: 'Gas & EV', fallback: 223 },
+  { key: 'online', label: 'Online', fallback: 183 },
+  { key: 'everyday', label: 'Everyday', fallback: 742 },
 ] as const;
 
 const money = (n: number) => `$${Math.round(n).toLocaleString()}`;

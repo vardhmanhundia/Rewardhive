@@ -46,8 +46,8 @@ async def test_structured_fake_requires_a_queued_response(monkeypatch):
         await model.ainvoke("anything")
 
 
-def test_live_mode_builds_openai_compatible_client(monkeypatch):
-    """Without fake mode, the factory returns a ChatOpenAI pointed at Muse."""
+def test_live_mode_builds_meta_model_client(monkeypatch):
+    """Without fake mode, the factory returns a ChatOpenAI client pointed at Meta Muse."""
     from langchain_openai import ChatOpenAI
 
     monkeypatch.setattr(llm.settings, "LLM_FAKE_MODE", False)

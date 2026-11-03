@@ -318,37 +318,6 @@ class Notification(Base):
         return f"<Notification(id={self.id}, type={self.type}, user_id={self.user_id})>"
 
 
-class InstagramPost(Base):
-    """Instagram posts related to a card (news/social media feed integration)."""
-
-    __tablename__ = "instagram_posts"
-
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
-        primary_key=True,
-        default=uuid.uuid4,
-        nullable=False,
-    )
-    card_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
-        ForeignKey("cards.id", ondelete="CASCADE"),
-        nullable=False,
-        index=True,
-    )
-    instagram_post_id: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
-    url: Mapped[str] = mapped_column(String(500), nullable=False)
-    caption: Mapped[str | None] = mapped_column(Text, nullable=True)
-    image_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
-    likes: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
-    engagement_score: Mapped[float] = mapped_column(Numeric(5, 2), default=0, nullable=False)
-    hashtags: Mapped[list[str]] = mapped_column(JSONList, default=list, nullable=False)
-    posted_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
-
-    def __repr__(self) -> str:
-        return f"<InstagramPost(id={self.id}, card_id={self.card_id}, instagram_post_id={self.instagram_post_id})>"
-
-
 class CardNewsKeyword(Base):
     """Keywords associated with a card for news/content fetching (for LangGraph workflows)."""
 

@@ -14,7 +14,7 @@
 
 | Layer | Technology |
 |-------|-----------|
-| LLM | Meta Muse Spark (via OpenAI-compatible Meta Model API) |
+| LLM | Meta Muse Spark (via Meta Model API) |
 | Agent Framework | LangGraph (StateGraph with conditional fan-out) |
 | Backend | FastAPI (async), SQLAlchemy, PostgreSQL + pgvector |
 | Embeddings | sentence-transformers (BGE-large-en-v1.5, 1024-dim) |
@@ -48,10 +48,10 @@ npm --prefix apps/web install
 ### 2. Configure environment
 
 ```bash
-cp apps/backend/.env.example apps/backend/.env
+cp .env.example .env
 ```
 
-Edit `apps/backend/.env` and set these required values:
+Edit `.env` and set these required values:
 
 ```bash
 MODEL_API_KEY=<your-meta-model-api-key>

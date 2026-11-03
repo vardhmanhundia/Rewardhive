@@ -14,7 +14,7 @@ import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Sparkles, Send, Search, FileText, Plus, MessageSquare, MoreHorizontal,
   Trash2, PanelLeftClose, PanelLeft, Pin, PinOff, RefreshCw, Share2, Users, Link2,
-  X, Mail, Copy, Check, UserPlus, CreditCard, Square,
+  X, Mail, Copy, Check, UserPlus, CreditCard, Square, Wallet,
 } from 'lucide-react';
 import { Navbar } from '@/components/Navbar';
 import Markdown from '@/components/Markdown';
@@ -58,12 +58,18 @@ interface SidebarThread {
   shared: boolean;
 }
 
-const EXAMPLES = [
+const EXAMPLES_GET = [
   'Best travel card with no foreign transaction fees',
   'Cash back on groceries, no annual fee',
-  'Which card helps me build credit from scratch?',
-  'Lots of dining rewards, fee is fine',
+  'A card to help me build credit',
 ];
+
+const EXAMPLES_USE = [
+  'Which card for an Airbnb booking?',
+  'Best card for groceries?',
+  'Which card should I use for a United flight?',
+];
+
 
 /* ── Helpers ──────────────────────────────────────────────────────────── */
 
@@ -448,15 +454,8 @@ export const RecommendPage = () => {
           }`}
         >
           <div className="flex items-center justify-between px-3 py-3 border-b border-border shrink-0">
-            <h2 className="font-display font-semibold text-sm truncate">Threads</h2>
+            <h2 className="font-display font-semibold text-sm truncate">Conversations</h2>
             <div className="flex items-center gap-1">
-              <button
-                onClick={handleNewChat}
-                className="rounded-lg p-1.5 text-muted-foreground hover:bg-white/5 hover:text-foreground transition-colors"
-                title="New chat"
-              >
-                <Plus className="h-4 w-4" />
-              </button>
               <button
                 onClick={() => setSidebarOpen(false)}
                 className="rounded-lg p-1.5 text-muted-foreground hover:bg-white/5 hover:text-foreground transition-colors"
@@ -499,7 +498,7 @@ export const RecommendPage = () => {
 
             {/* Shared */}
             {sidebarThreads.shared.length > 0 && (
-              <SidebarSection label="Shared" icon={Users}>
+              <SidebarSection label="Shared" icon={Users} color="text-blue-400/70">
                 {sidebarThreads.shared.map((t) => (
                   <ThreadItem
                     key={t.conversation.id}
@@ -515,7 +514,7 @@ export const RecommendPage = () => {
             )}
 
             {/* Your threads */}
-            <SidebarSection label="Your threads" icon={MessageSquare}>
+            <SidebarSection label="Your threads" icon={MessageSquare} color="text-emerald-400/70">
               {sidebarThreads.self.length > 0 ? (
                 sidebarThreads.self.map((t) => (
                   <ThreadItem
@@ -549,6 +548,19 @@ export const RecommendPage = () => {
             </div>
           )}
 
+          {/* Share button pinned to top-right, outside the chat column */}
+          {activeConvId && !empty && (
+            <div className="sticky top-14 z-10 flex justify-end px-32 pt-3 pb-0 pointer-events-none">
+              <button
+                onClick={() => setShareDialogOpen(true)}
+                className="pointer-events-auto inline-flex items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/10 backdrop-blur-sm px-3 py-1.5 text-xs font-medium text-primary hover:bg-primary/20 hover:border-primary/50 transition-colors shadow-sm"
+              >
+                <Share2 className="h-3.5 w-3.5" />
+                Share
+              </button>
+            </div>
+          )}
+
           <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col px-4">
             {/* "Add to my chats" banner for shared conversations */}
             {shareInfo && !shareInfo.is_mine && !shareInfo.already_added && (
@@ -578,18 +590,7 @@ export const RecommendPage = () => {
               </div>
             )}
 
-            {/* Share button for active conversations */}
-            {activeConvId && !empty && (
-              <div className="flex justify-end pt-4">
-                <button
-                  onClick={() => setShareDialogOpen(true)}
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card/50 px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground hover:border-primary/30 transition-colors"
-                >
-                  <Share2 className="h-3.5 w-3.5" />
-                  Share
-                </button>
-              </div>
-            )}
+            {/* Share button is rendered outside this container (see below) */}
 
             {historyLoading ? (
               <div className="flex-1 space-y-6 py-8">
@@ -647,7 +648,7 @@ export const RecommendPage = () => {
                   busy
                     ? 'Type to interrupt and ask something else…'
                     : empty
-                      ? 'Describe how you spend — e.g. I travel a few times a year and eat out a lot'
+                      ? 'Ask anything — which card to get, which to use, or whether one is worth it…'
                       : 'Ask a follow-up…'
                 }
                 className="w-full resize-none bg-transparent p-2 text-sm outline-none placeholder:text-muted-foreground"
@@ -764,15 +765,17 @@ const SidebarSection = ({
   label,
   icon: Icon,
   children,
+  color,
 }: {
   label: string;
   icon: React.ComponentType<{ className?: string }>;
   children: React.ReactNode;
+  color?: string;
 }) => (
   <div className="mt-2">
     <div className="flex items-center gap-1.5 px-4 py-1.5">
-      <Icon className="h-3 w-3 text-muted-foreground/60" />
-      <span className="text-[10px] font-bold tracking-widest uppercase text-muted-foreground/60">{label}</span>
+      <Icon className={`h-3 w-3 ${color ?? 'text-muted-foreground/60'}`} />
+      <span className={`text-[10px] font-bold tracking-widest uppercase ${color ?? 'text-muted-foreground/60'}`}>{label}</span>
     </div>
     {children}
   </div>
@@ -812,7 +815,11 @@ const ThreadItem = ({
       style={{ width: 'calc(100% - 12px)' }}
     >
       <div className="flex items-center gap-2">
-        <MessageSquare className={`h-3.5 w-3.5 shrink-0 ${active ? 'text-primary' : 'text-muted-foreground'}`} />
+        {thread.shared && !thread.pinned ? (
+          <Users className={`h-3.5 w-3.5 shrink-0 ${active ? 'text-primary' : 'text-muted-foreground'}`} />
+        ) : (
+          <MessageSquare className={`h-3.5 w-3.5 shrink-0 ${active ? 'text-primary' : 'text-muted-foreground'}`} />
+        )}
         <span className={`truncate text-[13px] font-medium ${active ? 'text-foreground' : 'text-muted-foreground group-hover:text-foreground'}`}>
           {c.title || 'Untitled'}
         </span>
@@ -868,27 +875,53 @@ const ThreadItem = ({
 
 const EmptyState = ({ onPick }: { onPick: (q: string) => void }) => (
   <div className="flex flex-1 flex-col items-center justify-center py-12 text-center">
-    <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-medium text-muted-foreground">
-      <Sparkles className="h-3.5 w-3.5 text-primary" />
-      Retrieval-augmented · Muse Spark
+    <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/15 border border-primary/30">
+      <Sparkles className="h-7 w-7 text-primary" />
     </div>
     <h1 className="font-display text-4xl font-bold tracking-tight">
-      Which card should I <span className="text-gradient">get?</span>
+      Your card <span className="text-gradient">assistant</span>
     </h1>
-    <p className="mt-3 max-w-md text-muted-foreground">
-      Describe how you spend. The assistant searches the catalog and explains its pick — ask
-      follow-ups to narrow it down.
+    <p className="mt-3 max-w-lg text-muted-foreground">
+      Ask anything about credit cards — which to get, which to use for a purchase,
+      whether a card is worth it. The assistant searches the catalog and explains its reasoning.
     </p>
-    <div className="mt-6 flex flex-wrap justify-center gap-2">
-      {EXAMPLES.map((ex) => (
-        <button
-          key={ex}
-          onClick={() => onPick(ex)}
-          className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
-        >
-          {ex}
-        </button>
-      ))}
+
+    <div className="mt-8 w-full max-w-lg space-y-4">
+      <div className="text-left">
+        <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-muted-foreground/60 flex items-center gap-1.5">
+          <CreditCard className="h-3 w-3" />
+          Which card should I get?
+        </p>
+        <div className="flex flex-wrap gap-2">
+          {EXAMPLES_GET.map((ex) => (
+            <button
+              key={ex}
+              onClick={() => onPick(ex)}
+              className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
+            >
+              {ex}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="text-left">
+        <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-muted-foreground/60 flex items-center gap-1.5">
+          <Wallet className="h-3 w-3" />
+          Which card should I use?
+        </p>
+        <div className="flex flex-wrap gap-2">
+          {EXAMPLES_USE.map((ex) => (
+            <button
+              key={ex}
+              onClick={() => onPick(ex)}
+              className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
+            >
+              {ex}
+            </button>
+          ))}
+        </div>
+      </div>
     </div>
   </div>
 );

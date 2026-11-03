@@ -5,7 +5,7 @@
  */
 import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Home, CreditCard, Wallet, User, LogOut, ChevronDown, Sparkles, MessageSquare, Bell } from 'lucide-react';
+import { Home, CreditCard, Wallet, User, LogOut, ChevronDown, Sparkles, Bell } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 
 const baseLinks = [{ to: '/cards', label: 'Browse', icon: CreditCard }];
@@ -16,9 +16,8 @@ export const Navbar = () => {
 
   const links = isAuthenticated
     ? [
-        { to: '/for-you', label: 'For You', icon: Home },
-        { to: '/recommend', label: 'Chat', icon: MessageSquare },
-        { to: '/which-card', label: 'Which card?', icon: Sparkles },
+        { to: '/for-you', label: 'Home', icon: Home },
+        { to: '/recommend', label: 'Assistant', icon: Sparkles },
         { to: '/evaluate', label: 'Evaluate', icon: Wallet },
         ...baseLinks,
       ]

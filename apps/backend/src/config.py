@@ -3,7 +3,7 @@
 Nothing here is hardcoded for production: every value falls back to a
 local-development default and is overridden by the matching env var.
 
-On import we load ``apps/backend/.env`` (if present) so local runs pick up
+On import we load the project-root ``.env`` (if present) so local runs pick up
 configuration without exporting every variable by hand. Variables already set
 in the environment (e.g. by Docker Compose or CI) take precedence.
 """
@@ -13,8 +13,8 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-# .env lives at the backend root: this file is apps/backend/src/config.py.
-load_dotenv(Path(__file__).resolve().parents[1] / ".env")
+# .env lives at the project root: this file is apps/backend/src/config.py.
+load_dotenv(Path(__file__).resolve().parents[3] / ".env")
 
 
 class Settings:
@@ -33,7 +33,7 @@ class Settings:
 
     SQL_ECHO: bool = os.getenv("SQL_ECHO", "false").lower() == "true"
 
-    # LLM (Meta Muse via the OpenAI-compatible Meta Model API). The chat node
+    # LLM (Meta Muse via the Meta Model API). The chat node
     # answers the user; the extractor node decides what is memory-worthy.
     # MODEL_API_KEY and MUSE_BASE_URL come from the Meta Model API dashboard.
     # Note: Muse Spark always reasons, so never send reasoning_effort="none".

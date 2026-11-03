@@ -4,11 +4,9 @@ import {useQuery} from "@tanstack/react-query";
 import {useAuth} from "@/context/AuthContext";
 import cardService, {type CardProduct, type Conversation} from "@/services/cardService";
 import {Button} from "@/components/ui/button";
-import {Input} from "@/components/ui/input";
 import {Card} from "@/components/ui/card";
-import {CardTile} from "@/components/CardTile";
 import {Navbar} from "@/components/Navbar";
-import {Sparkles, CreditCard} from "lucide-react";
+import {Sparkles, CreditCard, Wallet, Send, Shield, AlertTriangle, ChevronRight} from "lucide-react";
 import profileService from "@/services/profileService";
 
 /* ------------------------------------------------------------------ */
@@ -26,16 +24,6 @@ const SparkleIcon = () => (
   </svg>
 );
 
-const SendIcon = () => (
-  <svg viewBox="0 0 24 24" fill="none" className="w-4 h-4">
-    <path
-      d="M4 12l16-8-6 16-3-6-7-2Z"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinejoin="round"
-    />
-  </svg>
-);
 
 const ChatBubbleIcon = () => (
   <svg viewBox="0 0 24 24" fill="none" className="w-[15px] h-[15px]">
@@ -119,162 +107,10 @@ const ClockIcon = () => (
   </svg>
 );
 
-/* ---- Category icons ---- */
-
-const CATEGORY_ICONS: Record<string, React.ReactNode> = {
-  dining: (
-    <svg viewBox="0 0 24 24" fill="none" className="w-3.5 h-3.5 text-primary">
-      <path
-        d="M6 3v8M9 3v8M6 11h3M7.5 11v10M17 3c-1.5 0-3 2-3 5s1.5 4 3 4v9"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  ),
-  travel: (
-    <svg viewBox="0 0 24 24" fill="none" className="w-3.5 h-3.5 text-primary">
-      <path
-        d="M3 16l7-1 4-9 2 1-2 8 5-1 2 2-6 3-1 3-2-1v-3l-9 2-1-2 3-2Z"
-        stroke="currentColor"
-        strokeWidth="1.4"
-        strokeLinejoin="round"
-      />
-    </svg>
-  ),
-  groceries: (
-    <svg viewBox="0 0 24 24" fill="none" className="w-3.5 h-3.5 text-primary">
-      <path
-        d="M3 10h18M3 10l2-5h14l2 5M3 10v9h18v-9"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinejoin="round"
-      />
-    </svg>
-  ),
-  gas: (
-    <svg viewBox="0 0 24 24" fill="none" className="w-3.5 h-3.5 text-primary">
-      <path
-        d="M5 20V5a2 2 0 0 1 2-2h5a2 2 0 0 1 2 2v15M4 20h11M14 9h2.5a1.5 1.5 0 0 1 1.5 1.5V16a2 2 0 0 0 4 0V9l-2.5-2.5"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  ),
-  online: (
-    <svg viewBox="0 0 24 24" fill="none" className="w-3.5 h-3.5 text-primary">
-      <rect
-        x="3"
-        y="4"
-        width="18"
-        height="13"
-        rx="2"
-        stroke="currentColor"
-        strokeWidth="1.6"
-      />
-      <path
-        d="M8 21h8M12 17v4"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinecap="round"
-      />
-    </svg>
-  ),
-  everyday: (
-    <svg viewBox="0 0 24 24" fill="none" className="w-3.5 h-3.5 text-primary">
-      <rect
-        x="3"
-        y="6"
-        width="18"
-        height="12"
-        rx="2.5"
-        stroke="currentColor"
-        strokeWidth="1.6"
-      />
-      <path d="M3 10h18" stroke="currentColor" strokeWidth="1.6" />
-    </svg>
-  ),
-};
-
 /* ------------------------------------------------------------------ */
 /*  Data                                                               */
 /* ------------------------------------------------------------------ */
 
-interface Category {
-  key: string;
-  label: string;
-  iconKey: string;
-  keywords: string[];
-  exclude?: string[];
-}
-
-const CATEGORIES: Category[] = [
-  {
-    key: "dining",
-    label: "Dining",
-    iconKey: "dining",
-    keywords: ["dining", "restaurant"],
-  },
-  {
-    key: "travel",
-    label: "Travel",
-    iconKey: "travel",
-    keywords: ["travel", "flight", "hotel", "airline"],
-  },
-  {
-    key: "groceries",
-    label: "Groceries",
-    iconKey: "groceries",
-    keywords: ["grocer", "supermarket", "wholesale"],
-  },
-  {
-    key: "gas",
-    label: "Gas & EV",
-    iconKey: "gas",
-    keywords: ["gas", "ev", "fuel"],
-  },
-  {
-    key: "online",
-    label: "Online",
-    iconKey: "online",
-    keywords: ["online"],
-    exclude: ["online grocery", "online groceries"],
-  },
-  {
-    key: "everyday",
-    label: "Everyday",
-    iconKey: "everyday",
-    keywords: [
-      "all purchases",
-      "all other purchases",
-      "every business purchase",
-      "everyday",
-      "everywhere",
-    ],
-  },
-];
-
-const STARTERS = [
-  {
-    label: "Best travel card with no foreign transaction fees",
-    query: "Best travel card with no foreign transaction fees",
-  },
-  {
-    label: "Cash back on groceries, no annual fee",
-    query: "Cash back on groceries, no annual fee",
-  },
-  {
-    label: "A card to help me build credit",
-    query: "A card to help me build credit",
-  },
-  {
-    label: "Premium dining rewards, fee is fine",
-    query: "Premium dining rewards, fee is fine",
-  },
-];
 
 const MOCK_SESSIONS = [
   {
@@ -334,48 +170,6 @@ const MOCK_NEWS = [
   },
 ];
 
-/* ------------------------------------------------------------------ */
-/*  Helpers                                                            */
-/* ------------------------------------------------------------------ */
-
-function matchesCategory(text: string, cat: Category): boolean {
-  let hay = text.toLowerCase();
-  for (const phrase of cat.exclude ?? []) {
-    hay = hay.split(phrase).join(" ");
-  }
-  return cat.keywords.some((kw) => {
-    const esc = kw.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    const re = new RegExp("\\b" + esc + (kw.length <= 2 ? "\\b" : ""), "i");
-    return re.test(hay);
-  });
-}
-
-function parseRate(rate: string): number {
-  const m = rate.match(/([\d.]+)/);
-  return m ? parseFloat(m[1]) : 0;
-}
-
-function pointCents(card: CardProduct): number {
-  const name = card.name.toLowerCase();
-  if (name.includes("ihg")) return 0.5;
-  if (name.includes("united")) return 1.2;
-  if (card.issuer === "Chase") return 1.5;
-  if (card.issuer === "American Express") return 1.5;
-  if (card.issuer === "Capital One") return 1.3;
-  return 1.0;
-}
-
-function estValue(card: CardProduct, rate: string): number {
-  const num = parseRate(rate);
-  return rate.includes("%") ? num : num * pointCents(card);
-}
-
-interface RankedCard {
-  card: CardProduct;
-  rate: string;
-  category: string;
-  value: number;
-}
 
 function greetingFor(date = new Date()): string {
   const h = date.getHours();
@@ -417,12 +211,7 @@ export const ForYouPage = () => {
   const {user} = useAuth();
   const navigate = useNavigate();
 
-  const {data: cards = [], isLoading: cardsLoading} = useQuery({
-    queryKey: ["cards"],
-    queryFn: () => cardService.getAllCards(),
-  });
-
-  const {data: profile} = useQuery({
+  const {data: profile, isLoading: profileLoading} = useQuery({
     queryKey: ["profileDetails"],
     queryFn: () => profileService.getDetails(),
   });
@@ -442,25 +231,25 @@ export const ForYouPage = () => {
     <div className="bg-glow min-h-screen text-foreground">
       <Navbar />
 
-      <div className="max-w-[1400px] mx-auto px-[0.8rem] pb-16 sm:pb-12">
-        {/* ---- GREETING ---- */}
-        <section className="mt-6 mb-5 mx-0.5">
+      <div className="max-w-[1400px] mx-auto px-4 pb-16 sm:pb-12">
+        {/* ---- GREETING + ASK ---- */}
+        <section className="mt-6 mb-5">
           <h1 className="font-display font-bold text-[clamp(26px,4vw,38px)] leading-[1.04] tracking-tight">
             {greetingFor()}, {firstName}
           </h1>
-          <p className="text-muted-foreground text-[15px] mt-2">
-            Your money companion — the right card for every purchase, and a sharper strategy when you plan together.
+          <p className="text-muted-foreground text-[15px] mt-1.5 max-w-[52ch]">
+            Your card strategy at a glance — ask anything, or explore below.
           </p>
         </section>
 
         {/* Profile nudge when no cards saved */}
         {profile && savedCardCount === 0 && (
-          <div className="mb-4 mx-0.5 flex items-center gap-3 rounded-xl border border-primary/30 bg-primary/10 px-4 py-3">
+          <div className="mb-5 flex items-center gap-3 rounded-xl border border-primary/30 bg-primary/10 px-4 py-3">
             <CreditCard className="h-5 w-5 text-primary shrink-0" />
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium">Add your cards for personalized picks</p>
               <p className="text-xs text-muted-foreground">
-                Tell us what's in your wallet so recommendations and the "which card?" tool work for you.
+                Tell us what's in your wallet so the assistant can tailor its advice.
               </p>
             </div>
             <Link
@@ -472,257 +261,487 @@ export const ForYouPage = () => {
           </div>
         )}
 
-        {/* ---- ROW 1 ---- */}
-        <div className="grid grid-cols-1 lg:grid-cols-[1.55fr_1fr] gap-4 items-stretch">
-          <AdvisorHero onAsk={ask} onNavigate={navigate} />
-          <div className="flex flex-col gap-4 min-w-0">
-            <PlansSection onNavigate={navigate} />
-          </div>
+        {/* ---- Ask input ---- */}
+        <AskHero onAsk={ask} />
+
+        {/* ---- Feature cards row ---- */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
+          <FeatureCard
+            icon={<Sparkles className="h-5 w-5" />}
+            iconBg="bg-amber-500/15 text-amber-400 border-amber-500/30"
+            title="Shared Plans"
+            description="Plan with a partner, roommate, or friend — CardPilot advises across both your card sets."
+            linkLabel="Start a plan"
+            onNavigate={() => navigate("/recommend")}
+          />
+          <FeatureCard
+            icon={<Wallet className="h-5 w-5" />}
+            iconBg="bg-accent/15 text-accent border-accent/30"
+            title="Card Evaluator"
+            description="See if a new card is worth it — compare your current wallet against adding a card, with real numbers."
+            linkLabel="Evaluate a card"
+            onNavigate={() => navigate("/evaluate")}
+          />
+          <FeatureCard
+            icon={<CreditCard className="h-5 w-5" />}
+            iconBg="bg-emerald-500/15 text-emerald-400 border-emerald-500/30"
+            title="Browse Cards"
+            description="Explore the full catalog of credit cards — filter by issuer, rewards, fees, and card type."
+            linkLabel="Browse catalog"
+            onNavigate={() => navigate("/cards")}
+          />
         </div>
 
-        {/* ---- ROW 2 ---- */}
-        <div className="grid grid-cols-1 lg:grid-cols-1 gap-4 mt-4 items-start">
-          <BestCardFinder cards={cards} loading={cardsLoading} onAsk={ask} />
-          {/* <NewsSection /> */}
-        </div>
+        {/* ---- ROW 2: Dashboard widgets ---- */}
+        <WalletDashboard profile={profile} loading={profileLoading} onAsk={ask} onNavigate={navigate} />
       </div>
     </div>
   );
 };
 
 /* ------------------------------------------------------------------ */
-/*  Advisor Hero                                                       */
+/*  Ask Hero — the main interaction on the home page                   */
 /* ------------------------------------------------------------------ */
 
-const EvalIcon = () => (
-  <svg viewBox="0 0 24 24" fill="none" className="w-5 h-5">
-    <path
-      d="M9 11l2 2 4-5"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-    <rect
-      x="3"
-      y="4"
-      width="18"
-      height="16"
-      rx="3"
-      stroke="currentColor"
-      strokeWidth="1.6"
-    />
-  </svg>
-);
+const ASK_STARTERS = [
+  "Best travel card with no foreign transaction fees",
+  "Cash back on groceries, no annual fee",
+  "Which card for an Airbnb booking?",
+  "Premium dining rewards, fee is fine",
+];
 
-const AdvisorHero = ({
-  onAsk,
-  onNavigate,
-}: {
-  onAsk: (q: string) => void;
-  onNavigate: (path: string) => void;
-}) => {
+const AskHero = ({onAsk}: {onAsk: (q: string) => void}) => {
   const [value, setValue] = useState("");
-  const [evalValue, setEvalValue] = useState("");
 
   return (
-    <Card className="p-[22px] flex flex-col">
-      <span className="inline-flex items-center gap-[7px] text-[11px] font-bold tracking-[0.08em] uppercase text-primary bg-primary/15 border border-primary/30 rounded-full px-3.5 py-1.5 w-fit">
-        <SparkleIcon />
-        Personalized recommendation
-      </span>
-      <h2 className="font-display font-bold text-[clamp(24px,3.2vw,34px)] tracking-tight mt-4 max-sm:text-[22px]">
-        What should your next card be?
-      </h2>
-      <p className="text-muted-foreground text-[15px] mt-2 max-w-[52ch]">
-        Describe how you spend. The assistant reads your profile, searches the
-        catalog, and explains its pick.
-      </p>
-      <div className="flex gap-2.5 mt-5 flex-wrap max-sm:flex-col">
+    <div className="mb-4">
+      <div className="flex gap-2.5 max-sm:flex-col">
         <div className="flex items-center gap-2.5 bg-secondary border border-border rounded-[14px] px-[18px] py-1 flex-1 min-w-[240px] max-sm:min-w-0 focus-within:border-primary/40">
+          <Sparkles className="h-4 w-4 text-primary shrink-0" />
           <input
             value={value}
             onChange={(e) => setValue(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === "Enter") onAsk(value);
             }}
-            placeholder="e.g. I travel a few times a year and eat out a lot"
+            placeholder="Ask anything — which card to get, which to use, whether one is worth it…"
             aria-label="Ask CardPilot"
-            className="border-none bg-transparent outline-none text-foreground text-[14.5px] w-full min-w-0 py-3 placeholder:text-muted-foreground"
+            className="border-none bg-transparent outline-none text-foreground text-[14px] w-full min-w-0 py-3 placeholder:text-muted-foreground"
           />
         </div>
         <Button
           onClick={() => onAsk(value)}
           className="gap-2 rounded-xl px-5 py-3 h-auto max-sm:w-full"
         >
-          <SendIcon />
+          <Send className="h-4 w-4" />
           Ask
         </Button>
       </div>
-      <div className="flex flex-wrap gap-2 mt-4 max-sm:gap-1.5">
-        {STARTERS.map((s) => (
+
+      <div className="flex flex-wrap gap-2 mt-2.5 max-sm:gap-1.5">
+        {ASK_STARTERS.map((s) => (
           <button
-            key={s.label}
-            onClick={() => onAsk(s.query)}
-            className="bg-secondary border border-border text-muted-foreground rounded-full px-4 py-2 text-[13px] font-medium hover:border-primary/40 hover:text-foreground transition-colors max-sm:text-[11.5px] max-sm:px-[11px] max-sm:py-[7px]"
+            key={s}
+            onClick={() => onAsk(s)}
+            className="bg-secondary border border-border text-muted-foreground rounded-full px-3.5 py-[7px] text-[12.5px] font-medium hover:border-primary/40 hover:text-foreground transition-colors"
           >
-            {s.label}
+            {s}
           </button>
         ))}
       </div>
+    </div>
+  );
+};
 
-      {/* Evaluate strip */}
-      <div className="flex items-center gap-3.5 mt-[18px] pt-[18px] border-t border-border flex-wrap max-md:flex-col max-md:items-stretch">
-        <span className="w-10 h-10 rounded-[11px] shrink-0 grid place-items-center bg-accent/15 border border-accent/30 text-accent">
-          <EvalIcon />
-        </span>
-        <div className="min-w-[140px] flex-1 max-md:min-w-0">
-          <strong className="font-display font-semibold text-[14.5px] block">
-            Evaluate a specific card
-          </strong>
-          <span className="text-muted-foreground text-[13px]">
-            Already eyeing one? See if it fits you.
+/* ------------------------------------------------------------------ */
+/*  Feature Card — describes a feature with a redirect link            */
+/* ------------------------------------------------------------------ */
+
+const FeatureCard = ({
+  icon,
+  iconBg,
+  title,
+  description,
+  linkLabel,
+  onNavigate,
+}: {
+  icon: React.ReactNode;
+  iconBg: string;
+  title: string;
+  description: string;
+  linkLabel: string;
+  onNavigate: () => void;
+}) => (
+  <Card
+    className="p-[20px] flex flex-col cursor-pointer transition-all hover:border-primary/30 hover:-translate-y-0.5 group"
+    onClick={onNavigate}
+  >
+    <div className="flex items-center gap-2.5 mb-2">
+      <span className={`w-10 h-10 rounded-xl grid place-items-center border shrink-0 ${iconBg}`}>
+        {icon}
+      </span>
+      <h3 className="font-display font-semibold text-[15px] tracking-tight">
+        {title}
+      </h3>
+    </div>
+    <p className="text-muted-foreground text-[13px] mt-1 leading-relaxed flex-1">
+      {description}
+    </p>
+    <span className="inline-flex items-center gap-1.5 text-[13px] font-medium text-primary mt-3 group-hover:underline">
+      {linkLabel}
+      <ChevronRight className="h-3.5 w-3.5" />
+    </span>
+  </Card>
+);
+
+/* ------------------------------------------------------------------ */
+/*  Wallet Dashboard — multi-widget Row 2                              */
+/* ------------------------------------------------------------------ */
+
+type ProfileData = ReturnType<typeof profileService.getDetails> extends Promise<infer T> ? T | undefined : never;
+
+const WalletDashboard = ({
+  profile,
+  loading,
+  onAsk,
+  onNavigate,
+}: {
+  profile: ProfileData;
+  loading: boolean;
+  onAsk: (q: string) => void;
+  onNavigate: (path: string) => void;
+}) => {
+  const cardIds = useMemo(() => {
+    if (!profile) return [];
+    return profile.cards.filter((h) => h.card_id).map((h) => h.card_id!);
+  }, [profile]);
+
+  const hasCards = cardIds.length > 0;
+
+  const {data: heldCards = [], isLoading: cardsLoading} = useQuery({
+    queryKey: ["heldCards", cardIds],
+    queryFn: async () => {
+      const all = await cardService.getAllCards();
+      const idSet = new Set(cardIds);
+      return all.filter((c) => idSet.has(c.id));
+    },
+    enabled: hasCards,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  if (loading || (hasCards && cardsLoading)) {
+    return (
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {Array.from({length: 4}).map((_, i) => (
+          <Card key={i} className="p-[22px]">
+            <div className="h-6 w-36 animate-pulse rounded-lg bg-white/10 mb-3" />
+            <div className="space-y-2.5">
+              {Array.from({length: 3}).map((_, j) => (
+                <div key={j} className="h-10 animate-pulse rounded-lg bg-white/5" />
+              ))}
+            </div>
+          </Card>
+        ))}
+      </div>
+    );
+  }
+
+  if (!hasCards) {
+    return (
+      <Card className="p-[22px]">
+        <div className="flex items-center gap-3 mb-3">
+          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/15 text-primary">
+            <Wallet className="h-5 w-5" />
           </span>
+          <div>
+            <h2 className="font-display font-semibold text-lg tracking-tight">
+              Your wallet at a glance
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              Add your cards to unlock personalized insights.
+            </p>
+          </div>
         </div>
-        <div className="flex items-center gap-2.5 bg-secondary border border-border rounded-[14px] px-[18px] py-1 flex-[1.3] min-w-[200px] max-md:min-w-0 focus-within:border-primary/40">
-          <input
-            value={evalValue}
-            onChange={(e) => setEvalValue(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && evalValue.trim())
-                onNavigate("/evaluate");
-            }}
-            placeholder="e.g. Amex Platinum Travel"
-            aria-label="Card to evaluate"
-            className="border-none bg-transparent outline-none text-foreground text-[14.5px] w-full min-w-0 py-3 placeholder:text-muted-foreground"
-          />
+        <div className="rounded-xl border border-dashed border-white/10 bg-white/[0.02] p-6 text-center">
+          <CreditCard className="mx-auto mb-2 h-8 w-8 text-muted-foreground opacity-40" />
+          <p className="text-sm text-muted-foreground mb-3">
+            See annual rewards, benefits, and optimization gaps.
+          </p>
+          <Link
+            to="/profile"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 transition-opacity"
+          >
+            <CreditCard className="h-4 w-4" />
+            Add your cards
+          </Link>
         </div>
-        <Button
-          variant="outline"
-          onClick={() => onNavigate("/evaluate")}
-          className="rounded-xl px-5 py-3 h-auto"
-        >
-          Evaluate
-        </Button>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-[1.1fr_1fr] gap-4">
+      <CardFeesWidget cards={heldCards} />
+      <GapsWidget cards={heldCards} onAsk={onAsk} onNavigate={onNavigate} />
+      <div className="lg:col-span-2">
+        <BenefitsWidget cards={heldCards} />
+      </div>
+    </div>
+  );
+};
+
+/* ---- Widget 1: Card Fees ---- */
+
+const CardFeesWidget = ({cards}: {cards: CardProduct[]}) => {
+  const totalFees = useMemo(() => cards.reduce((s, c) => s + c.annual_fee, 0), [cards]);
+  const sorted = useMemo(() => [...cards].sort((a, b) => b.annual_fee - a.annual_fee), [cards]);
+
+  return (
+    <Card className="p-[22px]">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2.5">
+          <span className="w-9 h-9 rounded-xl grid place-items-center bg-primary/15 text-primary">
+            <CreditCard className="h-[18px] w-[18px]" />
+          </span>
+          <div>
+            <h3 className="font-display font-semibold text-[15px]">Card fees</h3>
+            <p className="text-xs text-muted-foreground">{cards.length} card{cards.length > 1 ? "s" : ""} in your wallet</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="space-y-2 mb-4">
+        {sorted.map((card) => (
+          <div
+            key={card.id}
+            className="flex items-center justify-between rounded-xl border border-white/5 bg-white/[0.02] px-3.5 py-2.5"
+          >
+            <div className="min-w-0 flex-1">
+              <p className="text-[13px] font-medium truncate">{card.name}</p>
+              <p className="text-[11px] text-muted-foreground">{card.issuer}</p>
+            </div>
+            <span className={`text-sm font-bold tabular-nums shrink-0 ml-3 ${
+              card.annual_fee > 0 ? "text-foreground" : "text-emerald-400"
+            }`}>
+              {card.annual_fee > 0 ? `$${card.annual_fee}/yr` : "No fee"}
+            </span>
+          </div>
+        ))}
+      </div>
+
+      <div className={`rounded-xl border p-3.5 text-center ${
+        totalFees > 0
+          ? "border-white/10 bg-white/[0.03]"
+          : "border-emerald-400/20 bg-emerald-400/5"
+      }`}>
+        <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Total annual fees</p>
+        <p className="mt-1">
+          <span className={`font-display text-2xl font-bold ${
+            totalFees > 0 ? "text-foreground" : "text-emerald-300"
+          }`}>
+            {totalFees > 0 ? `$${totalFees.toLocaleString()}` : "$0"}
+          </span>
+          <span className="text-sm text-muted-foreground ml-1">/yr</span>
+        </p>
       </div>
     </Card>
   );
 };
 
-/** Rank catalog cards by their best estimated value in the given category. */
-function rankByCategory(list: CardProduct[], cat: Category): RankedCard[] {
-  const ranked: RankedCard[] = [];
-  for (const card of list) {
-    let best: RankedCard | null = null;
-    for (const r of card.rewards) {
-      if (!matchesCategory(r.category, cat)) continue;
-      const value = estValue(card, r.rate);
-      if (!best || value > best.value) {
-        best = {card, rate: r.rate, category: r.category, value};
-      }
-    }
-    if (best) ranked.push(best);
-  }
-  return ranked.sort((a, b) => b.value - a.value).slice(0, 3);
+/* ---- Widget 2: Benefits You Have ---- */
+
+const BENEFIT_ICONS: Record<string, {icon: React.ReactNode; color: string}> = {
+  lounge: {icon: <Shield className="h-3.5 w-3.5" />, color: "text-amber-400"},
+  insurance: {icon: <Shield className="h-3.5 w-3.5" />, color: "text-blue-400"},
+  credit: {icon: <CreditCard className="h-3.5 w-3.5" />, color: "text-emerald-400"},
+  protection: {icon: <Shield className="h-3.5 w-3.5" />, color: "text-purple-400"},
+};
+
+function classifyBenefit(text: string): string {
+  const low = text.toLowerCase();
+  if (low.includes("lounge") || low.includes("priority pass")) return "lounge";
+  if (low.includes("insurance") || low.includes("protection") || low.includes("warranty")) return "protection";
+  if (low.includes("credit") || low.includes("statement")) return "credit";
+  return "insurance";
 }
 
-/** Interactive "which card should I use?" — pick a category, see the top earners.
- *  The signature move of card-optimizer apps, computed from the catalog. */
-const BestCardFinder = ({
-  cards,
-  loading,
-  onAsk,
-}: {
-  cards: CardProduct[];
-  loading: boolean;
-  onAsk: (q: string) => void;
-}) => {
-  const [active, setActive] = useState<Category>(CATEGORIES[0]);
-  const ranked = useMemo(() => rankByCategory(cards, active), [cards, active]);
+const BenefitsWidget = ({cards}: {cards: CardProduct[]}) => {
+  const [showAll, setShowAll] = useState(false);
+  const benefits = useMemo(() => {
+    const seen = new Set<string>();
+    const items: {text: string; cardName: string; type: string}[] = [];
+    for (const card of cards) {
+      for (const b of card.benefits) {
+        const key = b.toLowerCase().trim();
+        if (seen.has(key)) continue;
+        seen.add(key);
+        items.push({text: b, cardName: card.name, type: classifyBenefit(b)});
+      }
+    }
+    return items;
+  }, [cards]);
 
   return (
     <Card className="p-[22px]">
-      <div className="mb-4 flex items-end justify-between gap-3">
+      <div className="flex items-center gap-2.5 mb-4">
+        <span className="w-9 h-9 rounded-xl grid place-items-center bg-emerald-500/15 text-emerald-400">
+          <Shield className="h-[18px] w-[18px]" />
+        </span>
         <div>
-          <h2 className="font-display font-semibold text-lg tracking-tight">
-            Which card should you use?
-          </h2>
-          <p className="text-sm text-muted-foreground">
-            Pick a category — see the cards that earn the most on it.
-          </p>
+          <h3 className="font-display font-semibold text-[15px]">Your benefits</h3>
+          <p className="text-xs text-muted-foreground">{benefits.length} benefits across your cards</p>
         </div>
-        <Link
-          to="/cards"
-          className="shrink-0 text-sm font-medium text-primary hover:underline"
-        >
-          See all →
-        </Link>
       </div>
 
-      {/* Category selector */}
-      <div className="mb-5 flex flex-wrap gap-2">
-        {CATEGORIES.map((c) => {
-          const isActive = c.key === active.key;
-          return (
+      {benefits.length === 0 ? (
+        <p className="text-sm text-muted-foreground">
+          No benefits data available for your cards yet.
+        </p>
+      ) : (
+        <>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+            {(showAll ? benefits : benefits.slice(0, 6)).map((b, i) => {
+              const style = BENEFIT_ICONS[b.type] ?? BENEFIT_ICONS.insurance;
+              return (
+                <div
+                  key={i}
+                  className="flex items-start gap-2.5 rounded-lg border border-white/5 bg-white/[0.02] px-3 py-2.5"
+                >
+                  <span className={`shrink-0 mt-0.5 ${style.color}`}>{style.icon}</span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[13px] font-medium leading-snug">{b.text}</p>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">
+                      {b.cardName.split(" ").slice(0, 3).join(" ")}
+                    </p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          {benefits.length > 6 && (
             <button
-              key={c.key}
-              onClick={() => setActive(c)}
-              className={`inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-sm transition-colors ${
-                isActive
-                  ? "border-primary/50 bg-primary/15 text-foreground"
-                  : "border-white/10 bg-white/5 text-muted-foreground hover:border-primary/30 hover:text-foreground"
-              }`}
+              onClick={() => setShowAll((v) => !v)}
+              className="mt-2.5 text-[13px] font-medium text-primary hover:underline"
             >
-              <span aria-hidden>{CATEGORY_ICONS[c.iconKey]}</span>
-              {c.label}
+              {showAll ? "Show less" : `Show all ${benefits.length} benefits`}
             </button>
-          );
-        })}
+          )}
+        </>
+      )}
+    </Card>
+  );
+};
+
+/* ---- Widget 4: Gaps & Opportunities ---- */
+
+const GapsWidget = ({
+  cards,
+  onAsk,
+  onNavigate,
+}: {
+  cards: CardProduct[];
+  onAsk: (q: string) => void;
+  onNavigate: (path: string) => void;
+}) => {
+  const insights = useMemo(() => {
+    const items: {type: "gap" | "intro" | "fee"; text: string; detail: string; action?: string}[] = [];
+
+    for (const card of cards) {
+      if (card.intro_offer) {
+        const short = card.intro_offer.length > 90 ? card.intro_offer.slice(0, 87) + "…" : card.intro_offer;
+        items.push({
+          type: "intro",
+          text: `${card.name.split(" ").slice(0, 3).join(" ")} intro offer`,
+          detail: short,
+        });
+      }
+    }
+
+    const hasTravel = cards.some((c) => c.rewards.some((r) => /travel|flight|hotel|airline/i.test(r.category)));
+    const hasDining = cards.some((c) => c.rewards.some((r) => /dining|restaurant/i.test(r.category)));
+    const hasGroceries = cards.some((c) => c.rewards.some((r) => /grocer|supermarket/i.test(r.category)));
+
+    if (!hasTravel) {
+      items.push({
+        type: "gap",
+        text: "No travel card",
+        detail: "None of your cards have elevated travel rewards. A travel card could earn 3–5× more on flights and hotels.",
+        action: "What's the best travel rewards card for me?",
+      });
+    }
+    if (!hasDining) {
+      items.push({
+        type: "gap",
+        text: "No dining card",
+        detail: "You're missing elevated dining rewards. A dining card could earn 3–4× more at restaurants.",
+        action: "What's the best dining rewards card?",
+      });
+    }
+    if (!hasGroceries) {
+      items.push({
+        type: "gap",
+        text: "No grocery card",
+        detail: "No elevated grocery rewards in your wallet. Groceries are a big spend category worth optimizing.",
+        action: "What's the best card for groceries?",
+      });
+    }
+
+    const totalFees = cards.reduce((s, c) => s + c.annual_fee, 0);
+    if (totalFees > 500) {
+      items.push({
+        type: "fee",
+        text: `$${totalFees.toLocaleString()}/yr in fees`,
+        detail: "That's a lot of annual fees. Make sure each card's benefits justify the cost.",
+        action: "Are my annual fees worth it?",
+      });
+    }
+
+    return items.slice(0, 5);
+  }, [cards]);
+
+  return (
+    <Card className="p-[22px]">
+      <div className="flex items-center gap-2.5 mb-4">
+        <span className="w-9 h-9 rounded-xl grid place-items-center bg-amber-500/15 text-amber-400">
+          <AlertTriangle className="h-[18px] w-[18px]" />
+        </span>
+        <div>
+          <h3 className="font-display font-semibold text-[15px]">Gaps & opportunities</h3>
+          <p className="text-xs text-muted-foreground">Where your wallet could do better</p>
+        </div>
       </div>
 
-      {/* Results */}
-      {loading ? (
-        <div className="grid gap-5 sm:grid-cols-2">
-          {Array.from({length: 3}).map((_, i) => (
-            <div key={i} className="glass h-72 animate-pulse rounded-2xl" />
+      {insights.length === 0 ? (
+        <div className="rounded-xl border border-emerald-400/20 bg-emerald-400/5 p-4 text-center">
+          <p className="text-sm font-medium text-emerald-300">Looking good!</p>
+          <p className="text-xs text-muted-foreground mt-1">No obvious gaps in your current setup.</p>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {insights.map((ins, i) => (
+            <button
+              key={i}
+              className="w-full text-left flex items-start gap-2.5 rounded-xl border border-white/5 bg-white/[0.02] px-3 py-2.5 transition-colors hover:border-primary/20"
+              onClick={() => {
+                if (ins.action) onAsk(ins.action);
+                else onNavigate("/cards");
+              }}
+            >
+              <span className={`shrink-0 mt-0.5 ${
+                ins.type === "gap" ? "text-amber-400" : ins.type === "intro" ? "text-primary" : "text-destructive"
+              }`}>
+                {ins.type === "gap" && <AlertTriangle className="h-3.5 w-3.5" />}
+                {ins.type === "intro" && <Sparkles className="h-3.5 w-3.5" />}
+                {ins.type === "fee" && <CreditCard className="h-3.5 w-3.5" />}
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="text-[13px] font-medium">{ins.text}</p>
+                <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">{ins.detail}</p>
+              </div>
+              <ChevronRight className="h-4 w-4 text-muted-foreground/40 shrink-0 mt-0.5" />
+            </button>
           ))}
         </div>
-      ) : ranked.length > 0 ? (
-        <>
-          <div className="max-h-[480px] overflow-y-auto scrollbar-thin pr-1">
-            <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-              {ranked.map((r, i) => (
-                <CardTile
-                  key={r.card.id}
-                  card={r.card}
-                  badge={r.rate}
-                  highlight={i === 0}
-                />
-              ))}
-            </div>
-          </div>
-          <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
-            <button
-              onClick={() =>
-                onAsk(
-                  `Which card is best for ${active.label.toLowerCase()} spending?`,
-                )
-              }
-              className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline"
-            >
-              <Sparkles className="h-4 w-4" />
-              Ask the assistant why →
-            </button>
-            <p className="text-xs text-muted-foreground">
-              Ranked by estimated value — points valued per program.
-            </p>
-          </div>
-        </>
-      ) : (
-        <EmptyHint>
-          No cards in the catalog call out {active.label.toLowerCase()} rewards
-          specifically. Try another category, or ask the assistant directly.
-        </EmptyHint>
       )}
     </Card>
   );

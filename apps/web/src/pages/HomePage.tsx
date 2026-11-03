@@ -14,6 +14,10 @@ import {
   CreditCard,
   MessageSquare,
   Layers,
+  Users,
+  Share2,
+  Wallet,
+  BarChart3,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Navbar } from '@/components/Navbar';
@@ -37,7 +41,7 @@ export const HomePage = () => {
           <div className="space-y-8 text-center lg:text-left">
             <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-medium text-muted-foreground">
               <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
-              Retrieval-augmented · grounded in a real catalog
+              Powered by Meta Muse
             </div>
             <div className="space-y-5">
               <h1 className="font-display text-5xl sm:text-6xl font-bold tracking-tight leading-[1.05]">
@@ -46,9 +50,9 @@ export const HomePage = () => {
                 <span className="text-gradient">from how you spend</span>
               </h1>
               <p className="text-lg text-muted-foreground max-w-xl mx-auto lg:mx-0">
-                Describe your spending in plain language. The assistant searches a
-                real catalog of credit cards, recommends the best fit, and explains
-                why — getting sharper as it learns your preferences.
+                Which card should I get? Which should I use? Is this one worth it?
+                Ask in plain language — the assistant searches a real catalog,
+                optimizes your wallet, and explains every pick.
               </p>
             </div>
 
@@ -83,7 +87,7 @@ export const HomePage = () => {
             </div>
 
             <p className="text-xs text-muted-foreground">
-              No forms · multi-turn chat · every pick explained
+              No forms · multi-turn chat · wallet optimizer · shared plans
             </p>
           </div>
 
@@ -98,7 +102,7 @@ export const HomePage = () => {
               How it <span className="text-gradient">works</span>
             </h2>
             <p className="mt-3 text-muted-foreground max-w-xl mx-auto">
-              A recommendation in three steps — no applications, no credit quiz.
+              From question to answer in seconds — no applications, no credit quiz.
             </p>
           </div>
           <div className="grid md:grid-cols-3 gap-6">
@@ -110,7 +114,7 @@ export const HomePage = () => {
             <Step
               n={2}
               title="It searches the catalog"
-              description="Vector retrieval finds the cards that actually match your spending from a real catalog of products."
+              description="The assistant searches a real catalog of credit cards and finds the ones that actually match your spending patterns."
             />
             <Step
               n={3}
@@ -122,11 +126,59 @@ export const HomePage = () => {
 
         {/* Features */}
         <section className="mb-28">
-          <div className="grid md:grid-cols-2 gap-6">
+          {/* Highlighted shared plans banner */}
+          <div className="mb-6 rounded-2xl border border-primary/30 bg-gradient-to-r from-primary/10 via-primary/5 to-transparent p-7 transition-all hover:-translate-y-1 hover:border-primary/40">
+            <div className="flex flex-col md:flex-row md:items-center gap-6">
+              <div className="flex items-center gap-4 shrink-0">
+                <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/20 text-primary">
+                  <Users className="h-7 w-7" />
+                </span>
+                <div className="md:hidden">
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-display text-lg font-semibold">Share plans with anyone</h3>
+                    <span className="rounded-full bg-primary/20 px-2 py-0.5 text-[0.65rem] font-semibold text-primary uppercase tracking-wider">New</span>
+                  </div>
+                  <p className="text-sm text-muted-foreground mt-1">Collaborate on card decisions together.</p>
+                </div>
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="hidden md:flex items-center gap-2 mb-1">
+                  <h3 className="font-display text-lg font-semibold">Share plans with anyone</h3>
+                  <span className="rounded-full bg-primary/20 px-2 py-0.5 text-[0.65rem] font-semibold text-primary uppercase tracking-wider">New</span>
+                </div>
+                <p className="text-sm leading-relaxed text-muted-foreground hidden md:block">
+                  Found the perfect card? Share your conversation with a partner, friend, or family member. They can view your picks, add the thread to their own chats, and continue the conversation from where you left off.
+                </p>
+              </div>
+              <div className="flex items-center gap-3 shrink-0">
+                <div className="hidden lg:flex items-center gap-2 text-xs text-muted-foreground">
+                  <Share2 className="h-3.5 w-3.5 text-primary" />
+                  Share by link or email
+                </div>
+                <Link to={isAuthenticated ? '/recommend' : '/signup'}>
+                  <Button size="sm" className="shadow-md shadow-primary/20">
+                    Try it →
+                  </Button>
+                </Link>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             <FeatureCard
               icon={MessageSquare}
               title="A conversation, not a quiz"
               description="Ask in plain language and refine with follow-ups. The assistant keeps the thread so each answer builds on the last."
+            />
+            <FeatureCard
+              icon={BarChart3}
+              title="Card evaluator"
+              description="Wondering if a card is worth it? Compare your current wallet against adding it — with real numbers on rewards, fees, and net value."
+            />
+            <FeatureCard
+              icon={Wallet}
+              title="Wallet optimizer"
+              description="Already have cards? The assistant tells you which one to use for each purchase to maximize your rewards."
             />
             <FeatureCard
               icon={Layers}
@@ -175,10 +227,10 @@ export const HomePage = () => {
         {/* Closing CTA */}
         <section className="text-center">
           <h2 className="font-display text-3xl sm:text-4xl font-bold tracking-tight">
-            Ready to find <span className="text-gradient">your card?</span>
+            Ready to optimize <span className="text-gradient">your wallet?</span>
           </h2>
           <p className="mt-3 text-muted-foreground">
-            Tell the assistant how you spend — it takes one sentence.
+            Find the right card, use the right card, and share your plan — all in one place.
           </p>
           <Link to={isAuthenticated ? '/recommend' : '/signup'} className="mt-6 inline-block">
             <Button size="lg" className="shadow-lg shadow-primary/30">

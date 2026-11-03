@@ -21,8 +21,6 @@ class UserService:
         first_name: str,
         last_name: str,
         password: str | None = None,
-        facebook_id: str | None = None,
-        oauth_provider: str | None = None,
     ) -> User:
         """Create a new user. Raises ValueError if the email already exists."""
         try:
@@ -32,8 +30,6 @@ class UserService:
                 first_name=first_name,
                 last_name=last_name,
                 password_hash=password_hash,
-                facebook_id=facebook_id,
-                oauth_provider=oauth_provider,
                 is_active=True,
             )
             session.add(user)
@@ -53,12 +49,6 @@ class UserService:
     async def get_user_by_id(session: AsyncSession, user_id: UUID) -> User | None:
         """Get user by ID."""
         result = await session.execute(select(User).where(User.id == user_id))
-        return result.scalar_one_or_none()
-
-    @staticmethod
-    async def get_user_by_facebook_id(session: AsyncSession, facebook_id: str) -> User | None:
-        """Get user by Facebook ID."""
-        result = await session.execute(select(User).where(User.facebook_id == facebook_id))
         return result.scalar_one_or_none()
 
     @staticmethod

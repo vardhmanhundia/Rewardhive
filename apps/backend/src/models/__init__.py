@@ -94,17 +94,6 @@ class UserLoginRequest(BaseModel):
     password: str
 
 
-class FacebookTokenRequest(BaseModel):
-    access_token: str = Field(..., min_length=1)
-
-
-class FacebookLoginRequest(BaseModel):
-    access_token: str = Field(..., min_length=1)
-    email: Optional[EmailStr] = None
-    first_name: str = Field(..., min_length=1, max_length=100)
-    last_name: str = Field(..., min_length=1, max_length=100)
-
-
 class UserLoginResponse(BaseModel):
     access_token: str
     token_type: str
@@ -514,39 +503,7 @@ class RewardResultSchema(BaseModel):
     picks: list[CardRewardPickSchema] = Field(default_factory=list)
 
 
-# --- Instagram Posts & News ---------------------------------------------------
-
-
-class InstagramPostSchema(BaseModel):
-    """An Instagram post related to a card."""
-
-    id: UUID
-    card_id: UUID
-    instagram_post_id: str
-    url: str
-    caption: Optional[str] = None
-    image_url: Optional[str] = None
-    likes: int
-    engagement_score: float
-    hashtags: list[str] = Field(default_factory=list)
-    posted_at: Optional[datetime] = None
-    created_at: datetime
-
-    class Config:
-        from_attributes = True
-
-
-class InstagramPostCreateRequest(BaseModel):
-    """Request to create/store an Instagram post."""
-
-    instagram_post_id: str
-    url: str
-    caption: Optional[str] = None
-    image_url: Optional[str] = None
-    likes: int = 0
-    engagement_score: float = 0.0
-    hashtags: list[str] = Field(default_factory=list)
-    posted_at: Optional[datetime] = None
+# --- News Keywords -----------------------------------------------------------
 
 
 class CardNewsKeywordSchema(BaseModel):
@@ -566,12 +523,6 @@ class CardNewsKeywordCreateRequest(BaseModel):
     """Request to create/store a news keyword."""
 
     keyword: str = Field(..., min_length=1, max_length=255)
-
-
-class InstagramPostListResponse(BaseModel):
-    """List of Instagram posts."""
-
-    posts: list[InstagramPostSchema]
 
 
 class CardNewsKeywordListResponse(BaseModel):

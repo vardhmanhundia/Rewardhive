@@ -11,7 +11,7 @@ import {RecommendPage} from "./pages/RecommendPage";
 import {EvaluatePage} from "./pages/EvaluatePage";
 import {ForYouPage} from "./pages/ForYouPage";
 import {OnboardingPage} from "./pages/OnboardingPage";
-import {WhichCardPage} from "./pages/WhichCardPage";
+// WhichCardPage merged into RecommendPage — /which-card now redirects there
 
 function App() {
   return (
@@ -47,14 +47,8 @@ function App() {
               </ProtectedRoute>
             }
           />
-          <Route
-            path="/which-card"
-            element={
-              <ProtectedRoute>
-                <WhichCardPage />
-              </ProtectedRoute>
-            }
-          />
+          {/* /which-card redirected to the unified assistant */}
+          <Route path="/which-card" element={<ProtectedRoute><RecommendPage /></ProtectedRoute>} />
           <Route
             path="/onboarding"
             element={

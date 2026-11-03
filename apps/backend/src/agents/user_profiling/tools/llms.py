@@ -1,7 +1,7 @@
 """LLM clients the profiling nodes invoke.
 
 Built once at import through the shared :func:`src.agents.commons.llm.get_chat_model`
-factory, which targets Meta Muse (the OpenAI-compatible Meta Model API) and
+factory, which targets Meta Muse (the Meta Model API) and
 transparently swaps in a fake/replay model when that mode is enabled. Each
 structured client returns a typed Pydantic object; ``reply_stream_llm`` streams
 plain text token-by-token. Invocation requires ``MODEL_API_KEY`` (and

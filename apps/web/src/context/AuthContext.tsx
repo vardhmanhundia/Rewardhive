@@ -11,7 +11,6 @@ interface AuthContextType {
   error: string | null;
   login: (email: string, password: string) => Promise<void>;
   signup: (email: string, firstName: string, lastName: string, password: string) => Promise<void>;
-  facebookLogin: (accessToken: string, email: string | undefined, firstName: string, lastName: string) => Promise<void>;
   logout: () => Promise<void>;
   clearError: () => void;
 }
@@ -77,26 +76,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const facebookLogin = async (accessToken: string, email: string | undefined, firstName: string, lastName: string) => {
-    setError(null);
-    setIsLoading(true);
-    try {
-      const response = await authService.facebookLogin({
-        access_token: accessToken,
-        email,
-        first_name: firstName,
-        last_name: lastName,
-      });
-      setUser(response.user);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Facebook login failed';
-      setError(message);
-      throw err;
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   const logout = async () => {
     setError(null);
     setIsLoading(true);
@@ -122,7 +101,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         error,
         login,
         signup,
-        facebookLogin,
         logout,
         clearError,
       }}

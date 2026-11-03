@@ -8,7 +8,7 @@ services:
     # .env. The explicit `environment:` below overrides any of these, so the DB
     # and Redis hosts stay pointed at the Docker service names (not localhost).
     env_file:
-      - ./apps/backend/.env
+      - ./.env
     environment:
       - DATABASE_URL=postgresql+asyncpg://user:password@db:5432/card_db
       - REDIS_URL=redis://redis:6379

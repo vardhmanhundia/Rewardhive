@@ -3,7 +3,7 @@
 Two jobs:
 
 1. **One place to build the chat model.** The project talks to Meta Muse through
-   the OpenAI-compatible Meta Model API, so a provider swap is a change to this
+   the Meta Model API, so a provider swap is a change to this
    file alone. Callers use :func:`get_chat_model` and never import a provider
    SDK directly.
 
@@ -110,8 +110,8 @@ def get_chat_model(
     if _fake_enabled():
         return _FakeChat(structured)
 
-    # Meta Model API is OpenAI-compatible: point ChatOpenAI at its base URL.
-    # The OpenAI client rejects an empty api_key at construction, so when
+    # Meta Model API uses an OpenAI-compatible protocol: point ChatOpenAI at its base URL.
+    # The client rejects an empty api_key at construction, so when
     # MODEL_API_KEY is unset we pass a placeholder: this keeps import-time
     # construction working (models are built once at import), while real calls
     # still fail until a valid MODEL_API_KEY is set. reasoning_effort=None is a

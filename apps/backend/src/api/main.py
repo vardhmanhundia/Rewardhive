@@ -17,8 +17,6 @@ from src.api.profile import router as profile_router
 # from src.api.profiling import router as profiling_router
 from src.api.advisor import router as advisor_router
 from src.api.cards import router as cards_router
-from src.api.instagram import router as instagram_router
-from src.api.news import router as news_router
 from src.api.optimizer import router as optimizer_router
 from src.api.recommendations import router as recommendations_router
 from src.api.rewards import router as rewards_router
@@ -110,8 +108,6 @@ app.include_router(auth_router)
 app.include_router(profile_router)
 # app.include_router(profiling_router)
 app.include_router(cards_router)
-app.include_router(instagram_router)
-app.include_router(news_router)
 app.include_router(optimizer_router)
 app.include_router(recommendations_router)
 app.include_router(advisor_router)

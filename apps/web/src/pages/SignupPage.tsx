@@ -8,7 +8,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { FacebookLoginButton } from '@/components/FacebookLoginButton';
 
 export const SignupPage = () => {
   const navigate = useNavigate();
@@ -225,24 +224,6 @@ export const SignupPage = () => {
               {isLoading ? 'Creating Account...' : 'Sign Up'}
             </Button>
           </form>
-
-          <div className="mt-6">
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-border"></div>
-              </div>
-              <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-card text-muted-foreground">Or</span>
-              </div>
-            </div>
-
-            <div className="mt-6">
-              <FacebookLoginButton
-                onSuccess={() => navigate('/onboarding')}
-                isLoading={isLoading}
-              />
-            </div>
-          </div>
 
           <div className="mt-6 text-center text-sm">
             <span className="text-muted-foreground">Already have an account? </span>

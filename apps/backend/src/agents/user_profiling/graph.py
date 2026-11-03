@@ -220,6 +220,13 @@ async def persist_turn(
     except Exception:  # noqa: BLE001 — persistence is best-effort
         pass
 
+    # Invalidate the cached context summary so the next turn re-summarizes.
+    try:
+        from src.services.context_manager import invalidate_summary
+        await invalidate_summary(thread_id)
+    except Exception:  # noqa: BLE001
+        pass
+
 
 # ----------------------------------------------------------------------------
 # Entrypoint

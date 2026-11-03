@@ -84,6 +84,12 @@ class Settings:
     RECOMMENDATION_TOP_K: int = int(os.getenv("RECOMMENDATION_TOP_K", "5"))
     RECOMMENDATION_FETCH_K: int = int(os.getenv("RECOMMENDATION_FETCH_K", "40"))
 
+    # Context management: summarize + trim long conversations so they fit the
+    # model's context window and stay relevant.
+    CONTEXT_SUMMARIZE_THRESHOLD: int = int(os.getenv("CONTEXT_SUMMARIZE_THRESHOLD", "10"))
+    CONTEXT_MAX_RECENT_TURNS: int = int(os.getenv("CONTEXT_MAX_RECENT_TURNS", "6"))
+    CONTEXT_SUMMARY_TTL: int = int(os.getenv("CONTEXT_SUMMARY_TTL", "3600"))
+
     # Public base URL of the web app. Used to build links in outgoing emails
     # (e.g. the conversation link and the sign-up prompt in a share invite).
     FRONTEND_URL: str = os.getenv("FRONTEND_URL", "http://localhost:3000")

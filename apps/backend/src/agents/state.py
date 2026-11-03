@@ -9,17 +9,21 @@ through untouched.
 
 from __future__ import annotations
 
-from typing import Any, TypedDict
+from typing import Annotated, Any, TypedDict
 
 from src.db.models import CardProduct
+
+
+def _last_value(current: Any, update: Any) -> Any:
+    return update
 
 
 class AgentState(TypedDict, total=False):
     """State threaded through the whole card-agent graph."""
 
-    # --- inputs ---
-    query: str  # the user's latest message
-    history: list[dict[str, str]]  # prior turns [{"role", "content"}]
+    # --- inputs (annotated so parallel branches can pass them through) ---
+    query: Annotated[str, _last_value]
+    history: Annotated[list[dict[str, str]], _last_value]
 
     # --- router outputs ---
     # Which agent branch the router picked: "new_card" | "evaluate" | "rewards".

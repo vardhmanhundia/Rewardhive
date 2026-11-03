@@ -244,8 +244,13 @@ export const RecommendPage = () => {
     if (busy) stop();
 
     // Build history from completed, non-interrupted turns only.
-    const history = turns
+    // Cap at the most recent 20 turns to keep request payloads manageable;
+    // the backend further trims and summarizes older context via Redis.
+    const MAX_HISTORY_TURNS = 20;
+    const completedTurns = turns
       .filter((t) => !t.error && !t.interrupted && t.answer)
+      .slice(-MAX_HISTORY_TURNS);
+    const history = completedTurns
       .flatMap((t) => [
         { role: 'user' as const, content: t.query },
         { role: 'assistant' as const, content: t.answer },

@@ -45,6 +45,7 @@ from src.agents.router.graph import router_node
 from src.agents.state import AgentState
 from src.agents.user_profiling.graph import build_profiling_subgraph
 from src.db.models import CardProduct
+from src.services.context_manager import prepare_context
 
 # The specialist branches the router can pick; intent strings match node names.
 _AGENT_NODES = ("new_card", "evaluate", "rewards")
@@ -112,7 +113,11 @@ async def run_recommendation(
     for the frontend to surface on the profile page. ``conversation_id`` keys
     where the turn is persisted (when given).
     """
-    state: AgentState = {"query": query, "history": history or []}
+    trimmed_history = await prepare_context(
+        history or [],
+        conversation_id=str(conversation_id) if conversation_id else None,
+    )
+    state: AgentState = {"query": query, "history": trimmed_history}
     config: RunnableConfig = {
         "configurable": {
             "session": session,
@@ -156,7 +161,11 @@ async def stream_recommendation(
     Events are produced inside the subgraph nodes via LangGraph's stream writer;
     ``subgraphs=True`` is required for those nested events to surface here.
     """
-    state: AgentState = {"query": query, "history": history or []}
+    trimmed_history = await prepare_context(
+        history or [],
+        conversation_id=str(conversation_id) if conversation_id else None,
+    )
+    state: AgentState = {"query": query, "history": trimmed_history}
     config: RunnableConfig = {
         "configurable": {
             "session": session,

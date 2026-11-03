@@ -17,13 +17,14 @@ import {
   X, Mail, Copy, Check, UserPlus, CreditCard, Square,
 } from 'lucide-react';
 import { Navbar } from '@/components/Navbar';
-import { CardTile } from '@/components/CardTile';
 import Markdown from '@/components/Markdown';
+import { RecommendResult, PicksResult, EvaluateResult, MemoriesNote } from '@/components/chat';
 import cardService, {
   type CardProduct,
   type Conversation,
   type FollowUpPrompt,
   type RecMessage,
+  type CardRewardPick,
   type RecStage,
   type ShareInfo,
 } from '@/services/cardService';
@@ -37,6 +38,7 @@ interface ChatTurn {
   stage: RecStage | null;
   answer: string;
   cards: CardProduct[];
+  picks: CardRewardPick[];
   found: number;
   memories: string[];
   suggestions: string[];
@@ -73,16 +75,22 @@ function msgsToTurns(msgs: RecMessage[]): ChatTurn[] {
     const isReply = next?.role === 'assistant';
     const answer = isReply ? next.content : '';
     const cards = isReply ? next.cards ?? [] : [];
+    const picks = isReply ? next.picks ?? [] : [];
+    const intent = isReply ? next.intent : undefined;
+    const spendBaseline = isReply ? next.spend_baseline : undefined;
     turns.push({
       id: crypto.randomUUID(),
       query: msgs[i].content,
       stage: 'done',
       answer,
       cards,
+      picks,
       found: cards.length,
       memories: [],
       suggestions: [],
       prompts: [],
+      intent,
+      spendBaseline,
     });
     if (isReply) i++;
   }
@@ -133,6 +141,7 @@ export const RecommendPage = () => {
   const [turns, setTurns] = useState<ChatTurn[]>([]);
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
+  const [historyLoading, setHistoryLoading] = useState(!!urlConversationId);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [pinnedIds, setPinnedIds] = useState<Set<string>>(getPinned);
@@ -170,6 +179,7 @@ export const RecommendPage = () => {
 
   // Load a conversation's history (or the legacy default).
   const loadConversation = useCallback(async (id: string | null) => {
+    setHistoryLoading(true);
     try {
       const msgs = id
         ? await cardService.getConversationHistory(id)
@@ -179,6 +189,8 @@ export const RecommendPage = () => {
     } catch {
       if (activeTurnId.current) return;
       setTurns([]);
+    } finally {
+      setHistoryLoading(false);
     }
   }, []);
 
@@ -256,12 +268,12 @@ export const RecommendPage = () => {
 
     const id = retryTurnId ?? crypto.randomUUID();
     if (retryTurnId) {
-      patch(id, { stage: null, answer: '', cards: [], found: 0, memories: [], suggestions: [], prompts: [], error: false, interrupted: false });
+      patch(id, { stage: null, answer: '', cards: [], picks: [], found: 0, memories: [], suggestions: [], prompts: [], error: false, interrupted: false, intent: undefined, spendBaseline: undefined });
     } else {
       console.log('[ASK] adding turn', id);
       setTurns((prev) => [
         ...prev,
-        { id, query, stage: null, answer: '', cards: [], found: 0, memories: [], suggestions: [], prompts: [] },
+        { id, query, stage: null, answer: '', cards: [], picks: [], found: 0, memories: [], suggestions: [], prompts: [] },
       ]);
     }
     setInput('');
@@ -298,6 +310,9 @@ export const RecommendPage = () => {
             ),
           onPlan: (plan) => {
             if (plan.spend) patch(id, { spendBaseline: plan.spend as Record<string, number> });
+          },
+          onResult: (result) => {
+            if (result.picks) patch(id, { picks: result.picks as CardRewardPick[] });
           },
           signal: controller.signal,
         },
@@ -576,7 +591,16 @@ export const RecommendPage = () => {
               </div>
             )}
 
-            {empty ? (
+            {historyLoading ? (
+              <div className="flex-1 space-y-6 py-8">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="space-y-4">
+                    <div className="flex justify-end"><div className="h-10 w-48 animate-pulse rounded-xl bg-white/10" /></div>
+                    <div className="h-24 animate-pulse rounded-xl bg-white/5" />
+                  </div>
+                ))}
+              </div>
+            ) : empty ? (
               <EmptyState onPick={ask} />
             ) : (
               <div className="flex-1 space-y-8 py-8">
@@ -602,18 +626,23 @@ export const RecommendPage = () => {
                 e.preventDefault();
                 ask(input);
               }}
-              className="glass sticky bottom-4 mt-auto mb-4 rounded-2xl p-3"
+              className="glass sticky bottom-4 mt-auto mb-4 sm:mb-4 mb-[4.5rem] rounded-xl p-3"
             >
               <textarea
                 value={input}
-                onChange={(e) => setInput(e.target.value)}
+                onChange={(e) => {
+                  setInput(e.target.value);
+                  const el = e.target;
+                  el.style.height = 'auto';
+                  el.style.height = `${Math.min(el.scrollHeight, 160)}px`;
+                }}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault();
                     ask(input);
                   }
                 }}
-                rows={2}
+                rows={1}
                 placeholder={
                   busy
                     ? 'Type to interrupt and ask something else…'
@@ -622,30 +651,32 @@ export const RecommendPage = () => {
                       : 'Ask a follow-up…'
                 }
                 className="w-full resize-none bg-transparent p-2 text-sm outline-none placeholder:text-muted-foreground"
+                style={{ overflow: 'hidden' }}
               />
               <div className="flex items-center justify-between px-2 pb-1">
-                <span className="text-xs text-muted-foreground">
+                <span className="text-xs text-muted-foreground hidden sm:inline">
                   {busy ? 'Esc to stop · Enter to interrupt and ask' : 'Enter to send · Shift+Enter for newline'}
                 </span>
-                <div className="flex items-center gap-2">
-                  {busy && (
+                <div className="flex items-center gap-2 ml-auto">
+                  {busy ? (
                     <button
                       type="button"
                       onClick={stop}
-                      className="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground hover:border-white/20"
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-2 text-sm font-medium text-destructive transition-colors hover:bg-destructive/20"
                     >
                       <Square className="h-3.5 w-3.5 fill-current" />
                       Stop
                     </button>
+                  ) : (
+                    <button
+                      type="submit"
+                      disabled={!input.trim()}
+                      className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
+                    >
+                      <Send className="h-4 w-4" />
+                      Ask
+                    </button>
                   )}
-                  <button
-                    type="submit"
-                    disabled={!input.trim()}
-                    className="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
-                  >
-                    <Send className="h-4 w-4" />
-                    {busy ? 'Interrupt' : 'Ask'}
-                  </button>
                 </div>
               </div>
             </form>
@@ -657,6 +688,8 @@ export const RecommendPage = () => {
       {shareDialogOpen && activeConvId && (
         <ShareDialog
           conversationId={activeConvId}
+          conversationTitle={conversations.find((c) => c.id === activeConvId)?.title}
+          firstMessage={turns[0]?.query}
           onClose={() => setShareDialogOpen(false)}
           onShared={() => {
             refreshConversations();
@@ -687,7 +720,7 @@ export const RecommendPage = () => {
           onClick={() => setAddCardConfirm(null)}
         >
           <div
-            className="w-full max-w-sm rounded-2xl border border-border bg-card p-6 shadow-2xl"
+            className="w-full max-w-sm rounded-xl border border-border bg-card p-6 shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center gap-3 mb-4">
@@ -879,7 +912,7 @@ const Turn = ({
   addedCardIds: Set<string>;
   busy: boolean;
 }) => {
-  const isDone = turn.stage === 'done' || (turn.stage === null && turn.answer);
+  const isDone = turn.stage === 'done' || (turn.stage === null && !!turn.answer);
 
   return (
     <div className="space-y-4">
@@ -906,7 +939,7 @@ const Turn = ({
           </div>
         )}
 
-        {/* Retry button on error */}
+        {/* Retry button on error or interrupted */}
         {turn.error && turn.stage === 'done' && (
           <button
             onClick={onRetry}
@@ -917,57 +950,43 @@ const Turn = ({
             Retry
           </button>
         )}
-
-        {turn.cards.length > 0 && (
-          <div className="grid gap-4 sm:grid-cols-2">
-            {turn.cards.map((card) => (
-              <div key={card.id} className="flex flex-col">
-                <CardTile card={card} />
-                {isDone && !turn.error && (
-                  <div className="flex gap-2 mt-2">
-                    <button
-                      onClick={() => onEvaluate(card.id)}
-                      disabled={busy}
-                      className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg border border-primary/30 bg-primary/10 px-3 py-2 text-xs font-medium text-primary hover:bg-primary/20 transition-colors disabled:opacity-50"
-                    >
-                      <Sparkles className="h-3 w-3" />
-                      Is this worth it?
-                    </button>
-                    {addedCardIds.has(card.id) ? (
-                      <span className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg border border-green-500/30 bg-green-500/20 px-3 py-2 text-xs font-medium text-green-400">
-                        <Check className="h-3 w-3" />
-                        Added
-                      </span>
-                    ) : (
-                      <button
-                        onClick={() => onAddCard(card.id, card.name)}
-                        disabled={busy}
-                        className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg border border-green-500/30 bg-green-500/10 px-3 py-2 text-xs font-medium text-green-300 hover:bg-green-500/20 transition-colors disabled:opacity-50"
-                      >
-                        <CreditCard className="h-3 w-3" />
-                        I got this card
-                      </button>
-                    )}
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
+        {turn.interrupted && !turn.error && (
+          <button
+            onClick={onRetry}
+            disabled={busy}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/10 px-3 py-1.5 text-xs font-medium text-primary hover:bg-primary/20 transition-colors disabled:opacity-50"
+          >
+            <RefreshCw className="h-3 w-3" />
+            Retry
+          </button>
         )}
 
-        {turn.memories.length > 0 && (
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-xs text-muted-foreground">Noted about you:</span>
-            {turn.memories.map((m) => (
-              <span
-                key={m}
-                className="rounded-full border border-primary/30 bg-primary/10 px-2.5 py-1 text-xs text-foreground"
-              >
-                {m}
-              </span>
-            ))}
-          </div>
+        {/* Intent-specific result rendering */}
+        {turn.intent === 'evaluate' && turn.picks.length > 0 && (
+          <EvaluateResult picks={turn.picks} spendBaseline={turn.spendBaseline} />
         )}
+
+        {(turn.intent === 'rewards' || turn.intent === 'compare') && turn.picks.length > 0 && (
+          <PicksResult picks={turn.picks} />
+        )}
+
+        {(turn.intent === 'new_card' || !turn.intent) && turn.cards.length > 0 && (
+          <RecommendResult
+            cards={turn.cards}
+            done={isDone && !turn.error}
+            busy={busy}
+            addedCardIds={addedCardIds}
+            onEvaluate={onEvaluate}
+            onAddCard={onAddCard}
+          />
+        )}
+
+        {/* Fallback: picks without a known intent */}
+        {!turn.intent && turn.picks.length > 0 && (
+          <PicksResult picks={turn.picks} />
+        )}
+
+        <MemoriesNote memories={turn.memories} />
 
         {turn.suggestions.length > 0 && (
           <div className="flex flex-wrap gap-2 pt-1">
@@ -991,10 +1010,14 @@ const Turn = ({
 
 const ShareDialog = ({
   conversationId,
+  conversationTitle,
+  firstMessage,
   onClose,
   onShared,
 }: {
   conversationId: string;
+  conversationTitle?: string | null;
+  firstMessage?: string;
   onClose: () => void;
   onShared: () => void;
 }) => {
@@ -1032,15 +1055,30 @@ const ShareDialog = ({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={onClose}>
       <div
-        className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-2xl"
+        className="w-full max-w-md rounded-xl border border-border bg-card p-6 shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between mb-5">
+        <div className="flex items-center justify-between mb-4">
           <h2 className="font-display text-lg font-semibold">Share conversation</h2>
           <button onClick={onClose} className="rounded-lg p-1.5 text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors">
             <X className="h-4 w-4" />
           </button>
         </div>
+
+        {/* Conversation preview */}
+        {(conversationTitle || firstMessage) && (
+          <div className="mb-5 rounded-xl border border-border bg-secondary/50 p-3">
+            <div className="flex items-center gap-2 mb-1">
+              <MessageSquare className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+              <span className="text-sm font-medium truncate">{conversationTitle || 'Untitled'}</span>
+            </div>
+            {firstMessage && (
+              <p className="text-xs text-muted-foreground line-clamp-2 pl-[22px]">
+                &ldquo;{firstMessage}&rdquo;
+              </p>
+            )}
+          </div>
+        )}
 
         {/* Share by email */}
         <div className="space-y-3">
@@ -1137,10 +1175,14 @@ const StageLine = ({ turn }: { turn: ChatTurn }) => {
         };
       case 'generating':
         return { icon: FileText, text: 'Drafting a recommendation…', spin: true };
+      case null:
+        if (!turn.answer && !turn.error && !turn.interrupted)
+          return { icon: Sparkles, text: 'Thinking…', spin: true };
+        return null;
       default:
         return null;
     }
-  }, [turn.stage, turn.found]);
+  }, [turn.stage, turn.found, turn.answer, turn.error, turn.interrupted]);
 
   if (!label || (turn.stage === 'generating' && turn.answer)) return null;
 

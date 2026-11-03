@@ -25,14 +25,16 @@ class AgentState(TypedDict, total=False):
     query: Annotated[str, _last_value]
     history: Annotated[list[dict[str, str]], _last_value]
 
-    # --- router outputs ---
-    # Which agent branch the router picked: "new_card" | "evaluate" | "rewards".
-    intent: str
+    # --- router outputs (annotated so parallel branches can pass them through) ---
+    # Which agent branch the router picked: "chat" | "new_card" | "evaluate" | "rewards".
+    intent: Annotated[str, _last_value]
     # A card name/phrase to evaluate, when the message named one (evaluate only).
-    candidate_card_hint: str | None
+    candidate_card_hint: Annotated[str | None, _last_value]
+    # Two or more card names to compare side-by-side (compare only).
+    compare_card_hints: Annotated[list[str] | None, _last_value]
     # Whether the message carried user-led profile info worth extracting; when
     # true the profiling subgraph runs *in parallel* with the chosen agent.
-    run_profiling: bool
+    run_profiling: Annotated[bool, _last_value]
 
     # --- profiling subgraph outputs ---
     new_memories: list[str]  # structured profile fields updated this turn

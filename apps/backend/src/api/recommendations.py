@@ -112,7 +112,14 @@ async def history(
     messages = await load_history(str(user_id))
     return ChatHistoryResponse(
         messages=[
-            ChatHistoryMessage(role=m["role"], content=m["content"], cards=m.get("cards", []))
+            ChatHistoryMessage(
+                role=m["role"],
+                content=m["content"],
+                cards=m.get("cards", []),
+                picks=m.get("picks", []),
+                intent=m.get("intent"),
+                spend_baseline=m.get("spend_baseline"),
+            )
             for m in messages
         ]
     )
@@ -270,7 +277,14 @@ async def conversation_history(
     messages = await load_history(str(conversation_id))
     return ChatHistoryResponse(
         messages=[
-            ChatHistoryMessage(role=m["role"], content=m["content"], cards=m.get("cards", []))
+            ChatHistoryMessage(
+                role=m["role"],
+                content=m["content"],
+                cards=m.get("cards", []),
+                picks=m.get("picks", []),
+                intent=m.get("intent"),
+                spend_baseline=m.get("spend_baseline"),
+            )
             for m in messages
         ]
     )

@@ -8,7 +8,8 @@ import {Input} from "@/components/ui/input";
 import {Card} from "@/components/ui/card";
 import {CardTile} from "@/components/CardTile";
 import {Navbar} from "@/components/Navbar";
-import {Sparkles} from "lucide-react";
+import {Sparkles, CreditCard} from "lucide-react";
+import profileService from "@/services/profileService";
 
 /* ------------------------------------------------------------------ */
 /*  SVG icons                                                          */
@@ -421,6 +422,12 @@ export const ForYouPage = () => {
     queryFn: () => cardService.getAllCards(),
   });
 
+  const {data: profile} = useQuery({
+    queryKey: ["profileDetails"],
+    queryFn: () => profileService.getDetails(),
+  });
+  const savedCardCount = profile?.cards.filter((c: { card_id: string | null }) => c.card_id).length ?? 0;
+
   const ask = useCallback(
     (q: string) => {
       const query = q.trim();
@@ -432,10 +439,10 @@ export const ForYouPage = () => {
   const firstName = user?.first_name ?? "there";
 
   return (
-    <div className="bg-background min-h-screen text-foreground">
+    <div className="bg-glow min-h-screen text-foreground">
       <Navbar />
 
-      <div className="max-w-[1400px] mx-auto px-[0.8rem] pb-12">
+      <div className="max-w-[1400px] mx-auto px-[0.8rem] pb-16 sm:pb-12">
         {/* ---- GREETING ---- */}
         <section className="mt-6 mb-5 mx-0.5">
           <h1 className="font-display font-bold text-[clamp(26px,4vw,38px)] leading-[1.04] tracking-tight">
@@ -445,6 +452,25 @@ export const ForYouPage = () => {
             Your money companion — the right card for every purchase, and a sharper strategy when you plan together.
           </p>
         </section>
+
+        {/* Profile nudge when no cards saved */}
+        {profile && savedCardCount === 0 && (
+          <div className="mb-4 mx-0.5 flex items-center gap-3 rounded-xl border border-primary/30 bg-primary/10 px-4 py-3">
+            <CreditCard className="h-5 w-5 text-primary shrink-0" />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium">Add your cards for personalized picks</p>
+              <p className="text-xs text-muted-foreground">
+                Tell us what's in your wallet so recommendations and the "which card?" tool work for you.
+              </p>
+            </div>
+            <Link
+              to="/profile"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:opacity-90 transition-opacity shrink-0"
+            >
+              Add cards
+            </Link>
+          </div>
+        )}
 
         {/* ---- ROW 1 ---- */}
         <div className="grid grid-cols-1 lg:grid-cols-[1.55fr_1fr] gap-4 items-stretch">
@@ -521,7 +547,7 @@ const AdvisorHero = ({
               if (e.key === "Enter") onAsk(value);
             }}
             placeholder="e.g. I travel a few times a year and eat out a lot"
-            aria-label="Ask Tandem"
+            aria-label="Ask CardPilot"
             className="border-none bg-transparent outline-none text-foreground text-[14.5px] w-full min-w-0 py-3 placeholder:text-muted-foreground"
           />
         </div>
@@ -946,8 +972,8 @@ const PlansSection = ({onNavigate}: {onNavigate: (path: string) => void}) => {
         </button>
       </div>
       <p className="text-muted-foreground text-[13.5px] mb-3.5 mt-0 shrink-0">
-        Plan with a partner, roommate or friend — Tandem advises across both your
-        cards.
+        Plan with a partner, roommate or friend — CardPilot advises across both
+        your cards.
       </p>
       {isLoading ? (
         <div className="flex flex-col gap-2.5 flex-1">

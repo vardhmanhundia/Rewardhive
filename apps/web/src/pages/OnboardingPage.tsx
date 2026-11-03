@@ -32,7 +32,7 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 /*  SVG helpers                                                        */
 /* ------------------------------------------------------------------ */
 
-const TandemLogo = () => (
+const CardPilotLogo = () => (
   <svg viewBox="0 0 24 24" fill="none">
     <circle cx="8" cy="12" r="4.4" stroke="currentColor" strokeWidth="1.7" />
     <circle cx="16" cy="12" r="4.4" stroke="currentColor" strokeWidth="1.7" />
@@ -252,7 +252,7 @@ export const OnboardingPage = () => {
   const [theme, setTheme] = useState<'light' | 'dark' | 'auto'>('auto');
 
   const [chatMessages, setChatMessages] = useState<ChatMsg[]>([
-    { role: 'assistant', content: "Hi! I'm Tandem. You can tell me about yourself in your own words and I'll fill in the profile for you. Or just use the form — either works!" },
+    { role: 'assistant', content: "Hi! I'm CardPilot. You can tell me about yourself in your own words and I'll fill in the profile for you. Or just use the form — either works!" },
   ]);
   const [chatInput, setChatInput] = useState('');
   const [chatLoading, setChatLoading] = useState(false);
@@ -382,9 +382,9 @@ export const OnboardingPage = () => {
         <div className="max-w-[1400px] mx-auto flex items-center justify-between h-14">
           <Link to="/" className="flex items-center gap-2.5 font-display font-bold text-[19px] tracking-tight no-underline text-foreground">
             <span className="w-[34px] h-[34px] rounded-[10px] shrink-0 grid place-items-center bg-gradient-to-br from-primary to-primary/80 text-primary-foreground shadow-md shadow-primary/30">
-              <TandemLogo />
+              <CardPilotLogo />
             </span>
-            Tandem
+            CardPilot
           </Link>
           <div className="flex items-center gap-2.5">
             <button
@@ -488,7 +488,7 @@ export const OnboardingPage = () => {
           <Card className="flex flex-col overflow-hidden h-[60vh] lg:h-full">
             <CardHeader className="shrink-0 flex flex-row items-center gap-2 px-4 py-3.5 border-b border-border">
               <span className="w-[18px] h-[18px] text-primary"><ChatSvg /></span>
-              <span className="font-display font-semibold text-sm">Chat with Tandem</span>
+              <span className="font-display font-semibold text-sm">Chat with CardPilot</span>
             </CardHeader>
             <div className="flex-1 min-h-0 overflow-y-auto p-3 px-4 flex flex-col gap-2.5">
               {chatMessages.map((m, i) => (

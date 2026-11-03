@@ -63,7 +63,7 @@ export const CardsPage = () => {
   return (
     <div className="min-h-screen bg-glow text-foreground">
       <Navbar />
-      <main className="max-w-7xl mx-auto px-4 py-10">
+      <main className="max-w-7xl mx-auto px-4 py-10 pb-20 sm:pb-10">
         <div className="mb-8">
           <h1 className="font-display text-3xl font-bold tracking-tight">Available cards</h1>
           <p className="text-muted-foreground mt-1">

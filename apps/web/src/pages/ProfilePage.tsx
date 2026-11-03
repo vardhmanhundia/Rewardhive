@@ -5,7 +5,7 @@
  */
 import {useEffect, useMemo, useRef, useState} from 'react';
 import {useQuery, useMutation, useQueryClient} from '@tanstack/react-query';
-import {Plus, X, Save, RotateCcw, CreditCard as CardIcon} from 'lucide-react';
+import {Plus, X, Save, RotateCcw, CreditCard as CardIcon, ChevronDown} from 'lucide-react';
 import {useAuth} from '@/context/AuthContext';
 import {Navbar} from '@/components/Navbar';
 import {CreditCardVisual} from '@/components/CreditCardVisual';
@@ -113,10 +113,10 @@ export const ProfilePage = () => {
 
   if (authLoading || isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100">
+      <div className="min-h-screen flex items-center justify-center bg-glow">
         <Card className="w-full max-w-md">
           <CardContent className="pt-6">
-            <p className="text-center text-gray-600">No user data available</p>
+            <p className="text-center text-muted-foreground">No user data available</p>
           </CardContent>
         </Card>
       </div>
@@ -134,7 +134,7 @@ export const ProfilePage = () => {
   return (
     <div className="min-h-screen bg-glow text-foreground">
       <Navbar />
-      <main className="max-w-4xl mx-auto px-4 py-10 space-y-6">
+      <main className="max-w-4xl mx-auto px-4 py-10 pb-20 sm:pb-10 space-y-6">
         <div>
           <h1 className="font-display text-3xl font-bold tracking-tight">
             Your profile
@@ -387,19 +387,31 @@ const Section = ({
   title,
   description,
   children,
+  defaultOpen = true,
 }: {
   title: string;
   description?: string;
   children: React.ReactNode;
-}) => (
-  <section className="glass rounded-2xl p-5">
-    <div className="mb-4">
-      <h2 className="font-display text-lg font-semibold">{title}</h2>
-      {description && <p className="text-sm text-muted-foreground">{description}</p>}
-    </div>
-    {children}
-  </section>
-);
+  defaultOpen?: boolean;
+}) => {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <section className="glass rounded-xl overflow-hidden">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="flex w-full items-center justify-between gap-3 p-5 text-left transition-colors hover:bg-white/[0.02]"
+      >
+        <div>
+          <h2 className="font-display text-lg font-semibold">{title}</h2>
+          {description && <p className="text-sm text-muted-foreground">{description}</p>}
+        </div>
+        <ChevronDown className={`h-5 w-5 shrink-0 text-muted-foreground transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && <div className="px-5 pb-5">{children}</div>}
+    </section>
+  );
+};
 
 const Field = ({label, children}: {label: string; children: React.ReactNode}) => (
   <div>

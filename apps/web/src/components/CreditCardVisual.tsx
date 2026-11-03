@@ -26,18 +26,18 @@ interface Props {
 
 export const CreditCardVisual = ({ card, className = '' }: Props) => (
   <div
-    className={`relative aspect-[1.586] w-full rounded-2xl p-5 text-white overflow-hidden ${className}`}
+    className={`relative w-full rounded-2xl p-5 text-white overflow-hidden flex flex-col ${className}`}
     style={{
       backgroundImage: gradientFor(card.id),
       boxShadow: '0 20px 45px -20px hsl(252 90% 50% / 0.45), inset 0 1px 0 hsl(0 0% 100% / 0.18)',
     }}
   >
-    <div className="flex justify-between items-start">
-      <span className="font-display text-base font-semibold leading-tight">{card.issuer} - {card.name}</span>
+    <div className="shrink-0">
+      <span className="font-display text-base font-semibold leading-snug line-clamp-3">{card.issuer} - {card.name}</span>
     </div>
-    <div className="card-chip mt-6 h-8 w-11 rounded-md" />
-    <div className="mt-4 font-mono text-lg tracking-[0.18em]">•••• •••• •••• ••••</div>
-    <div className="mt-4 flex justify-between items-end text-xs">
+    <div className="card-chip mt-4 h-8 w-11 rounded-md shrink-0" />
+    <div className="mt-3 font-mono text-lg tracking-[0.18em] shrink-0">•••• •••• •••• ••••</div>
+    <div className="mt-auto pt-3 flex justify-between items-end text-xs shrink-0">
       <div>
         <div className="text-[0.55rem] uppercase opacity-60">Issuer</div>
         <div className="font-medium">{card.issuer}</div>

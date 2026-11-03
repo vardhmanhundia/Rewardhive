@@ -181,9 +181,15 @@ async def load_history(thread_id: str) -> list[dict[str, Any]]:
                 "role": _message_role(m),
                 "content": _chunk_text(m.content),
             }
-            cards = getattr(m, "additional_kwargs", {}).get("cards")
-            if cards:
-                entry["cards"] = cards
+            extra = getattr(m, "additional_kwargs", {})
+            if extra.get("cards"):
+                entry["cards"] = extra["cards"]
+            if extra.get("picks"):
+                entry["picks"] = extra["picks"]
+            if extra.get("intent"):
+                entry["intent"] = extra["intent"]
+            if extra.get("spend_baseline"):
+                entry["spend_baseline"] = extra["spend_baseline"]
             messages.append(entry)
         return messages
     except Exception:  # noqa: BLE001 — persistence is best-effort
@@ -195,23 +201,36 @@ async def persist_turn(
     user_message: str,
     ai_message: str,
     cards: list[dict[str, Any]] | None = None,
+    *,
+    picks: list[dict[str, Any]] | None = None,
+    intent: str | None = None,
+    spend_baseline: dict[str, float] | None = None,
 ) -> None:
     """Append one (user, assistant) turn to a persisted conversation.
 
     ``thread_id`` identifies the conversation (a conversation id for the recommend
-    chat; a user id for the single-thread profiling chat). When ``cards`` is given
-    (the recommended cards for this turn), they ride along on the assistant
-    message so history can be rebuilt with the same layout. No-op when persistence
-    is disabled. Best-effort: a storage error is swallowed so it never breaks the
-    chat response.
+    chat; a user id for the single-thread profiling chat). Structured data
+    (cards, picks, intent, spend_baseline) rides along on the assistant message's
+    ``additional_kwargs`` so a reloaded conversation shows the same visuals it did
+    live. No-op when persistence is disabled. Best-effort: a storage error is
+    swallowed so it never breaks the chat response.
     """
     if _persist_graph is None:
         return
     try:
         config: RunnableConfig = {"configurable": {"thread_id": thread_id}}
+        kwargs: dict[str, Any] = {}
+        if cards:
+            kwargs["cards"] = cards
+        if picks:
+            kwargs["picks"] = picks
+        if intent:
+            kwargs["intent"] = intent
+        if spend_baseline:
+            kwargs["spend_baseline"] = spend_baseline
         ai = AIMessage(
             content=ai_message,
-            additional_kwargs={"cards": cards} if cards else {},
+            additional_kwargs=kwargs,
         )
         await _persist_graph.aupdate_state(
             config,

@@ -1,8 +1,9 @@
 """Router node: classify the user's message and pick the agent branch.
 
 The parent graph (:mod:`src.agents.graph`) runs this first. It decides which of
-the three specialist agents handles the turn — ``new_card`` (recommendation),
-``evaluate`` (card advisor), or ``rewards`` (which-card-to-use) — and whether the
+the specialist agents handles the turn — ``new_card`` (recommendation),
+``evaluate`` (card advisor), ``compare`` (side-by-side comparison), or
+``rewards`` (which-card-to-use) — and whether the
 message also carried user-led profile info, in which case the profiling subgraph
 runs *in parallel* with the chosen agent.
 
@@ -26,7 +27,7 @@ from src.agents.state import AgentState
 from src.agents.user_profiling.helpers import history_messages
 from src.config import settings
 
-Intent = Literal["new_card", "evaluate", "rewards"]
+Intent = Literal["chat", "new_card", "evaluate", "rewards", "compare"]
 
 
 class RouteDecision(BaseModel):
@@ -35,6 +36,8 @@ class RouteDecision(BaseModel):
     intent: Intent = "new_card"
     # The card the user named to evaluate (evaluate only), else None.
     candidate_card_hint: str | None = None
+    # Two or more card names the user wants compared (compare only), else None.
+    compare_card_hints: list[str] | None = None
     # Whether the message volunteers lasting profile facts worth extracting.
     has_profile_info: bool = False
 
@@ -66,5 +69,6 @@ async def router_node(state: AgentState, config: RunnableConfig) -> AgentState:
     return {
         "intent": decision.intent,
         "candidate_card_hint": decision.candidate_card_hint,
+        "compare_card_hints": decision.compare_card_hints,
         "run_profiling": decision.has_profile_info,
     }

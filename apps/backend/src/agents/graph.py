@@ -4,7 +4,7 @@ The parent wires several compiled subgraphs over a single shared state
 (:class:`~src.agents.state.AgentState`) — no per-subgraph state or transform
 functions:
 
-    START -> router -> {new_card | evaluate | rewards} (+ profiling) -> END
+    START -> router -> {chat | new_card | evaluate | compare | rewards} (+ profiling) -> END
 
 - ``router`` (``src.agents.router``) classifies the message and picks exactly one
   specialist branch, and decides whether the message also carried user-led
@@ -13,6 +13,8 @@ functions:
   with the profile and generates a grounded recommendation.
 - ``evaluate`` (``src.agents.evaluate``) runs the Card Evaluator on a chat-sourced
   wallet context ("is this card worth it?").
+- ``compare`` (``src.agents.compare``) compares two or more named cards
+  side-by-side using the optimizer engine.
 - ``rewards`` (``src.agents.rewards``) ranks the user's cards for a purchase
   ("which card should I use?").
 - ``profiling`` (``src.agents.user_profiling``) runs the structured remember
@@ -37,7 +39,9 @@ from langchain_core.runnables import RunnableConfig
 from langgraph.graph import END, START, StateGraph
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.agents.chat_node import chat_node
 from src.agents.commons.tracing import traceable
+from src.agents.compare.graph import build_compare_subgraph
 from src.agents.evaluate.graph import build_evaluate_subgraph
 from src.agents.recommendation.graph import build_recommendation_subgraph
 from src.agents.rewards.node import build_rewards_subgraph
@@ -48,7 +52,7 @@ from src.db.models import CardProduct
 from src.services.context_manager import prepare_context
 
 # The specialist branches the router can pick; intent strings match node names.
-_AGENT_NODES = ("new_card", "evaluate", "rewards")
+_AGENT_NODES = ("chat", "new_card", "evaluate", "compare", "rewards")
 
 
 def _fanout(state: AgentState) -> list[str]:
@@ -69,8 +73,10 @@ def _fanout(state: AgentState) -> list[str]:
 def _build_graph() -> Any:
     builder = StateGraph(AgentState)
     builder.add_node("router", router_node)
+    builder.add_node("chat", chat_node)
     builder.add_node("new_card", build_recommendation_subgraph())
     builder.add_node("evaluate", build_evaluate_subgraph())
+    builder.add_node("compare", build_compare_subgraph())
     builder.add_node("rewards", build_rewards_subgraph())
     builder.add_node("profiling", build_profiling_subgraph())
     builder.add_edge(START, "router")

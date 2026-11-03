@@ -150,12 +150,15 @@ class ProfilingTurnResponse(BaseModel):
 
 class ChatHistoryMessage(BaseModel):
     """One persisted turn returned by the history endpoint. Assistant turns carry
-    the cards recommended then, so a reloaded conversation shows the same text +
-    card layout it did live; user turns and plain chat replies have none."""
+    structured data (cards, picks, intent) so a reloaded conversation shows
+    the same visuals it did live; user turns have none."""
 
     role: str = Field(..., pattern="^(user|assistant)$")
     content: str
     cards: list[CardProductSchema] = Field(default_factory=list)
+    picks: list[dict] = Field(default_factory=list)
+    intent: str | None = None
+    spend_baseline: dict[str, float] | None = None
 
 
 class ChatHistoryResponse(BaseModel):

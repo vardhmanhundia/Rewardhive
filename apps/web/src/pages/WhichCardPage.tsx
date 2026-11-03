@@ -14,8 +14,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { Send, Wallet } from 'lucide-react';
+import { Send, Sparkles, Wallet } from 'lucide-react';
 import { Navbar } from '@/components/Navbar';
+import Markdown from '@/components/Markdown';
 import cardService, { type CardRewardPick } from '@/services/cardService';
 import profileService from '@/services/profileService';
 
@@ -112,7 +113,7 @@ export const WhichCardPage = () => {
             e.preventDefault();
             ask(input);
           }}
-          className="glass sticky bottom-4 mt-auto mb-4 rounded-2xl p-3"
+          className="glass sticky bottom-4 mt-auto mb-4 sm:mb-4 mb-[4.5rem] rounded-xl p-3"
         >
           <div className="flex items-center gap-2 px-1 pb-2">
             <label className="text-xs text-muted-foreground">Monthly spend here (optional)</label>
@@ -124,29 +125,35 @@ export const WhichCardPage = () => {
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
                 placeholder="200"
-                className="h-8 w-24 rounded-md border border-input bg-background/60 pl-5 pr-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+                className="h-8 w-24 rounded-lg border border-input bg-background/60 pl-5 pr-2 text-sm outline-none focus:ring-2 focus:ring-ring"
               />
             </div>
           </div>
           <textarea
             value={input}
-            onChange={(e) => setInput(e.target.value)}
+            onChange={(e) => {
+              setInput(e.target.value);
+              const el = e.target;
+              el.style.height = 'auto';
+              el.style.height = `${Math.min(el.scrollHeight, 160)}px`;
+            }}
             onKeyDown={(e) => {
               if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
                 ask(input);
               }
             }}
-            rows={2}
+            rows={1}
             placeholder="Which card should I use for…?"
             className="w-full resize-none bg-transparent p-2 text-sm outline-none placeholder:text-muted-foreground"
+            style={{ overflow: 'hidden' }}
           />
           <div className="flex items-center justify-between px-2 pb-1">
-            <span className="text-xs text-muted-foreground">Enter to send · Shift+Enter for newline</span>
+            <span className="text-xs text-muted-foreground hidden sm:inline">Enter to send · Shift+Enter for newline</span>
             <button
               type="submit"
               disabled={!input.trim() || busy}
-              className="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50 ml-auto"
             >
               <Send className="h-4 w-4" />
               {busy ? 'Thinking…' : 'Ask'}
@@ -231,12 +238,18 @@ const TurnView = ({ turn }: { turn: Turn }) => (
 
       {(turn.answer || turn.busy) && (
         <div className="glass rounded-2xl rounded-tl-sm p-4">
-          <p className="whitespace-pre-wrap leading-relaxed">
-            {turn.answer}
-            {turn.busy && (
+          {!turn.answer && turn.busy && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Sparkles className="h-4 w-4 text-primary animate-pulse" />
+              Thinking…
+            </div>
+          )}
+          <div className="leading-relaxed">
+            <Markdown>{turn.answer}</Markdown>
+            {turn.busy && turn.answer && (
               <span className="ml-0.5 inline-block h-4 w-1.5 animate-pulse bg-primary align-middle" />
             )}
-          </p>
+          </div>
         </div>
       )}
     </div>

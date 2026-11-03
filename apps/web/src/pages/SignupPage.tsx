@@ -103,7 +103,7 @@ export const SignupPage = () => {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-glow px-4 py-8">
       <Link to="/" className="mb-6 font-display text-xl font-bold tracking-tight">
-        Card <span className="text-gradient">Agent</span>
+        Card<span className="text-gradient">Pilot</span>
       </Link>
       <Card className="w-full max-w-lg glass shadow-2xl shadow-black/40">
         <CardHeader className="space-y-2">
@@ -229,10 +229,10 @@ export const SignupPage = () => {
           <div className="mt-6">
             <div className="relative">
               <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-gray-300"></div>
+                <div className="w-full border-t border-border"></div>
               </div>
               <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-white text-gray-500">Or</span>
+                <span className="px-2 bg-card text-muted-foreground">Or</span>
               </div>
             </div>
 

@@ -11,6 +11,7 @@ import { useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { Sparkles, CreditCard } from 'lucide-react';
 import { Navbar } from '@/components/Navbar';
+import Markdown from '@/components/Markdown';
 import cardService, {
   type CardProduct,
   type OwnedCardInput,
@@ -90,7 +91,7 @@ export const EvaluatePage = () => {
   return (
     <div className="min-h-screen bg-glow text-foreground">
       <Navbar />
-      <main className="mx-auto w-full max-w-5xl px-4 py-10 sm:py-12">
+      <main className="mx-auto w-full max-w-5xl px-4 py-10 sm:py-12 pb-20 sm:pb-12">
         <header className="mb-8">
           <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-medium text-muted-foreground">
             <Sparkles className="h-3.5 w-3.5 text-primary" />
@@ -470,19 +471,25 @@ const AdvisorFollowup = ({
           </button>
         ))}
       </div>
-      {(note || answer) && (
+      {(busy || note || answer) && (
         <div className="mt-4 rounded-xl border border-white/10 bg-white/[0.03] p-4">
           {note && (
             <p className="mb-2 inline-block rounded-full border border-primary/30 bg-primary/10 px-2.5 py-1 text-xs text-foreground">
               {note}
             </p>
           )}
-          <p className="whitespace-pre-wrap text-sm leading-relaxed">
-            {answer}
-            {busy && (
+          {!note && !answer && busy && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Sparkles className="h-4 w-4 text-primary animate-pulse" />
+              Thinking…
+            </div>
+          )}
+          <div className="text-sm leading-relaxed">
+            <Markdown>{answer}</Markdown>
+            {busy && answer && (
               <span className="ml-0.5 inline-block h-4 w-1.5 animate-pulse bg-primary align-middle" />
             )}
-          </p>
+          </div>
         </div>
       )}
     </div>

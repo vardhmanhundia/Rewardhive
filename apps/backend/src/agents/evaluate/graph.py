@@ -28,7 +28,9 @@ from src.agents.advisor import stream_advisor
 from src.agents.commons.card_tools import offer_add, resolve_card_id
 from src.agents.commons.spend import derive_spend_baseline_for_user
 from src.agents.state import AgentState
+from src.agents.user_profiling.graph import persist_turn
 from src.agents.user_profiling.helpers import config_values
+from src.services.conversation_service import ConversationService
 from src.services.user_service import UserService
 
 
@@ -76,9 +78,18 @@ async def evaluate_node(state: AgentState, config: RunnableConfig) -> AgentState
         prompt = offer_add(writer, [worth_card_id])
         if prompt:
             prompts.append(prompt)
+    answer = "".join(parts)
+    conversation_id = config.get("configurable", {}).get("conversation_id")
+    if conversation_id is not None:
+        await persist_turn(
+            str(conversation_id), query, answer,
+            intent="evaluate", spend_baseline=spend,
+        )
+        await ConversationService.touch(session, conversation_id, first_question=query)
+
     writer({"kind": "done"})
 
-    return {"answer": "".join(parts), "spend_baseline": spend, "prompts": prompts}
+    return {"answer": answer, "spend_baseline": spend, "prompts": prompts}
 
 
 def build_evaluate_subgraph() -> Any:

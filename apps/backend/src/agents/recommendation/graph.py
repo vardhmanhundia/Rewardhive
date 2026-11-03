@@ -228,7 +228,7 @@ async def select_node(state: AgentState, config: RunnableConfig) -> AgentState:
     conversation_id = config.get("configurable", {}).get("conversation_id")
     if conversation_id is not None:
         query = state.get("query", "")
-        await persist_turn(str(conversation_id), query, state.get("answer", ""), cards=serialized)
+        await persist_turn(str(conversation_id), query, state.get("answer", ""), cards=serialized, intent="new_card")
         await ConversationService.touch(session, conversation_id, first_question=query)
     # Offer the two frontend-driven follow-ups on the recommended cards: evaluate
     # a chosen card (runs the Card Evaluator), or add one to the wallet.

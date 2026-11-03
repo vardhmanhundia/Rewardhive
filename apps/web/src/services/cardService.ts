@@ -52,6 +52,9 @@ export interface RecMessage {
   role: 'user' | 'assistant';
   content: string;
   cards?: CardProduct[];
+  picks?: CardRewardPick[];
+  intent?: string;
+  spend_baseline?: Record<string, number>;
 }
 
 /** A past recommend-chat conversation (session) — one tab under "pick up where
@@ -225,10 +228,13 @@ class CardService {
     });
     if (!res.ok) return [];
     const data = await res.json();
-    return (data.messages ?? []).map((m: RecMessage & { cards?: CardProduct[] }) => ({
+    return (data.messages ?? []).map((m: RecMessage) => ({
       role: m.role,
       content: m.content,
       cards: m.cards ?? [],
+      picks: m.picks ?? [],
+      intent: m.intent,
+      spend_baseline: m.spend_baseline,
     })) as RecMessage[];
   }
 
@@ -252,10 +258,13 @@ class CardService {
     });
     if (!res.ok) return [];
     const data = await res.json();
-    return (data.messages ?? []).map((m: RecMessage & { cards?: CardProduct[] }) => ({
+    return (data.messages ?? []).map((m: RecMessage) => ({
       role: m.role,
       content: m.content,
       cards: m.cards ?? [],
+      picks: m.picks ?? [],
+      intent: m.intent,
+      spend_baseline: m.spend_baseline,
     })) as RecMessage[];
   }
 

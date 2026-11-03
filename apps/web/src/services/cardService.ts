@@ -18,6 +18,12 @@ function authHeaders(): Record<string, string> {
 }
 const USE_MOCK = import.meta.env.VITE_USE_MOCK_CARDS !== 'false';
 
+if (USE_MOCK && import.meta.env.DEV) {
+  console.warn(
+    '[cardService] Using local mock catalog. Set VITE_USE_MOCK_CARDS=false to call the API.',
+  );
+}
+
 export interface CardReward {
   category: string;
   rate: string;
@@ -477,7 +483,7 @@ class CardService {
     let newMemories: string[] = [];
     let suggestions: string[] = [];
     let intent: string | undefined;
-    let prompts: FollowUpPrompt[] = [];
+    const prompts: FollowUpPrompt[] = [];
     let spendBaseline: Record<string, number> | undefined;
 
     for (;;) {

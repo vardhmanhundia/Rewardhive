@@ -843,7 +843,7 @@ const CardsEditor = ({
   catalog: CardProduct[];
   onChange: (cards: SavedCard[]) => void;
 }) => {
-  const category = 'all';
+  const category: string = 'all';
   const [picked, setPicked] = useState('');
   const [customName, setCustomName] = useState('');
 

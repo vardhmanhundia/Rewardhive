@@ -156,7 +156,6 @@ export const RecommendPage = () => {
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [busy]);
 
   // Load the conversation list from the backend.
@@ -190,7 +189,6 @@ export const RecommendPage = () => {
     if (handoffQuery.current || activeTurnId.current) return;
     convId.current = urlConversationId;
     loadConversation(urlConversationId);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // When viewing a conversation, fetch share info for the "Add to my chats" banner.
@@ -218,7 +216,6 @@ export const RecommendPage = () => {
     navigate(location.pathname, { replace: true, state: null });
     ask(query);
     return () => { didInit.current = false; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const patch = (id: string, update: Partial<ChatTurn>) =>
@@ -333,6 +330,8 @@ export const RecommendPage = () => {
   // "Did you buy it?" flow state.
   const [addCardConfirm, setAddCardConfirm] = useState<{ cardId: string; cardName: string } | null>(null);
   const [addingCard, setAddingCard] = useState(false);
+  const [addedToast, setAddedToast] = useState<string | null>(null);
+  const [addedCardIds, setAddedCardIds] = useState<Set<string>>(new Set());
 
   const handleAddCard = (cardId: string, cardName: string) => {
     setAddCardConfirm({ cardId, cardName });
@@ -343,7 +342,11 @@ export const RecommendPage = () => {
     setAddingCard(true);
     try {
       await profileService.addCard({ card_id: addCardConfirm.cardId, category: 'everyday' });
+      const { cardId, cardName } = addCardConfirm;
+      setAddedCardIds((prev) => new Set(prev).add(cardId));
       setAddCardConfirm(null);
+      setAddedToast(cardName);
+      setTimeout(() => setAddedToast(null), 3000);
     } catch {
       // best effort — the modal stays so the user can retry
     } finally {
@@ -585,6 +588,7 @@ export const RecommendPage = () => {
                     onRetry={() => handleRetry(turn)}
                     onEvaluate={handleEvaluate}
                     onAddCard={handleAddCard}
+                    addedCardIds={addedCardIds}
                     busy={busy}
                   />
                 ))}
@@ -659,6 +663,21 @@ export const RecommendPage = () => {
             if (activeConvId && !sharedIds.has(activeConvId)) toggleShare(activeConvId);
           }}
         />
+      )}
+
+      {/* "Card added" toast */}
+      {addedToast && (
+        <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 animate-[toast-up_0.3s_ease-out]">
+          <div className="flex items-center gap-2.5 rounded-xl border border-green-500/30 bg-card px-4 py-3 shadow-2xl">
+            <div className="flex h-7 w-7 items-center justify-center rounded-full bg-green-500/15">
+              <Check className="h-4 w-4 text-green-400" />
+            </div>
+            <div>
+              <p className="text-sm font-medium">{addedToast} added to your wallet</p>
+              <p className="text-xs text-muted-foreground">Future recommendations will factor it in</p>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* "Did you buy it?" confirmation dialog */}
@@ -849,6 +868,7 @@ const Turn = ({
   onRetry,
   onEvaluate,
   onAddCard,
+  addedCardIds,
   busy,
 }: {
   turn: ChatTurn;
@@ -856,6 +876,7 @@ const Turn = ({
   onRetry: () => void;
   onEvaluate: (cardId: string) => void;
   onAddCard: (cardId: string, cardName: string) => void;
+  addedCardIds: Set<string>;
   busy: boolean;
 }) => {
   const isDone = turn.stage === 'done' || (turn.stage === null && turn.answer);
@@ -912,14 +933,21 @@ const Turn = ({
                       <Sparkles className="h-3 w-3" />
                       Is this worth it?
                     </button>
-                    <button
-                      onClick={() => onAddCard(card.id, card.name)}
-                      disabled={busy}
-                      className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg border border-green-500/30 bg-green-500/10 px-3 py-2 text-xs font-medium text-green-300 hover:bg-green-500/20 transition-colors disabled:opacity-50"
-                    >
-                      <CreditCard className="h-3 w-3" />
-                      I got this card
-                    </button>
+                    {addedCardIds.has(card.id) ? (
+                      <span className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg border border-green-500/30 bg-green-500/20 px-3 py-2 text-xs font-medium text-green-400">
+                        <Check className="h-3 w-3" />
+                        Added
+                      </span>
+                    ) : (
+                      <button
+                        onClick={() => onAddCard(card.id, card.name)}
+                        disabled={busy}
+                        className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg border border-green-500/30 bg-green-500/10 px-3 py-2 text-xs font-medium text-green-300 hover:bg-green-500/20 transition-colors disabled:opacity-50"
+                      >
+                        <CreditCard className="h-3 w-3" />
+                        I got this card
+                      </button>
+                    )}
                   </div>
                 )}
               </div>

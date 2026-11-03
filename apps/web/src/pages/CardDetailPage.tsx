@@ -61,10 +61,7 @@ export const CardDetailPage = () => {
             {/* Right: narrative */}
             <div className="space-y-8">
               <div>
-                <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-0.5 text-xs uppercase tracking-wide text-muted-foreground">
-                  {card.card_type ?? 'Card'}
-                </span>
-                <h1 className="font-display mt-3 text-3xl font-bold tracking-tight">
+                <h1 className="font-display text-3xl font-bold tracking-tight">
                   {card.name}
                 </h1>
                 {card.summary && (

@@ -37,8 +37,8 @@ export default function Markdown({ children }: { children: string }) {
             <table className="text-sm border-collapse w-full">{children}</table>
           </div>
         ),
-        th: ({ children }) => <th className="border border-border px-2 py-1 text-left font-semibold bg-muted/50">{children}</th>,
-        td: ({ children }) => <td className="border border-border px-2 py-1">{children}</td>,
+        th: ({ children }: { children?: React.ReactNode }) => <th className="border border-border px-2 py-1 text-left font-semibold bg-muted/50">{children}</th>,
+        td: ({ children }: { children?: React.ReactNode }) => <td className="border border-border px-2 py-1">{children}</td>,
       }}
     >
       {children}

@@ -41,11 +41,6 @@ export const CardTile = ({ card, badge, highlight = false }: Props) => {
           <h3 className="font-display font-semibold leading-tight">{card.name}</h3>
           <p className="text-xs text-muted-foreground">{card.issuer}</p>
         </div>
-        {card.card_type && (
-          <span className="shrink-0 rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[0.65rem] uppercase tracking-wide text-muted-foreground">
-            {card.card_type}
-          </span>
-        )}
       </div>
 
       <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">

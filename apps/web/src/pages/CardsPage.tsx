@@ -32,16 +32,9 @@ export const CardsPage = () => {
   });
 
   const [search, setSearch] = useState('');
-  const [type, setType] = useState<string>('all');
   const [issuer, setIssuer] = useState<string>('all');
   const [tier, setTier] = useState<TierKey>('all');
   const [sort, setSort] = useState<SortKey>('name');
-
-  const types = useMemo(() => {
-    const set = new Set<string>();
-    cards?.forEach((c) => c.card_type && set.add(c.card_type));
-    return Array.from(set).sort();
-  }, [cards]);
 
   const issuers = useMemo(() => {
     const set = new Set<string>();
@@ -57,7 +50,6 @@ export const CardsPage = () => {
         [c.name, c.issuer, c.summary, ...c.benefits].join(' ').toLowerCase().includes(q),
       );
     }
-    if (type !== 'all') list = list.filter((c) => c.card_type === type);
     if (issuer !== 'all') list = list.filter((c) => c.issuer === issuer);
     if (tier !== 'all') list = list.filter((c) => tierOf(c.annual_fee) === tier);
     list.sort((a, b) => {
@@ -66,7 +58,7 @@ export const CardsPage = () => {
       return a.name.localeCompare(b.name);
     });
     return list;
-  }, [cards, search, type, issuer, tier, sort]);
+  }, [cards, search, issuer, tier, sort]);
 
   return (
     <div className="min-h-screen bg-glow text-foreground">
@@ -113,19 +105,6 @@ export const CardsPage = () => {
             <option value="none">{TIER_LABELS.none}</option>
             <option value="mid">{TIER_LABELS.mid}</option>
             <option value="premium">{TIER_LABELS.premium}</option>
-          </select>
-
-          <select
-            value={type}
-            onChange={(e) => setType(e.target.value)}
-            className="h-10 rounded-md border border-input bg-background/60 px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
-          >
-            <option value="all">All types</option>
-            {types.map((t) => (
-              <option key={t} value={t}>
-                {t[0].toUpperCase() + t.slice(1)}
-              </option>
-            ))}
           </select>
 
           <select

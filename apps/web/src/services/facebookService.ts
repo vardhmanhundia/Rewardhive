@@ -158,6 +158,7 @@ export default new FacebookService();
 // Extend window to include Facebook SDK types
 declare global {
   interface Window {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     FB: any;
     fbAsyncInit?: () => void;
   }

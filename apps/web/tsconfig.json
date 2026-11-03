@@ -16,9 +16,9 @@
     "moduleResolution": "bundler",
     "paths": {
       "@/*": ["./src/*"],
-      "@shared/*": ["./shared/*"]
+      "@shared/*": ["../../shared/*"]
     }
   },
-  "include": ["src"],
+  "include": ["src", "../../shared/*.json"],
   "exclude": ["node_modules"]
 }

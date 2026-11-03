@@ -25,9 +25,7 @@ class Settings:
     )
     REDIS_URL: str = os.getenv("REDIS_URL", "redis://localhost:6379")
 
-    # Auth. The default is a dev-only placeholder; set SECRET_KEY in every
-    # real environment.
-    SECRET_KEY: str = os.getenv("SECRET_KEY", "dev-only-secret-change-me")
+    SECRET_KEY: str = os.getenv("SECRET_KEY", "")
     JWT_ALGORITHM: str = os.getenv("JWT_ALGORITHM", "HS256")
     ACCESS_TOKEN_EXPIRE_DAYS: int = int(os.getenv("ACCESS_TOKEN_EXPIRE_DAYS", "30"))
 
@@ -108,3 +106,9 @@ class Settings:
 
 
 settings = Settings()
+
+if not settings.SECRET_KEY:
+    raise RuntimeError(
+        "SECRET_KEY environment variable is required. "
+        "Generate one with: python -c \"import secrets; print(secrets.token_urlsafe(64))\""
+    )

@@ -4,10 +4,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**Card Agent App** — A full-stack card management system with AI agents. The backend uses FastAPI with LangGraph for agentic workflows, and the frontend is React + TypeScript.
+**CardPilot** — A credit-card recommendation and wallet-optimization platform. The backend uses FastAPI with LangGraph for AI agent workflows, and the frontend is React + TypeScript.
 
 ```
-card-agent-assistant/
+card-manager-assistant/
 ├── apps/backend/          # Python FastAPI + LangGraph
 │   ├── src/
 │   │   ├── api/main.py    # FastAPI app and routes
@@ -23,7 +23,7 @@ card-agent-assistant/
 
 ## Key Technologies
 
-- **Backend**: FastAPI (async), LangGraph (agent workflows), SQLAlchemy (ORM with async), PostgreSQL + Redis
+- **Backend**: FastAPI (async), LangGraph (agent workflows), SQLAlchemy (ORM with async), PostgreSQL or SQLite, Redis
 - **Frontend**: React 18, TypeScript, Vite
 - **Package management**: uv (replaces pip/pip-tools)
 - **Python version**: >=3.13
@@ -81,15 +81,17 @@ black src && ruff check --fix src && mypy src && pytest
 
 ### Environment Setup
 
-Copy `.env.example` to `.env` and update these for local development:
+Copy `.env.example` to `.env` and update with your keys. Key database settings:
 
 ```bash
-DATABASE_URL=sqlite+aiosqlite:///./test.db  # SQLite for local dev
-REDIS_URL=redis://localhost:6379             # Redis connection
-OPENAI_API_KEY=your-key                      # LLM provider
-LANGCHAIN_API_KEY=your-key                   # For LangChain tracing
-VITE_API_URL=http://localhost:8000           # Frontend API endpoint
+# SQLite for local dev (default):
+DATABASE_URL=sqlite+aiosqlite:///./test.db
+
+# PostgreSQL via Docker Compose:
+DATABASE_URL=postgresql+asyncpg://user:password@localhost:5432/card_db
 ```
+
+Both URLs **must** use async driver schemes (`+aiosqlite` / `+asyncpg`).
 
 For PostgreSQL + Redis (Docker Compose):
 ```bash
@@ -104,12 +106,12 @@ docker-compose up --build
 - FastAPI app with CORS middleware
 - Async endpoint handlers
 - Health check: `GET /health`
-- Cards CRUD routes: `/cards`, `/cards/{id}`
+- Routers: auth, profile, cards, instagram, news, optimizer, recommendations, advisor, rewards
 
 **Agent Workflows** (`src/agents/graph.py`):
-- LangGraph StateGraph-based workflows
+- LangGraph StateGraph-based workflows with conditional fan-out
+- Agents: card recommender, wallet optimizer, rewards advisor, user profiling (runs as parallel subgraph)
 - Compile graph with `.compile()` before execution
-- TODO: Add nodes and edges for card management
 
 **Services** (`src/services/`):
 - Business logic separated from endpoints

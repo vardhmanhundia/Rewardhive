@@ -33,10 +33,7 @@ export const CreditCardVisual = ({ card, className = '' }: Props) => (
     }}
   >
     <div className="flex justify-between items-start">
-      <span className="font-display text-base font-semibold leading-tight">{card.name}</span>
-      <span className="text-[0.6rem] uppercase tracking-widest opacity-70">
-        {card.network ?? 'Card'}
-      </span>
+      <span className="font-display text-base font-semibold leading-tight">{card.issuer} - {card.name}</span>
     </div>
     <div className="card-chip mt-6 h-8 w-11 rounded-md" />
     <div className="mt-4 font-mono text-lg tracking-[0.18em]">•••• •••• •••• ••••</div>

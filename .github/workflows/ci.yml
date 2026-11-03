@@ -52,6 +52,16 @@ jobs:
           cd apps/web
           npm install
 
+      - name: Lint
+        run: |
+          cd apps/web
+          npm run lint
+
+      - name: Test
+        run: |
+          cd apps/web
+          npm test
+
       - name: Build
         run: |
           cd apps/web

@@ -118,3 +118,8 @@
 .scrollbar-thin::-webkit-scrollbar-thumb:hover {
   background: hsl(0 0% 100% / 0.25);
 }
+
+@keyframes toast-up {
+  from { opacity: 0; transform: translateY(1rem); }
+  to   { opacity: 1; transform: translateY(0); }
+}

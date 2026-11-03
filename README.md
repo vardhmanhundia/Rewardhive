@@ -1,96 +1,143 @@
-# 📇 Card Agent App
+# CardPilot
 
-A full-stack application for managing cards using FastAPI, LangGraph, React, and AI agents.
+**CardPilot** is an AI-powered credit card assistant that helps users pick the right card for every purchase, optimize their wallet, and discover new cards tailored to their spending habits. It uses **Meta's Muse LLM** (via the Meta Model API) to power conversational AI agents built with **LangGraph**.
+
+## What It Does
+
+- **Which Card?** — Describe a purchase ("$200 at Costco") and CardPilot ranks your wallet's cards by rewards, explaining which to use and why.
+- **Wallet Optimizer** — Evaluates your current card lineup and suggests whether a new card would improve your overall rewards.
+- **Card Recommendations** — A RAG-powered recommender searches a catalog of 21 real credit cards and suggests the best match based on your spending profile.
+- **Conversational Profiling** — As you chat, the AI builds a spending profile (categories, preferences, goals) so recommendations improve over time.
+- **Credit Card News** — Curated feed of card-related news and offers.
+
+## Tech Stack
+
+| Layer | Technology |
+|-------|-----------|
+| LLM | Meta Muse Spark (via OpenAI-compatible Meta Model API) |
+| Agent Framework | LangGraph (StateGraph with conditional fan-out) |
+| Backend | FastAPI (async), SQLAlchemy, PostgreSQL + pgvector |
+| Embeddings | sentence-transformers (BGE-large-en-v1.5, 1024-dim) |
+| Frontend | React 18, TypeScript, Vite, Tailwind CSS |
+| Infra | Docker Compose (Postgres, Redis, backend, frontend) |
+
+## How to Run
+
+### Prerequisites
+
+- **Python 3.13+** and [uv](https://docs.astral.sh/uv/) (recommended) or pip
+- **Node.js 20+**
+- **Docker** (for PostgreSQL + Redis)
+- **Meta Model API key** — get one from the Meta Model API dashboard
+
+### 1. Clone and install
+
+```bash
+git clone https://github.com/vardhmanhundia/card-manager-assistant.git
+cd card-manager-assistant
+
+# Backend deps
+make install
+# OR manually:
+# cd apps/backend && uv sync --extra dev
+
+# Frontend deps
+npm --prefix apps/web install
+```
+
+### 2. Configure environment
+
+```bash
+cp apps/backend/.env.example apps/backend/.env
+```
+
+Edit `apps/backend/.env` and set these required values:
+
+```bash
+MODEL_API_KEY=<your-meta-model-api-key>
+MUSE_BASE_URL=<your-meta-model-api-base-url>
+SECRET_KEY=<generate-with: python -c "import secrets; print(secrets.token_urlsafe(32))">
+```
+
+### 3. Start infrastructure, migrate, and seed
+
+```bash
+make setup
+```
+
+This starts PostgreSQL + Redis in Docker, runs Alembic migrations, and seeds the card catalog with embeddings.
+
+### 4. Start the app
+
+In two terminals:
+
+```bash
+# Terminal 1 — backend (http://localhost:8000)
+make dev
+
+# Terminal 2 — frontend (http://localhost:3000)
+make web
+```
+
+Open **http://localhost:3000** in your browser.
+
+### 5. Try it out
+
+1. **Sign up** with an email and password
+2. Go to **Recommend** — chat with the AI to get personalized card recommendations
+3. Go to **Which Card** — describe a purchase to see which card in your wallet to use
+4. Go to **Evaluate** — check if a new card would improve your wallet
+5. Browse **News** for the latest card offers
+
+### Alternative: Full Docker Compose
+
+```bash
+docker-compose up --build
+```
+
+Starts everything (backend, frontend, Postgres, Redis) — frontend at :3000, backend at :8000.
+
+## Architecture
+
+```
+User <-> React Frontend <-> FastAPI Backend <-> LangGraph Agent Orchestrator
+                                                      |
+                                    ┌─────────────────┼─────────────────┐
+                                    |                 |                 |
+                              Recommender        Evaluator        Rewards
+                              (RAG + Muse)      (Muse)          (Muse)
+                                    |                 |                 |
+                                    └────── + User Profiling (parallel) ┘
+                                                      |
+                                              PostgreSQL + pgvector
+                                            (cards, embeddings, users)
+```
+
+The **router** agent classifies each message and fans out to the right specialist. **User profiling** runs in parallel when the message contains spending info, writing to disjoint state keys so branches join without conflict.
 
 ## Project Structure
 
 ```
-card-agent-app/
-├── apps/
-│   ├── backend/       # FastAPI + LangGraph
-│   └── web/           # React + TypeScript
-├── shared/            # Shared types and constants
-├── docker-compose.yml # Local development setup
-└── README.md
+card-manager-assistant/
+├── apps/backend/            # FastAPI + LangGraph
+│   ├── src/
+│   │   ├── api/             # REST endpoints (auth, cards, optimizer, rewards, ...)
+│   │   ├── agents/          # LangGraph workflows (router, recommendation, evaluate, rewards, profiling)
+│   │   ├── services/        # Business logic
+│   │   ├── db/              # SQLAlchemy models, migrations, seed script
+│   │   └── config.py        # Settings (env vars)
+│   ├── seed/cards.json      # 21 real credit card definitions
+│   └── pyproject.toml
+├── apps/web/                # React + TypeScript + Tailwind
+│   └── src/pages/           # Cards, Recommend, Evaluate, WhichCard, News, Profile, ...
+├── docker-compose.yml
+└── Makefile                 # make setup / dev / web / test / check
 ```
 
-## Prerequisites
-
-- Docker & Docker Compose (for containerized setup)
-- Python 3.13+ (for local backend development)
-- Node.js 20+ (for local frontend development)
-
-## Quick Start with Docker Compose
+## Running Tests
 
 ```bash
-# Start all services
-docker-compose up --build
-
-# Services will be available at:
-# - Frontend: http://localhost:3000
-# - Backend: http://localhost:8000
-# - Database: localhost:5432
-# - Redis: localhost:6379
+make test          # backend tests (pytest)
+make check         # format + lint + typecheck + test
+npm --prefix apps/web test   # frontend tests
 ```
-
-## Local Development
-
-### Backend Setup
-
-```bash
-cd apps/backend
-
-# Create virtual environment
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-
-# Install dependencies
-pip install -e ".[dev]"
-
-# Run development server
-uvicorn src.api.main:app --reload
-```
-
-### Frontend Setup
-
-```bash
-cd apps/web
-
-# Install dependencies
-npm install
-
-# Start development server
-npm run dev
-```
-
-## Testing
-
-### Backend
-
-```bash
-cd apps/backend
-pytest
-```
-
-### Frontend
-
-```bash
-cd apps/web
-npm test
-```
-
-## Building for Production
-
-```bash
-# Build Docker images
-docker-compose build
-
-# Run with production settings
-docker-compose -f docker-compose.yml up
-```
-
-## Architecture
-
-- **Backend**: FastAPI with async/await, LangGraph for agent workflows, SQLAlchemy ORM, PostgreSQL + Redis
-- **Frontend**: React 18 with TypeScript, Vite for build tooling, Fetch API for backend communication
-- **Shared**: TypeScript types and API constants for type-safe communication

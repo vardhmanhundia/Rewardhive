@@ -17,7 +17,6 @@ export const SignupPage = () => {
   // Clear any auth error left over from another page (e.g. a failed login).
   useEffect(() => {
     clearError();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const [formData, setFormData] = useState({

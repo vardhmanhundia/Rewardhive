@@ -98,11 +98,6 @@ export const NewsPage = () => {
                     No annual fee
                   </span>
                 )}
-                {card.card_type && (
-                  <span className="inline-block text-xs bg-primary/10 text-primary px-2 py-1 rounded-full">
-                    {card.card_type}
-                  </span>
-                )}
               </div>
             </div>
           )}

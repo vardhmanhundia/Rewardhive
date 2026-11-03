@@ -1,6 +1,6 @@
 FROM node:20-alpine
 
-WORKDIR /app
+WORKDIR /app/apps/web
 
 # Build context is the repo root so shared/ is available.
 # Copy package files
@@ -9,10 +9,10 @@ COPY apps/web/package*.json ./
 # Install dependencies
 RUN npm install
 
-# Copy application code and the shared package (under the app root so its
-# imports resolve against the app's node_modules)
+# Copy application code and shared data, preserving the repo layout so
+# tsconfig/vite path aliases (../../shared) resolve correctly.
 COPY apps/web/ ./
-COPY shared/ ./shared/
+COPY shared/ /app/shared/
 
 # Build the application
 RUN npm run build

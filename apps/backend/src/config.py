@@ -13,8 +13,18 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-# .env lives at the project root: this file is apps/backend/src/config.py.
-load_dotenv(Path(__file__).resolve().parents[3] / ".env")
+# Walk up from this file to find the project root (contains .env).
+# Locally: apps/backend/src/config.py → 3 parents.  Docker: /app/src/config.py → fewer.
+_CONFIG_DIR = Path(__file__).resolve().parent
+_PROJECT_ROOT: Path | None = None
+for _p in [_CONFIG_DIR, *_CONFIG_DIR.parents]:
+    if (_p / ".env").exists() or (_p / "shared").is_dir():
+        _PROJECT_ROOT = _p
+        break
+if _PROJECT_ROOT:
+    load_dotenv(_PROJECT_ROOT / ".env")
+else:
+    load_dotenv()
 
 
 class Settings:
@@ -72,7 +82,10 @@ class Settings:
     SONAR_ENCODER: str = os.getenv("SONAR_ENCODER", "text_sonar_basic_encoder")
     SONAR_SOURCE_LANG: str = os.getenv("SONAR_SOURCE_LANG", "eng_Latn")
     # Card catalog seed file, relative to the backend working directory.
-    SEED_PATH: str = os.getenv("SEED_PATH", "seed/cards.json")
+    SEED_PATH: str = os.getenv(
+        "SEED_PATH",
+        str(_PROJECT_ROOT / "shared" / "cards.json") if _PROJECT_ROOT else "shared/cards.json",
+    )
 
     # Recommendation (RAG over the card catalog). Muse generates the answer,
     # grounded in cards retrieved from card_chunks via the embedding seam.

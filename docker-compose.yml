@@ -1,7 +1,8 @@
 services:
   backend:
     build:
-      context: ./apps/backend
+      context: .
+      dockerfile: apps/backend/Dockerfile
     ports:
       - "8000:8000"
     # Pulls in MODEL_API_KEY, MUSE_BASE_URL, LANGSMITH_*, etc. from your local
@@ -13,6 +14,7 @@ services:
       - DATABASE_URL=postgresql+asyncpg://user:password@db:5432/card_db
       - REDIS_URL=redis://redis:6379
       - SECRET_KEY=docker-secret-key-change-in-production
+      - SEED_PATH=shared/cards.json
     depends_on:
       db:
         condition: service_healthy

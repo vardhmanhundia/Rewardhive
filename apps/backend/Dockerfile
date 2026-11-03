@@ -8,12 +8,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy project files
-COPY pyproject.toml pyproject.toml
-COPY src/ src/
-COPY tests/ tests/
-COPY alembic.ini alembic.ini
-COPY alembic/ alembic/
-COPY seed/ seed/
+COPY apps/backend/pyproject.toml pyproject.toml
+COPY apps/backend/src/ src/
+COPY apps/backend/tests/ tests/
+COPY apps/backend/alembic.ini alembic.ini
+COPY apps/backend/alembic/ alembic/
+COPY shared/ shared/
 
 # Install Python dependencies
 RUN pip install --no-cache-dir -e .

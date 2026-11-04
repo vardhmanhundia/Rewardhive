@@ -87,6 +87,54 @@ def _detect_mime(filename: str | None, fallback: str = "image/png") -> str:
     return mime or fallback
 
 
+# A statement or receipt often arrives as a PDF, but the vision model's image
+# input accepts raster images only — so a PDF is rendered to one PNG per page
+# before the call, rather than shipped as raw PDF bytes the model can't read.
+_PDF_MAGIC = b"%PDF"
+_MAX_PDF_PAGES = 10
+
+
+def _looks_like_pdf(mime_type: str, data: bytes) -> bool:
+    return mime_type == "application/pdf" or data[:4] == _PDF_MAGIC
+
+
+def _pdf_to_images(data: bytes, max_pages: int = _MAX_PDF_PAGES) -> list[str]:
+    """Render a PDF's first ``max_pages`` pages to base64-encoded PNGs.
+
+    pypdfium2 bundles its own PDF engine (no system poppler) and is imported
+    lazily — like edge_tts below — so importing this module stays cheap and does
+    not hard-require the native dependency.
+    """
+    import io
+
+    import pypdfium2 as pdfium
+
+    pdf = pdfium.PdfDocument(data)
+    try:
+        images: list[str] = []
+        for i in range(min(len(pdf), max_pages)):
+            # 150 DPI (scale = 150/72) keeps statement text legible to the model.
+            bitmap = pdf[i].render(scale=150 / 72)
+            buf = io.BytesIO()
+            bitmap.to_pil().save(buf, format="PNG")
+            images.append(encode_image_bytes(buf.getvalue()))
+        return images
+    finally:
+        pdf.close()
+
+
+def _vision_parts(image_b64: str, mime_type: str) -> list[dict[str, Any]]:
+    """Image content parts for the model. A PDF upload is rasterized to one image
+    part per page first; any other upload passes through as a single part."""
+    try:
+        raw = base64.b64decode(image_b64)
+    except Exception:
+        raw = b""
+    if _looks_like_pdf(mime_type, raw):
+        return [_image_content_part(p, "image/png") for p in _pdf_to_images(raw)]
+    return [_image_content_part(image_b64, mime_type)]
+
+
 async def parse_receipt(
     image_b64: str,
     mime_type: str = "image/png",
@@ -102,7 +150,7 @@ async def parse_receipt(
         SystemMessage(content=RECEIPT_SYSTEM_PROMPT),
         HumanMessage(
             content=[
-                _image_content_part(image_b64, mime_type),
+                *_vision_parts(image_b64, mime_type),
                 {"type": "text", "text": "Parse this receipt or statement image."},
             ]
         ),
@@ -127,7 +175,7 @@ async def analyze_screenshot(
         SystemMessage(content=SCREENSHOT_SYSTEM_PROMPT),
         HumanMessage(
             content=[
-                _image_content_part(image_b64, mime_type),
+                *_vision_parts(image_b64, mime_type),
                 {"type": "text", "text": text_prompt},
             ]
         ),

@@ -971,6 +971,9 @@ const EmptyState = ({ onPick }: { onPick: (q: string) => void }) => (
       Ask anything about credit cards — which to get, which to use for a purchase,
       whether a card is worth it. Attach a screenshot, upload a receipt, or use your voice.
     </p>
+    <p className="mt-2 max-w-lg text-xs text-muted-foreground/70">
+      No bank login — you choose what to upload. Images you attach are analyzed by our AI to read the purchase.
+    </p>
 
     <div className="mt-8 w-full max-w-lg space-y-4">
       <div className="text-left">

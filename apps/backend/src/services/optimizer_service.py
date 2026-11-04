@@ -17,8 +17,10 @@ Known, deliberate simplifications (documented so the math stays honest):
     categories (e.g. 6%+2% on the first $2,500/quarter) and quarterly windows are
     treated as a single annual per-category cap, or ignored when only stated in
     benefit prose. Choice-category caps are not modelled.
-  * Card selection per category is greedy on the elevated rate; it does not
-    re-plan around a capped card being worse than an uncapped one past the cap.
+  * Each category's spend is assigned to a single card — the one that earns the
+    most on that category *after caps* at the stated spend. Splitting one
+    category across two cards (first $cap on the bonus card, the remainder on
+    another) is not modelled.
 These are the places to make exact later; they are flagged, not silent.
 """
 
@@ -282,36 +284,41 @@ def optimize_wallet(spend: dict[str, float], cards: list[OptCard]) -> WalletResu
     its best card and activating each choice-category card on its best option."""
     spend = {c: float(a) for c, a in spend.items() if a and a > 0}
 
-    # 1. Best non-choice rule per category (selection ignores caps; earnings don't).
+    # 1. Best non-choice rule per category, by actual cap-aware earnings at this
+    #    category's spend — NOT by headline rate. A capped bonus (6% up to $1k)
+    #    can earn less over a large spend than an uncapped lower rate, and the
+    #    verdict must reflect the card you would truly come out ahead with.
+    #    chosen[cat] = (card, rule, dollars earned on this category).
     chosen: dict[str, tuple[OptCard, EarnRule, float]] = {}
-    for cat in spend:
+    for cat, amount in spend.items():
         best: tuple[OptCard, EarnRule, float] | None = None
         for card in cards:
             for rule in card.rules:
                 if rule.choice or not _rule_applies(rule, cat):
                     continue
-                eff = _elevated_fraction(rule, card.cents_per_point)
-                if best is None or eff > best[2]:
-                    best = (card, rule, eff)
+                earned = _earn(rule, card.cents_per_point, amount)
+                if best is None or earned > best[2]:
+                    best = (card, rule, earned)
         if best is not None:
             chosen[cat] = best
 
-    # 2. Activate each choice card on the single category where it adds the most.
+    # 2. Activate each choice card on the single category where it adds the most
+    #    actual earnings over the current pick (cap-aware, same as step 1).
     for card in cards:
         for rule in card.rules:
             if not rule.choice:
                 continue
-            eff = _elevated_fraction(rule, card.cents_per_point)
-            best_opt: tuple[str, float] | None = None
-            for cat in spend:
+            best_opt: tuple[str, float, float] | None = None  # (cat, gain, earned)
+            for cat, amount in spend.items():
                 if cat not in rule.categories:
                     continue
+                choice_earned = _earn(rule, card.cents_per_point, amount)
                 current = chosen[cat][2] if cat in chosen else 0.0
-                gain = spend[cat] * (eff - current)
-                if eff > current and (best_opt is None or gain > best_opt[1]):
-                    best_opt = (cat, gain)
+                gain = choice_earned - current
+                if gain > 0 and (best_opt is None or gain > best_opt[1]):
+                    best_opt = (cat, gain, choice_earned)
             if best_opt is not None:
-                chosen[best_opt[0]] = (card, rule, eff)
+                chosen[best_opt[0]] = (card, rule, best_opt[2])
 
     # 3. Tally earnings with caps.
     breakdown: list[CategoryBreakdown] = []
@@ -361,23 +368,24 @@ def _current_usage(
     spend = {c: float(a) for c, a in spend.items() if a and a > 0}
     by_id = {c.id: c for c in cards}
 
-    def best_everyday(cat: str) -> tuple[OptCard, EarnRule] | None:
+    def best_everyday(cat: str, amount: float) -> tuple[OptCard, EarnRule] | None:
         best: tuple[OptCard, EarnRule, float] | None = None
         for card in cards:
             for rule in card.rules:
                 if rule.choice or "everyday" not in rule.categories:
                     continue
-                eff = _elevated_fraction(rule, card.cents_per_point)
-                if best is None or eff > best[2]:
-                    best = (card, rule, eff)
+                earned = _earn(rule, card.cents_per_point, amount)
+                if best is None or earned > best[2]:
+                    best = (card, rule, earned)
         return (best[0], best[1]) if best else None
 
-    def best_rule_on(card: OptCard, cat: str) -> EarnRule | None:
+    def best_rule_on(card: OptCard, cat: str, amount: float) -> EarnRule | None:
         applicable = [r for r in card.rules if not r.choice and _rule_applies(r, cat)]
         applicable += [r for r in card.rules if r.choice and cat in r.categories]
         if not applicable:
             return None
-        return max(applicable, key=lambda r: _elevated_fraction(r, card.cents_per_point))
+        # Cap-aware: the rule that earns most on this spend, not the top headline rate.
+        return max(applicable, key=lambda r: _earn(r, card.cents_per_point, amount))
 
     breakdown: list[CategoryBreakdown] = []
     total_rewards = 0.0
@@ -386,9 +394,9 @@ def _current_usage(
         rule: EarnRule | None = None
         if cat in usage and usage[cat] in by_id:
             card = by_id[usage[cat]]
-            rule = best_rule_on(card, cat)
+            rule = best_rule_on(card, cat, amount)
         if rule is None:
-            fallback = best_everyday(cat)
+            fallback = best_everyday(cat, amount)
             if fallback:
                 card, rule = fallback
         if card is None or rule is None:

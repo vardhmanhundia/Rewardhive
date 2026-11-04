@@ -126,6 +126,39 @@ def test_evaluate_card_recommends_adding_when_worth_it():
     assert "Worth it" in cmp.verdict
 
 
+def test_cap_aware_selection_prefers_uncapped_card_past_the_cap():
+    """Regression: at high spend, a capped bonus must not be picked over an
+    uncapped card that earns more past the cap. $10k dining:
+      - capped 6% up to $1,000 then 1% → 1000*6% + 9000*1% = $150
+      - uncapped 4%                    → 10000*4%          = $400
+    Selection must choose the 4% card ($400), not the headline 6% ($150)."""
+    capped = _card("cap6", "Capped 6%", "X", 0, [pct(["dining"], 6, cap=1000, then=1)])
+    flat4 = _card("flat4", "Flat 4%", "X", 0, [pct(["dining"], 4)])
+    res = optimize_wallet({"dining": 10000}, [capped, flat4])
+    (row,) = res.breakdown
+    assert row.card_id == "flat4" and row.earned == 400
+
+
+def test_evaluate_verdict_recommends_card_a_capped_wallet_undervalues():
+    """The core claim — the keep/add verdict — must survive caps at $10k spend.
+
+    Owned: only a capped 6%-dining card (6% up to $1,000, then 1%) → earns $150.
+    Candidate: an uncapped 4%-dining card → earns $400 on $10k.
+
+    With rate-greedy selection the 6% headline wins, the candidate is never used,
+    and the engine wrongly says "Skip it". Cap-aware selection sees the candidate
+    earns $400 vs $150 and correctly says it's worth adding."""
+    owned = [_card("cap6", "Capped 6%", "X", 0, [pct(["dining"], 6, cap=1000, then=1)])]
+    candidate = _card("flat4", "Flat 4%", "X", 0, [pct(["dining"], 4)])
+    spend = {"dining": 10000}
+    cmp = evaluate_card(spend, owned, {"dining": "cap6"}, candidate)
+    assert cmp.keep.net_annual_value == 150
+    assert cmp.add.net_annual_value == 400
+    assert cmp.gain_from_adding == 250
+    assert cmp.worth_it is True
+    assert "Worth it" in cmp.verdict
+
+
 def test_evaluate_card_says_skip_when_fee_outweighs_gain():
     owned = [_card("din3", "Dining 3%", "X", 0, [pct(["dining"], 3), pct(["everyday"], 1.5)])]
     # Candidate earns only marginally more on dining but charges a steep fee.

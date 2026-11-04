@@ -42,6 +42,12 @@ dependencies = [
     "sentence-transformers==6.2.0",
     "torch==2.14.1",
     "edge-tts==7.3.1",
+    # Receipt/statement PDFs are rasterized to page images before the vision
+    # call (the model's image input takes raster images only, not PDF bytes).
+    # pypdfium2 bundles its own pdfium (no system poppler); Pillow encodes the
+    # rendered pages to PNG. See src/services/vision_service.py:_pdf_to_images.
+    "pypdfium2==4.30.0",
+    "pillow==11.1.0",
 ]
 
 [project.optional-dependencies]

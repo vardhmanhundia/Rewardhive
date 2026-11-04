@@ -77,7 +77,7 @@ async def _plan(
     system = PLAN_SYSTEM_PROMPT.format(catalog=listing)
     if image_b64:
         mime = image_mime or "image/png"
-        content: list[dict[str, Any]] = [
+        content: list[str | dict[Any, Any]] = [
             {"type": "image_url", "image_url": {"url": f"data:{mime};base64,{image_b64}"}},
             {"type": "text", "text": question},
         ]
@@ -185,7 +185,7 @@ async def stream_rewards(
 
         # ── Rank cards per category when we have a multi-category statement ──
         if receipt and receipt.items and len({it.category for it in receipt.items}) > 1:
-            categories = {}
+            categories: dict[str, dict[str, Any]] = {}
             for item in receipt.items:
                 cat = item.category
                 if cat not in categories:

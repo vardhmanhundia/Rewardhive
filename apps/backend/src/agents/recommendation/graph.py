@@ -112,7 +112,7 @@ def _messages(
     messages.extend(history_messages({"history": history}))
     if image_b64:
         mime = image_mime or "image/png"
-        content: list[dict[str, Any]] = [
+        content: list[str | dict[Any, Any]] = [
             {"type": "image_url", "image_url": {"url": f"data:{mime};base64,{image_b64}"}},
             {"type": "text", "text": query},
         ]

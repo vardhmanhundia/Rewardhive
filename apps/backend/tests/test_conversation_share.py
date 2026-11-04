@@ -5,7 +5,6 @@ no account get a sign-up invitation email instead. These exercise the service
 directly against the test database and capture which email each recipient got.
 """
 
-import uuid
 
 import pytest
 

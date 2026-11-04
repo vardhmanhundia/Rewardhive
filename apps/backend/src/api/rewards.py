@@ -54,7 +54,8 @@ async def best_card_stream(
 
     async def event_source() -> AsyncIterator[str]:
         async for event in stream_rewards(
-            session, user_id, request.question, card_ids, request.monthly_amount
+            session, user_id, request.question, card_ids, request.monthly_amount,
+            image_b64=request.image_b64, image_mime=request.image_mime,
         ):
             kind = event["kind"]
             if kind == "plan":

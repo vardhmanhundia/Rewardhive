@@ -91,7 +91,7 @@ class Settings:
     # grounded in cards retrieved from card_chunks via the embedding seam.
     # TOP_K = distinct cards handed to the model; FETCH_K = chunks scanned by the
     # vector search before de-duping to cards (FETCH_K >= TOP_K).
-    RECOMMENDATION_MODEL: str = os.getenv("RECOMMENDATION_MODEL", "muse-spark-1.1")
+    RECOMMENDATION_MODEL: str = os.getenv("RECOMMENDATION_MODEL", "muse-spark-1.3")
     RECOMMENDATION_TOP_K: int = int(os.getenv("RECOMMENDATION_TOP_K", "5"))
     RECOMMENDATION_FETCH_K: int = int(os.getenv("RECOMMENDATION_FETCH_K", "40"))
 
@@ -110,7 +110,7 @@ class Settings:
     # dev and tests need no SMTP server — messages are logged instead of sent.
     # Set EMAIL_FAKE_MODE=false plus the SMTP_* vars to deliver for real.
     EMAIL_FAKE_MODE: bool = os.getenv("EMAIL_FAKE_MODE", "true").lower() == "true"
-    EMAIL_FROM: str = os.getenv("EMAIL_FROM", "CardPilot <no-reply@cardpilot.app>")
+    EMAIL_FROM: str = os.getenv("EMAIL_FROM", "RewardHive <no-reply@rewardhive.app>")
     SMTP_HOST: str = os.getenv("SMTP_HOST", "localhost")
     SMTP_PORT: int = int(os.getenv("SMTP_PORT", "587"))
     SMTP_USERNAME: str = os.getenv("SMTP_USERNAME", "")

@@ -16,9 +16,7 @@ invalidates the cache so the next request re-summarizes.
 
 from __future__ import annotations
 
-import json
 import logging
-from typing import Any
 
 import redis.asyncio as aioredis
 
@@ -98,7 +96,9 @@ async def get_cached_summary(
         return None
     try:
         summary = await r.get(_summary_key(conversation_id))
-        return summary
+        if summary is None:
+            return None
+        return summary.decode() if isinstance(summary, bytes) else summary
     except Exception:
         return None
     finally:
@@ -177,8 +177,14 @@ async def prepare_context(
         A trimmed history list: optionally a system-style summary message
         followed by the recent turns.
     """
-    max_recent = max_recent_turns or getattr(settings, "CONTEXT_MAX_RECENT_TURNS", 6)
-    threshold = summarize_threshold or getattr(settings, "CONTEXT_SUMMARIZE_THRESHOLD", 10)
+    max_recent = (
+        max_recent_turns if max_recent_turns is not None else settings.CONTEXT_MAX_RECENT_TURNS
+    )
+    threshold = (
+        summarize_threshold
+        if summarize_threshold is not None
+        else settings.CONTEXT_SUMMARIZE_THRESHOLD
+    )
 
     if len(history) <= threshold:
         return history

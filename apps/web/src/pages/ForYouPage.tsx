@@ -178,7 +178,7 @@ function greetingFor(date = new Date()): string {
   return "Good evening";
 }
 
-const ISSUER_BADGE: Record<string, {short: string; color: string}> = {
+const _ISSUER_BADGE: Record<string, {short: string; color: string}> = {
   "American Express": {short: "AMEX", color: "#1a6b50"},
   Chase: {short: "CHASE", color: "#14467a"},
   Citi: {short: "CITI", color: "#00508a"},
@@ -270,7 +270,7 @@ export const ForYouPage = () => {
             icon={<Sparkles className="h-5 w-5" />}
             iconBg="bg-amber-500/15 text-amber-400 border-amber-500/30"
             title="Shared Plans"
-            description="Plan with a partner, roommate, or friend — CardPilot advises across both your card sets."
+            description="Plan with a partner, roommate, or friend — RewardHive advises across both your card sets."
             linkLabel="Start a plan"
             onNavigate={() => navigate("/recommend")}
           />
@@ -325,7 +325,7 @@ const AskHero = ({onAsk}: {onAsk: (q: string) => void}) => {
               if (e.key === "Enter") onAsk(value);
             }}
             placeholder="Ask anything — which card to get, which to use, whether one is worth it…"
-            aria-label="Ask CardPilot"
+            aria-label="Ask RewardHive"
             className="border-none bg-transparent outline-none text-foreground text-[14px] w-full min-w-0 py-3 placeholder:text-muted-foreground"
           />
         </div>
@@ -761,7 +761,7 @@ const EmptyHint = ({children}: {children: React.ReactNode}) => (
 /*  Sessions                                                           */
 /* ------------------------------------------------------------------ */
 
-const SessionsSection = ({
+const _SessionsSection = ({
   onAsk,
   onNavigate,
 }: {
@@ -829,7 +829,7 @@ const SessionsSection = ({
 /*  News                                                               */
 /* ------------------------------------------------------------------ */
 
-const NewsSection = () => (
+const _NewsSection = () => (
   <Card className="p-[22px]">
     <div className="flex items-end justify-between gap-3 mb-3.5">
       <h2 className="font-display font-semibold text-lg tracking-tight">
@@ -962,7 +962,7 @@ const PlanRow = ({
   );
 };
 
-const PlansSection = ({onNavigate}: {onNavigate: (path: string) => void}) => {
+const _PlansSection = ({onNavigate}: {onNavigate: (path: string) => void}) => {
   const {user} = useAuth();
   const {data: conversations = [], isLoading} = useQuery({
     queryKey: ["conversations"],
@@ -991,7 +991,7 @@ const PlansSection = ({onNavigate}: {onNavigate: (path: string) => void}) => {
         </button>
       </div>
       <p className="text-muted-foreground text-[13.5px] mb-3.5 mt-0 shrink-0">
-        Plan with a partner, roommate or friend — CardPilot advises across both
+        Plan with a partner, roommate or friend — RewardHive advises across both
         your cards.
       </p>
       {isLoading ? (

@@ -136,7 +136,6 @@ async def compare_node(state: AgentState, config: RunnableConfig) -> AgentState:
 
     # Build picks in the same shape as CardRewardPick so the frontend renders
     # the ranked-row UI (with "Best" badge and effective percentage).
-    total_spend = sum(spend.values())
     best_categories = []
     for b in results[0][1].breakdown:
         if b.earned > 0:

@@ -102,7 +102,7 @@ export const SignupPage = () => {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-glow px-4 py-8">
       <Link to="/" className="mb-6 font-display text-xl font-bold tracking-tight">
-        Card<span className="text-gradient">Pilot</span>
+        Reward<span className="text-gradient">Hive</span>
       </Link>
       <Card className="w-full max-w-lg glass shadow-2xl shadow-black/40">
         <CardHeader className="space-y-2">

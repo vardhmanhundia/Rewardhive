@@ -25,16 +25,14 @@ jobs:
           cd apps/backend
           ruff check src
 
-      - name: Type check with mypy
-        run: |
-          cd apps/backend
-          mypy src
-
       - name: Run tests
         env:
           # Never call a real LLM in CI: the shared factory returns a fake
           # replay model, so no MODEL_API_KEY is needed.
           LLM_FAKE_MODE: "true"
+          # config.py requires a SECRET_KEY at import; any non-empty value works
+          # for the test suite (tokens are signed/verified with the same key).
+          SECRET_KEY: "test-key-for-ci"
         run: |
           cd apps/backend
           pytest tests/

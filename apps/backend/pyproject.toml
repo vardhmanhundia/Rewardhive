@@ -12,8 +12,10 @@ requires-python = ">=3.13"
 dependencies = [
     "fastapi==0.162.0",
     "uvicorn==0.54.0",
+    "watchfiles==1.0.5",
     "langchain==1.4.7",
-    "langchain-anthropic==1.7.5",
+    # Meta Muse is reached through its OpenAI-compatible Model API (see
+    # src/agents/commons/llm.py), so langchain-openai is the only provider SDK.
     "langchain-openai==1.7.3",
     "langgraph==1.2.17",
     "langgraph-checkpoint-postgres==3.2.0",
@@ -39,6 +41,13 @@ dependencies = [
     # cp313 linux-aarch64 wheel is what lets the container build natively.
     "sentence-transformers==6.2.0",
     "torch==2.14.1",
+    "edge-tts==7.3.1",
+    # Receipt/statement PDFs are rasterized to page images before the vision
+    # call (the model's image input takes raster images only, not PDF bytes).
+    # pypdfium2 bundles its own pdfium (no system poppler); Pillow encodes the
+    # rendered pages to PNG. See src/services/vision_service.py:_pdf_to_images.
+    "pypdfium2==4.30.0",
+    "pillow==11.1.0",
 ]
 
 [project.optional-dependencies]

@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { ChevronDown, Check } from 'lucide-react';
 import { useNavigate, Link } from 'react-router-dom';
@@ -6,11 +6,8 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/context/AuthContext';
 import profileService, { type ProfileDetails } from '@/services/profileService';
 import cardService from '@/services/cardService';
-import authService from '@/services/authService';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
-import Markdown from '@/components/Markdown';
 import {
   HOUSEHOLD_OPTIONS,
   TRAVEL_OPTIONS,
@@ -23,33 +20,21 @@ import {
   US_STATES,
   DEFAULT_COUNTRY,
   HOTELS,
-  type Option,
 } from '@/data/profileOptions';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 /* ------------------------------------------------------------------ */
 /*  SVG helpers                                                        */
 /* ------------------------------------------------------------------ */
 
-const CardPilotLogo = () => (
+const RewardHiveLogo = () => (
   <svg viewBox="0 0 24 24" fill="none">
-    <circle cx="8" cy="12" r="4.4" stroke="currentColor" strokeWidth="1.7" />
-    <circle cx="16" cy="12" r="4.4" stroke="currentColor" strokeWidth="1.7" />
+    <path d="M12 2.5 L17.5 6 L17.5 13 L12 16.5 L6.5 13 L6.5 6 Z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
+    <path d="M12 9.5 L15 11.25 L15 14.75 L12 16.5 L9 14.75 L9 11.25 Z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" fill="currentColor" fillOpacity="0.2" />
+    <path d="M12 16.5 L12 21.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
   </svg>
 );
 
-const SendSvg = () => (
-  <svg viewBox="0 0 24 24" fill="none">
-    <path d="M4 12l16-8-6 16-3-6-7-2Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
-  </svg>
-);
-
-const ChatSvg = () => (
-  <svg viewBox="0 0 24 24" fill="none">
-    <path d="M4 5h16v11H9l-5 4V5Z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
-  </svg>
-);
 
 const SunSvg = () => (
   <svg viewBox="0 0 24 24" fill="none">
@@ -176,96 +161,17 @@ const STEP_META: StepDef[] = [
 ];
 
 
-interface ChatMsg {
-  role: 'user' | 'assistant';
-  content: string;
-}
-
-/* ------------------------------------------------------------------ */
-/*  Avatar component                                                   */
-/* ------------------------------------------------------------------ */
-
-const TRAVEL_OPTIONS_REF = TRAVEL_OPTIONS;
-
-const ProfileAvatar = ({ form }: { form: ProfileDetails }) => {
-  const skinFill = '#F4C6A0';
-  const hairColor = '#6B5B73';
-  const shirtColor = 'hsl(252 95% 68%)';
-
-  const tags = useMemo(() => {
-    const t: { label: string; filled: boolean }[] = [];
-    t.push({ label: form.occupation ?? 'Occupation', filled: !!form.occupation });
-    t.push({ label: form.city ?? form.location_state ?? 'Location', filled: !!(form.city || form.location_state) });
-    if (form.travel_preference) t.push({ label: TRAVEL_OPTIONS_REF.find((o) => o.value === form.travel_preference)?.label ?? form.travel_preference, filled: true });
-    if (form.airline_ranking.length) t.push({ label: `${form.airline_ranking[0]} fan`, filled: true });
-    if (form.hotel_ranking.length) t.push({ label: `${form.hotel_ranking[0]} guest`, filled: true });
-    if (form.banks.length) t.push({ label: `${form.banks[0].name}`, filled: true });
-    if (form.cards.length) t.push({ label: `${form.cards.length} card${form.cards.length > 1 ? 's' : ''}`, filled: true });
-    if (form.goals.length) t.push({ label: form.goals[0].text, filled: true });
-    return t;
-  }, [form]);
-
-  return (
-    <Card className="text-center overflow-hidden">
-      <CardContent className="p-6">
-        <h3 className="font-display text-[15px] font-semibold mb-4">Your profile</h3>
-        <div className="w-[200px] h-[200px] mx-auto mb-4 rounded-full overflow-hidden bg-gradient-to-br from-primary/15 to-muted border-[3px] border-primary/40 grid place-items-center transition-all duration-400">
-          <svg viewBox="0 0 200 200" fill="none" className="w-[180px] h-[180px]">
-            <ellipse cx="100" cy="85" rx="42" ry="46" fill={skinFill} />
-            <ellipse cx="100" cy="60" rx="44" ry="28" fill={hairColor} />
-            <circle cx="82" cy="88" r="4" fill="#2D2D2D" />
-            <circle cx="118" cy="88" r="4" fill="#2D2D2D" />
-            <path d="M88 104c4 6 20 6 24 0" stroke="#C47A5B" strokeWidth="2.5" strokeLinecap="round" fill="none" />
-            <path d="M55 170c0-28 20-44 45-44s45 16 45 44" fill={shirtColor} />
-            <path d="M85 126l15 14 15-14" stroke="rgba(255,255,255,0.3)" strokeWidth="2" fill="none" />
-          </svg>
-        </div>
-        <div className="flex flex-wrap gap-1.5 justify-center">
-          {tags.map((t, i) => (
-            <span
-              key={i}
-              className={`text-[11px] font-semibold px-2.5 py-1 rounded-full inline-flex items-center gap-1 ${
-                t.filled
-                  ? 'bg-primary/15 border border-primary/40 text-primary'
-                  : 'bg-muted border border-border text-muted-foreground'
-              }`}
-            >
-              {t.filled && '✓ '}{t.label}
-            </span>
-          ))}
-        </div>
-      </CardContent>
-    </Card>
-  );
-};
-
 /* ------------------------------------------------------------------ */
 /*  Page component                                                     */
 /* ------------------------------------------------------------------ */
 
 export const OnboardingPage = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  useAuth();
 
   const [form, setForm] = useState<ProfileDetails>({ ...EMPTY });
   const [stepIndex, setStepIndex] = useState(0);
   const [theme, setTheme] = useState<'light' | 'dark' | 'auto'>('auto');
-
-  const [chatMessages, setChatMessages] = useState<ChatMsg[]>([
-    { role: 'assistant', content: "Hi! I'm CardPilot. You can tell me about yourself in your own words and I'll fill in the profile for you. Or just use the form — either works!" },
-  ]);
-  const [chatInput, setChatInput] = useState('');
-  const [chatLoading, setChatLoading] = useState(false);
-  const [chatSuggestions, setChatSuggestions] = useState<string[]>([
-    "I'm a software engineer in NYC",
-    "I fly Delta mostly",
-    "I want travel rewards",
-  ]);
-  const chatEndRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [chatMessages]);
 
   const set = <K extends keyof typeof form>(key: K, value: (typeof form)[K]) =>
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -291,90 +197,6 @@ export const OnboardingPage = () => {
 
   const themeAttr = theme === 'auto' ? undefined : theme;
 
-  const sendChat = async (msg: string) => {
-    const text = msg.trim();
-    if (!text || chatLoading) return;
-    setChatInput('');
-    setChatMessages((prev) => [...prev, { role: 'user', content: text }]);
-    setChatLoading(true);
-    setChatSuggestions([]);
-
-    try {
-      const token = authService.getToken();
-      const history = chatMessages.map((m) => ({ role: m.role, content: m.content }));
-
-      const res = await fetch(`${API_URL}/profiling/chat`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify({ message: text, history }),
-      });
-
-      if (!res.ok) {
-        setChatMessages((prev) => [
-          ...prev,
-          { role: 'assistant', content: "Sorry, I couldn't process that. You can continue filling in the form instead!" },
-        ]);
-        setChatLoading(false);
-        return;
-      }
-
-      if (res.body) {
-        const reader = res.body.getReader();
-        const decoder = new TextDecoder();
-        let buffer = '';
-        let reply = '';
-
-        setChatMessages((prev) => [...prev, { role: 'assistant', content: '' }]);
-
-        for (;;) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          buffer += decoder.decode(value, { stream: true });
-          const frames = buffer.split('\n\n');
-          buffer = frames.pop() ?? '';
-          for (const frame of frames) {
-            const event = /event:\s*(.*)/.exec(frame)?.[1]?.trim();
-            const dataLine = /data:\s*([\s\S]*)/.exec(frame)?.[1];
-            if (!event || !dataLine) continue;
-            const payload = JSON.parse(dataLine);
-            if (event === 'token') {
-              reply += payload.text;
-              setChatMessages((prev) => {
-                const next = [...prev];
-                next[next.length - 1] = { role: 'assistant', content: reply };
-                return next;
-              });
-            } else if (event === 'suggestions') {
-              setChatSuggestions(payload.items ?? []);
-            }
-          }
-        }
-
-        if (!reply) {
-          setChatMessages((prev) => {
-            const next = [...prev];
-            next[next.length - 1] = { role: 'assistant', content: "Got it! I've updated your profile." };
-            return next;
-          });
-        }
-      } else {
-        const data = await res.json();
-        setChatMessages((prev) => [...prev, { role: 'assistant', content: data.reply || "Got it!" }]);
-        if (data.suggestions) setChatSuggestions(data.suggestions);
-      }
-    } catch {
-      setChatMessages((prev) => [
-        ...prev.slice(0, -1).filter((m) => m.content),
-        { role: 'assistant', content: "I had trouble connecting. Try again or use the form!" },
-      ]);
-    } finally {
-      setChatLoading(false);
-    }
-  };
-
   return (
     <div className="bg-background text-foreground min-h-screen lg:h-screen lg:overflow-hidden lg:flex lg:flex-col antialiased leading-relaxed tracking-tight" data-theme={themeAttr}>
       {/* Header */}
@@ -382,9 +204,9 @@ export const OnboardingPage = () => {
         <div className="max-w-[1400px] mx-auto flex items-center justify-between h-14">
           <Link to="/" className="flex items-center gap-2.5 font-display font-bold text-[19px] tracking-tight no-underline text-foreground">
             <span className="w-[34px] h-[34px] rounded-[10px] shrink-0 grid place-items-center bg-gradient-to-br from-primary to-primary/80 text-primary-foreground shadow-md shadow-primary/30">
-              <CardPilotLogo />
+              <RewardHiveLogo />
             </span>
-            CardPilot
+            RewardHive
           </Link>
           <div className="flex items-center gap-2.5">
             <button
@@ -582,50 +404,32 @@ const MultiSelect = ({
   const wrapRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
-  const [rect, setRect] = useState<{ top?: number; bottom?: number; left: number; width: number } | null>(null);
+  const [pos, setPos] = useState<{ top: number; left: number; width: number } | null>(null);
 
-  // The menu is rendered in a portal with fixed positioning so it is never
-  // clipped by a scrolling ancestor (the onboarding form panel scrolls
-  // internally). Position is measured from the trigger each time it opens.
-  const place = () => {
+  const reposition = () => {
     const el = triggerRef.current;
     if (!el) return;
     const r = el.getBoundingClientRect();
-    const spaceBelow = window.innerHeight - r.bottom;
-    const estimate = 320; // search box + max-h-60 options list
-    if (spaceBelow < estimate && r.top > spaceBelow) {
-      // Not enough room below and more room above → open upward.
-      setRect({ bottom: window.innerHeight - r.top + 4, left: r.left, width: r.width });
-    } else {
-      setRect({ top: r.bottom + 4, left: r.left, width: r.width });
-    }
+    setPos({ top: r.bottom + 4, left: r.left, width: r.width });
   };
 
   useEffect(() => {
     if (!open) return;
-    place();
-    // Click outside either the trigger wrapper or the portaled menu closes it.
+    reposition();
+
     const onPointer = (e: MouseEvent) => {
       const t = e.target as Node;
       if (wrapRef.current?.contains(t) || menuRef.current?.contains(t)) return;
       setOpen(false);
     };
-    // Any scroll outside the menu's own list closes it (the fixed menu can't
-    // follow the trigger); scrolling within the options list is ignored.
-    const onScroll = (e: Event) => {
-      if (menuRef.current?.contains(e.target as Node)) return;
-      setOpen(false);
-    };
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false);
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
     document.addEventListener('mousedown', onPointer);
-    window.addEventListener('scroll', onScroll, true);
-    window.addEventListener('resize', place);
     document.addEventListener('keydown', onKey);
+    window.addEventListener('resize', reposition);
     return () => {
       document.removeEventListener('mousedown', onPointer);
-      window.removeEventListener('scroll', onScroll, true);
-      window.removeEventListener('resize', place);
       document.removeEventListener('keydown', onKey);
+      window.removeEventListener('resize', reposition);
     };
   }, [open]);
 
@@ -668,15 +472,15 @@ const MultiSelect = ({
         />
       </button>
 
-      {open && rect &&
+      {open && pos &&
         createPortal(
           <div
             ref={menuRef}
-            style={{ position: 'fixed', top: rect.top, bottom: rect.bottom, left: rect.left, width: rect.width, zIndex: 50 }}
-            className="rounded-xl border border-border bg-background shadow-lg overflow-hidden"
+            style={{ position: 'fixed', top: pos.top, left: pos.left, width: pos.width, maxHeight: 260, zIndex: 9999 }}
+            className="rounded-xl border border-border bg-background shadow-lg overflow-hidden flex flex-col"
           >
             {searchable && (
-              <div className="p-2 border-b border-border">
+              <div className="shrink-0 p-2 border-b border-border">
                 <input
                   autoFocus
                   value={query}
@@ -686,7 +490,7 @@ const MultiSelect = ({
                 />
               </div>
             )}
-            <ul className="max-h-60 overflow-auto py-1">
+            <ul className="overflow-auto py-1 flex-1 min-h-0">
               {filtered.length === 0 ? (
                 <li className="px-3 py-2 text-sm text-muted-foreground">{emptyText}</li>
               ) : (
@@ -696,7 +500,6 @@ const MultiSelect = ({
                     <li key={o.value}>
                       <button
                         type="button"
-                        // mousedown fires before the search input's blur, so the pick registers.
                         onMouseDown={(e) => {
                           e.preventDefault();
                           toggle(o.value);
@@ -988,7 +791,7 @@ const CardsStep = ({ form, set }: { form: FormState; set: SetFn }) => {
           emptyText="No cards found"
           options={catalog.map((card) => ({
             value: card.id,
-            label: card.name,
+            label: card.issuer ? `${card.name} (${card.issuer})` : card.name,
             color: BANK_BRANDS[card.issuer]?.bg,
           }))}
           selected={catalogSelected}

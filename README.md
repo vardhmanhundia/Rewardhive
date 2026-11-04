@@ -1,10 +1,10 @@
-# CardPilot
+# RewardHive
 
-**CardPilot** is an AI-powered credit card assistant that helps users pick the right card for every purchase, optimize their wallet, and discover new cards tailored to their spending habits. It uses **Meta's Muse LLM** (via the Meta Model API) to power conversational AI agents built with **LangGraph**.
+**RewardHive** is an AI-powered credit card assistant that helps users pick the right card for every purchase, optimize their wallet, and discover new cards tailored to their spending habits. It uses **Meta's Muse LLM** (via the Meta Model API) to power conversational AI agents built with **LangGraph**.
 
 ## What It Does
 
-- **Which Card?** — Describe a purchase ("$200 at Costco") and CardPilot ranks your wallet's cards by rewards, explaining which to use and why.
+- **Which Card?** — Describe a purchase ("$200 at Costco") and RewardHive ranks your wallet's cards by rewards, explaining which to use and why.
 - **Wallet Optimizer** — Evaluates your current card lineup and suggests whether a new card would improve your overall rewards.
 - **Card Recommendations** — A RAG-powered recommender searches a catalog of 21 real credit cards and suggests the best match based on your spending profile.
 - **Conversational Profiling** — As you chat, the AI builds a spending profile (categories, preferences, goals) so recommendations improve over time.
@@ -26,7 +26,7 @@
 ### Prerequisites
 
 - **Python 3.13+** and [uv](https://docs.astral.sh/uv/) (recommended) or pip
-- **Node.js 20+**
+- **Node.js 20.19+ (or 22+)** — required by Vite 8
 - **Docker** (for PostgreSQL + Redis)
 - **Meta Model API key** — get one from the Meta Model API dashboard
 
@@ -55,17 +55,20 @@ Edit `.env` and set these required values:
 
 ```bash
 MODEL_API_KEY=<your-meta-model-api-key>
-MUSE_BASE_URL=<your-meta-model-api-base-url>
 SECRET_KEY=<generate-with: python -c "import secrets; print(secrets.token_urlsafe(32))">
 ```
 
 ### 3. Start infrastructure, migrate, and seed
+
+> **Make sure Docker is running first.** `make setup` starts PostgreSQL + Redis in Docker, so Docker Desktop (or your Docker daemon) must be open, or this step will fail.
 
 ```bash
 make setup
 ```
 
 This starts PostgreSQL + Redis in Docker, runs Alembic migrations, and seeds the card catalog with embeddings.
+
+> **First run is slow.** Seeding downloads the sentence-transformers embedding model (`bge-large-en-v1.5`, ~1GB) the first time, so `make setup` can take a few minutes before it completes. This is a one-time download (cached for later runs).
 
 ### 4. Start the app
 

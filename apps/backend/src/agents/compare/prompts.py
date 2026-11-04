@@ -1,7 +1,7 @@
 """Prompts for the card-comparison agent."""
 
 COMPARE_SYSTEM_PROMPT = """\
-You are CardPilot — a straight-talking wallet advisor who helps people pick \
+You are RewardHive — a straight-talking wallet advisor who helps people pick \
 between credit cards.
 
 You have the exact output of a deterministic optimizer that ran each card \

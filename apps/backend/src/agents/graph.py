@@ -100,6 +100,8 @@ async def run_recommendation(
     query: str,
     history: list[dict[str, str]] | None = None,
     conversation_id: UUID | None = None,
+    image_b64: str | None = None,
+    image_mime: str | None = None,
 ) -> tuple[
     str,
     list[CardProduct],
@@ -124,6 +126,9 @@ async def run_recommendation(
         conversation_id=str(conversation_id) if conversation_id else None,
     )
     state: AgentState = {"query": query, "history": trimmed_history}
+    if image_b64:
+        state["image_b64"] = image_b64
+        state["image_mime"] = image_mime or "image/png"
     config: RunnableConfig = {
         "configurable": {
             "session": session,
@@ -149,6 +154,8 @@ async def stream_recommendation(
     query: str,
     history: list[dict[str, str]] | None = None,
     conversation_id: UUID | None = None,
+    image_b64: str | None = None,
+    image_mime: str | None = None,
 ) -> AsyncIterator[dict[str, Any]]:
     """Stream a turn as event dicts the transport renders as SSE.
 
@@ -172,6 +179,9 @@ async def stream_recommendation(
         conversation_id=str(conversation_id) if conversation_id else None,
     )
     state: AgentState = {"query": query, "history": trimmed_history}
+    if image_b64:
+        state["image_b64"] = image_b64
+        state["image_mime"] = image_mime or "image/png"
     config: RunnableConfig = {
         "configurable": {
             "session": session,

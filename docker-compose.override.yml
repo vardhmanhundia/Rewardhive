@@ -1,6 +1,8 @@
 services:
   backend:
-    command: sh -c "alembic upgrade head && python -m src.db.seed_cards && uvicorn src.api.main:app --host 0.0.0.0 --port 8000 --reload"
+    command: sh -c "alembic upgrade head && python -m src.db.seed_cards && uvicorn src.api.main:app --host 0.0.0.0 --port 8000 --reload --reload-dir src"
+    environment:
+      - WATCHFILES_FORCE_POLLING=true
     volumes:
       - ./apps/backend/alembic:/app/alembic
       - ./apps/backend/seed:/app/seed
@@ -9,11 +11,10 @@ services:
     command: npm run dev
     environment:
       - VITE_PROXY_TARGET=http://backend:8000
-      # Serve the real seeded catalog from the backend instead of mock cards.
-      # Set back to true (or remove) to use the bundled mock data offline.
       - VITE_USE_MOCK_CARDS=false
+      - CHOKIDAR_USEPOLLING=true
     volumes:
-      - ./apps/web/src:/app/src
-      - ./apps/web/vite.config.ts:/app/vite.config.ts
-      - ./apps/web/tsconfig.json:/app/tsconfig.json
+      - ./apps/web/src:/app/apps/web/src
+      - ./apps/web/vite.config.ts:/app/apps/web/vite.config.ts
+      - ./apps/web/tsconfig.json:/app/apps/web/tsconfig.json
       - ./shared:/app/shared

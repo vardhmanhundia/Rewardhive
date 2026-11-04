@@ -38,7 +38,10 @@ async def rewards_node(state: AgentState, config: RunnableConfig) -> AgentState:
 
     parts: list[str] = []
     picks: list[dict] = []
-    async for event in stream_rewards(session, user_id, state.get("query", ""), card_ids, None):
+    async for event in stream_rewards(
+        session, user_id, state.get("query", ""), card_ids, None,
+        image_b64=state.get("image_b64"), image_mime=state.get("image_mime"),
+    ):
         writer(event)
         kind = event.get("kind")
         if kind == "token":

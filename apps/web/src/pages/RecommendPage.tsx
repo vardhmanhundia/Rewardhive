@@ -15,10 +15,13 @@ import {
   Sparkles, Send, Search, FileText, Plus, MessageSquare, MoreHorizontal,
   Trash2, PanelLeftClose, PanelLeft, Pin, PinOff, RefreshCw, Share2, Users, Link2,
   X, Mail, Copy, Check, UserPlus, CreditCard, Square, Wallet,
+  Mic, MicOff, Volume2, VolumeX, Paperclip, Loader2,
 } from 'lucide-react';
 import { Navbar } from '@/components/Navbar';
 import Markdown from '@/components/Markdown';
 import { RecommendResult, PicksResult, EvaluateResult, MemoriesNote } from '@/components/chat';
+import { useImageAttachment } from '@/hooks/useImageAttachment';
+import { useSpeechToText, useTextToSpeech } from '@/hooks/useVoice';
 import cardService, {
   type CardProduct,
   type Conversation,
@@ -47,6 +50,7 @@ interface ChatTurn {
   intent?: string;
   prompts: FollowUpPrompt[];
   spendBaseline?: Record<string, number>;
+  imagePreviewUrl?: string;
 }
 
 type ThreadCategory = 'pinned' | 'shared' | 'self';
@@ -160,6 +164,17 @@ export const RecommendPage = () => {
   const abortRef = useRef<AbortController | null>(null);
   const activeTurnId = useRef<string | null>(null);
 
+  // Multimodal: image attachment
+  const img = useImageAttachment();
+
+  // Voice input
+  const stt = useSpeechToText((text) => {
+    setInput((prev) => (prev ? `${prev} ${text}` : text));
+  });
+
+  // Voice output (read the latest answer aloud)
+  useTextToSpeech();
+
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [turns]);
@@ -258,6 +273,13 @@ export const RecommendPage = () => {
     // If a stream is running, interrupt it first.
     if (busy) stop();
 
+    // Capture image attachment before clearing.
+    const currentImage = img.attachment;
+    const imageB64 = currentImage?.b64;
+    const imageMime = currentImage?.mime;
+    const imagePreview = currentImage?.previewUrl;
+    img.clear();
+
     // Build history from completed, non-interrupted turns only.
     // Cap at the most recent 20 turns to keep request payloads manageable;
     // the backend further trims and summarizes older context via Redis.
@@ -279,7 +301,7 @@ export const RecommendPage = () => {
       console.log('[ASK] adding turn', id);
       setTurns((prev) => [
         ...prev,
-        { id, query, stage: null, answer: '', cards: [], picks: [], found: 0, memories: [], suggestions: [], prompts: [] },
+        { id, query, stage: null, answer: '', cards: [], picks: [], found: 0, memories: [], suggestions: [], prompts: [], imagePreviewUrl: imagePreview },
       ]);
     }
     setInput('');
@@ -324,6 +346,8 @@ export const RecommendPage = () => {
         },
         history,
         convId.current ?? undefined,
+        imageB64,
+        imageMime,
       );
     } catch (err) {
       if (err instanceof DOMException && err.name === 'AbortError') {
@@ -627,8 +651,31 @@ export const RecommendPage = () => {
                 e.preventDefault();
                 ask(input);
               }}
+              onDrop={img.onDrop}
+              onDragOver={(e) => e.preventDefault()}
               className="glass sticky bottom-4 mt-auto mb-4 sm:mb-4 mb-[4.5rem] rounded-xl p-3"
             >
+              {/* Image preview */}
+              {img.attachment && (
+                <div className="relative mb-2 inline-block">
+                  <img
+                    src={img.attachment.previewUrl}
+                    alt="Attached"
+                    className="h-20 rounded-lg border border-white/10 object-cover"
+                  />
+                  <button
+                    type="button"
+                    onClick={img.clear}
+                    className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-white text-xs hover:bg-destructive/80"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </div>
+              )}
+              {img.error && (
+                <p className="mb-1 text-xs text-destructive">{img.error}</p>
+              )}
+
               <textarea
                 value={input}
                 onChange={(e) => {
@@ -643,21 +690,60 @@ export const RecommendPage = () => {
                     ask(input);
                   }
                 }}
+                onPaste={img.onPaste}
                 rows={1}
                 placeholder={
                   busy
                     ? 'Type to interrupt and ask something else…'
                     : empty
-                      ? 'Ask anything — which card to get, which to use, or whether one is worth it…'
+                      ? 'Ask anything — attach a screenshot, use your voice, or type a question…'
                       : 'Ask a follow-up…'
                 }
                 className="w-full resize-none bg-transparent p-2 text-sm outline-none placeholder:text-muted-foreground"
                 style={{ overflow: 'hidden' }}
               />
+              {/* Hidden file input */}
+              <input
+                ref={img.inputRef}
+                type="file"
+                accept="image/png,image/jpeg,image/webp,image/gif"
+                className="hidden"
+                onChange={img.onChange}
+              />
               <div className="flex items-center justify-between px-2 pb-1">
-                <span className="text-xs text-muted-foreground hidden sm:inline">
-                  {busy ? 'Esc to stop · Enter to interrupt and ask' : 'Enter to send · Shift+Enter for newline'}
-                </span>
+                <div className="flex items-center gap-1">
+                  {/* Attach image */}
+                  <button
+                    type="button"
+                    onClick={img.open}
+                    className="rounded-lg p-1.5 text-muted-foreground hover:bg-white/5 hover:text-foreground transition-colors"
+                    title="Attach image (screenshot, receipt)"
+                  >
+                    <Paperclip className="h-4 w-4" />
+                  </button>
+                  {/* Voice input */}
+                  {stt.supported && (
+                    <button
+                      type="button"
+                      onClick={stt.toggle}
+                      className={`rounded-lg p-1.5 transition-colors ${
+                        stt.listening
+                          ? 'bg-red-500/20 text-red-400 animate-pulse'
+                          : 'text-muted-foreground hover:bg-white/5 hover:text-foreground'
+                      }`}
+                      title={stt.listening ? 'Stop listening' : 'Voice input'}
+                    >
+                      {stt.listening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+                    </button>
+                  )}
+                  <span className="text-xs text-muted-foreground hidden sm:inline ml-1">
+                    {stt.listening
+                      ? 'Listening…'
+                      : busy
+                        ? 'Esc to stop'
+                        : 'Enter to send'}
+                  </span>
+                </div>
                 <div className="flex items-center gap-2 ml-auto">
                   {busy ? (
                     <button
@@ -671,7 +757,7 @@ export const RecommendPage = () => {
                   ) : (
                     <button
                       type="submit"
-                      disabled={!input.trim()}
+                      disabled={!input.trim() && !img.attachment}
                       className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
                     >
                       <Send className="h-4 w-4" />
@@ -883,7 +969,10 @@ const EmptyState = ({ onPick }: { onPick: (q: string) => void }) => (
     </h1>
     <p className="mt-3 max-w-lg text-muted-foreground">
       Ask anything about credit cards — which to get, which to use for a purchase,
-      whether a card is worth it. The assistant searches the catalog and explains its reasoning.
+      whether a card is worth it. Attach a screenshot, upload a receipt, or use your voice.
+    </p>
+    <p className="mt-2 max-w-lg text-xs text-muted-foreground/70">
+      No bank login — you choose what to upload. Images you attach are analyzed by our AI to read the purchase.
     </p>
 
     <div className="mt-8 w-full max-w-lg space-y-4">
@@ -951,7 +1040,14 @@ const Turn = ({
     <div className="space-y-4">
       {/* User bubble */}
       <div className="flex justify-end">
-        <div className="max-w-[85%] rounded-2xl rounded-br-sm bg-primary px-4 py-2.5 text-sm text-primary-foreground">
+        <div className="max-w-[85%] space-y-2 rounded-2xl rounded-br-sm bg-primary px-4 py-2.5 text-sm text-primary-foreground">
+          {turn.imagePreviewUrl && (
+            <img
+              src={turn.imagePreviewUrl}
+              alt="Attached"
+              className="max-h-40 rounded-lg border border-white/20 object-cover"
+            />
+          )}
           {turn.query}
         </div>
       </div>
@@ -961,15 +1057,26 @@ const Turn = ({
         <StageLine turn={turn} />
 
         {turn.answer && (
-          <div className={`glass rounded-2xl rounded-tl-sm p-4 text-sm leading-relaxed ${turn.error ? 'border border-destructive/30' : ''} ${turn.interrupted ? 'opacity-60' : ''}`}>
-            <Markdown>{turn.answer}</Markdown>
-            {turn.stage === 'generating' && !turn.interrupted && (
-              <span className="ml-0.5 inline-block h-4 w-1.5 animate-pulse bg-primary align-middle" />
-            )}
-            {turn.interrupted && (
-              <span className="mt-2 block text-xs text-muted-foreground italic">— stopped</span>
-            )}
+          <div>
+            <div className={`glass rounded-2xl rounded-tl-sm p-4 text-sm leading-relaxed ${turn.error ? 'border border-destructive/30' : ''} ${turn.interrupted ? 'opacity-60' : ''}`}>
+              <Markdown>{turn.answer}</Markdown>
+              {turn.stage === 'generating' && !turn.interrupted && (
+                <span className="ml-0.5 inline-block h-4 w-1.5 animate-pulse bg-primary align-middle" />
+              )}
+              {turn.interrupted && (
+                <span className="mt-2 block text-xs text-muted-foreground italic">— stopped</span>
+              )}
+            </div>
+            <span className="mt-1.5 inline-flex items-center gap-1 text-[11px] text-muted-foreground/60 pl-1">
+              <svg viewBox="0 0 16 16" className="w-3 h-3" fill="currentColor"><circle cx="8" cy="8" r="7" stroke="currentColor" strokeWidth="1" fill="none" /><path d="M5 8l2 2 4-4" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" /></svg>
+              Muse Spark
+            </span>
           </div>
+        )}
+
+        {/* Text-to-speech for completed answers */}
+        {isDone && turn.answer && !turn.error && (
+          <TtsButton text={turn.answer} />
         )}
 
         {/* Retry button on error or interrupted */}
@@ -1190,6 +1297,34 @@ const ShareDialog = ({
         </div>
       </div>
     </div>
+  );
+};
+
+/* ── TTS button ─────────────────────────────────────────────────────── */
+
+const TtsButton = ({ text }: { text: string }) => {
+  const { speaking, loading, supported, toggle } = useTextToSpeech();
+  if (!supported) return null;
+  const active = speaking || loading;
+  return (
+    <button
+      onClick={() => toggle(text)}
+      className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs transition-colors ${
+        active
+          ? 'bg-primary/20 text-primary'
+          : 'text-muted-foreground hover:bg-white/5 hover:text-foreground'
+      }`}
+      title={loading ? 'Preparing speech…' : speaking ? 'Stop reading' : 'Read aloud'}
+    >
+      {loading ? (
+        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+      ) : speaking ? (
+        <VolumeX className="h-3.5 w-3.5" />
+      ) : (
+        <Volume2 className="h-3.5 w-3.5" />
+      )}
+      {loading ? 'Preparing…' : speaking ? 'Stop' : 'Listen'}
+    </button>
   );
 };
 

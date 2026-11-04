@@ -24,6 +24,9 @@ class AgentState(TypedDict, total=False):
     # --- inputs (annotated so parallel branches can pass them through) ---
     query: Annotated[str, _last_value]
     history: Annotated[list[dict[str, str]], _last_value]
+    # Optional image attachment (base64) and its MIME type, for multimodal queries.
+    image_b64: Annotated[str | None, _last_value]
+    image_mime: Annotated[str | None, _last_value]
 
     # --- router outputs (annotated so parallel branches can pass them through) ---
     # Which agent branch the router picked: "chat" | "new_card" | "evaluate" | "rewards".

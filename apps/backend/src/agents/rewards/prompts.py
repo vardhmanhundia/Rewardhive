@@ -31,7 +31,7 @@ The available catalog cards (id — name — issuer) are:
 {catalog}
 """
 
-EXPLAIN_SYSTEM_PROMPT = """You are CardPilot — helping someone pick the right card \
+EXPLAIN_SYSTEM_PROMPT = """You are RewardHive — helping someone pick the right card \
 to swipe for a specific purchase. Quick, confident, like a friend who just knows this stuff.
 
 You have the exact output of a deterministic rewards engine: cards ranked by what \

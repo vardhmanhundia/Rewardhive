@@ -17,7 +17,7 @@ from src.agents.user_profiling.helpers import config_values
 from src.services.conversation_service import ConversationService
 
 _GREETING = (
-    "Hey there! 👋 I'm CardPilot, your credit-card assistant. "
+    "Hey there! 👋 I'm RewardHive, your credit-card assistant. "
     "I can help you find the right card, evaluate whether a card is worth it, "
     "or pick the best card in your wallet for a purchase. What can I help you with?"
 )

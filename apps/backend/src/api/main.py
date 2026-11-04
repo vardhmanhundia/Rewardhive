@@ -20,6 +20,7 @@ from src.api.cards import router as cards_router
 from src.api.optimizer import router as optimizer_router
 from src.api.recommendations import router as recommendations_router
 from src.api.rewards import router as rewards_router
+from src.api.multimodal import router as multimodal_router
 
 # Enable LangSmith tracing (no-op unless LANGSMITH_TRACING=true) before any
 # graph runs, so all LLM/graph calls are logged.
@@ -112,6 +113,7 @@ app.include_router(optimizer_router)
 app.include_router(recommendations_router)
 app.include_router(advisor_router)
 app.include_router(rewards_router)
+app.include_router(multimodal_router)
 
 
 @app.get("/health")

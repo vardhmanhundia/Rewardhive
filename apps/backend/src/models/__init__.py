@@ -248,6 +248,10 @@ class RecommendationRequest(BaseModel):
     # The conversation (session) this turn belongs to. Omitted for a fresh
     # session — the server creates a conversation and returns its id.
     conversation_id: Optional[UUID] = None
+    # Optional base64-encoded image attachment (screenshot, receipt, etc.).
+    # When present, the agent receives the image alongside the text query.
+    image_b64: Optional[str] = None
+    image_mime: Optional[str] = "image/png"
 
 
 class ProfileConflictInfo(BaseModel):
@@ -479,6 +483,8 @@ class BestCardRequest(BaseModel):
     question: str = Field(..., min_length=1)
     card_ids: list[str] = Field(default_factory=list)
     monthly_amount: Optional[float] = Field(None, ge=0)
+    image_b64: Optional[str] = None
+    image_mime: Optional[str] = "image/png"
 
 
 class CardRewardPickSchema(BaseModel):

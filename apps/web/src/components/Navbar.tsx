@@ -28,7 +28,7 @@ export const Navbar = () => {
       <header className="sticky top-0 z-30 border-b border-white/5 bg-background/70 backdrop-blur-md">
         <nav className="max-w-[1400px] mx-auto flex items-center justify-between px-4 h-14">
           <Link to="/" className="font-display text-lg font-bold tracking-tight">
-            Card<span className="text-gradient">Pilot</span>
+            Reward<span className="text-gradient">Hive</span>
           </Link>
 
           {/* Desktop nav links — hidden on mobile */}

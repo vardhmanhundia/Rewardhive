@@ -34,7 +34,7 @@ services:
     depends_on:
       - backend
     volumes:
-      - ./apps/web/src:/app/src
+      - ./apps/web/src:/app/apps/web/src
 
   db:
     image: pgvector/pgvector:pg15

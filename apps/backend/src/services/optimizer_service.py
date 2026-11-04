@@ -1,4 +1,4 @@
-"""Deterministic wallet-rewards optimizer — the engine behind CardPilot.
+"""Deterministic wallet-rewards optimizer — the engine behind RewardHive.
 
 This is the "do real work" core: given approximate annual spend per category and a
 set of cards, it decides which card to use for each category, applies earn-rate

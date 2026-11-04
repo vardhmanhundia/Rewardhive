@@ -92,7 +92,7 @@ def get_chat_model(
     """Build the project's chat model, or a fake when replay mode is on.
 
     Args:
-        model: Model id (e.g. ``muse-spark-1.1``).
+        model: Model id (e.g. ``muse-spark-1.3``).
         max_tokens: Max output tokens. Muse Spark is a reasoning model and
             *always reasons*, so this budget must cover the reasoning tokens
             plus the visible answer — set it generously or structured calls can

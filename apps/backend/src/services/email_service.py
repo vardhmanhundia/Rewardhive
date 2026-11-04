@@ -91,11 +91,11 @@ class EmailService:
         subject = f"{inviter_name} shared a conversation with you"
         text_body = (
             f'{inviter_name} shared the conversation "{conversation_title}" with you '
-            f"on CardPilot.\n\nOpen it here: {url}\n"
+            f"on RewardHive.\n\nOpen it here: {url}\n"
         )
         html_body = (
             f'<p>{inviter_name} shared the conversation '
-            f'<strong>"{conversation_title}"</strong> with you on CardPilot.</p>'
+            f'<strong>"{conversation_title}"</strong> with you on RewardHive.</p>'
             f'<p><a href="{url}">Open the conversation</a></p>'
         )
         return await EmailService._send(to, subject, text_body, html_body)
@@ -111,21 +111,21 @@ class EmailService:
         """Invite a non-user: share the conversation plus prompt them to sign up."""
         conversation_url = EmailService._conversation_url(conversation_id)
         signup_url = EmailService._signup_url()
-        subject = f"{inviter_name} invited you to CardPilot"
+        subject = f"{inviter_name} invited you to RewardHive"
         text_body = (
             f'{inviter_name} wants to share the conversation "{conversation_title}" '
-            f"with you on CardPilot.\n\n"
-            f"CardPilot helps you pick the right credit card for how you spend. "
+            f"with you on RewardHive.\n\n"
+            f"RewardHive helps you pick the right credit card for how you spend. "
             f"Create a free account to view the conversation and start your own:\n"
             f"{signup_url}\n\n"
             f"Once you've signed up, open the conversation here: {conversation_url}\n"
         )
         html_body = (
             f'<p>{inviter_name} wants to share the conversation '
-            f'<strong>"{conversation_title}"</strong> with you on CardPilot.</p>'
-            f"<p>CardPilot helps you pick the right credit card for how you spend. "
+            f'<strong>"{conversation_title}"</strong> with you on RewardHive.</p>'
+            f"<p>RewardHive helps you pick the right credit card for how you spend. "
             f"Create a free account to view the conversation and start your own.</p>"
-            f'<p><a href="{signup_url}">Sign up for CardPilot</a></p>'
+            f'<p><a href="{signup_url}">Sign up for RewardHive</a></p>'
             f'<p>Already signed up? <a href="{conversation_url}">Open the conversation</a></p>'
         )
         return await EmailService._send(to, subject, text_body, html_body)

@@ -27,7 +27,6 @@ import {
   KNOWN_BANKS,
   US_STATES,
   DEFAULT_COUNTRY,
-  CARD_CATEGORIES,
   type Option,
 } from '@/data/profileOptions';
 import {ArrowUp, ArrowDown, Search} from 'lucide-react';

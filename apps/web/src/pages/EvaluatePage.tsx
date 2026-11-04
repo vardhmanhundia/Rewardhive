@@ -9,7 +9,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { Sparkles, CreditCard } from 'lucide-react';
+import { Sparkles } from 'lucide-react';
 import { Navbar } from '@/components/Navbar';
 import Markdown from '@/components/Markdown';
 import cardService, {

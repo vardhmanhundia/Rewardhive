@@ -39,7 +39,7 @@ def test_recommend_requires_auth(client: TestClient):
 def test_recommend_returns_full_payload(client: TestClient, test_user_data: dict, monkeypatch):
     captured: dict = {}
 
-    async def fake_run(session, user_id, query, history=None):
+    async def fake_run(session, user_id, query, history=None, **kwargs):
         captured["query"] = query
         captured["history"] = history
         return (
@@ -55,6 +55,8 @@ def test_recommend_returns_full_payload(client: TestClient, test_user_data: dict
                     "mentioned": "4",
                 }
             ],
+            "new_card",
+            [],
         )
 
     monkeypatch.setattr(recommendations, "run_recommendation", fake_run)
@@ -139,7 +141,7 @@ def test_stream_requires_auth(client: TestClient):
 
 
 def test_stream_emits_named_sse_events(client: TestClient, test_user_data: dict, monkeypatch):
-    async def fake_stream(session, user_id, query, history=None):
+    async def fake_stream(session, user_id, query, history=None, **kwargs):
         yield {"kind": "stage", "stage": "retrieving"}
         yield {"kind": "stage", "stage": "retrieved", "count": 1}
         yield {"kind": "cards", "cards": [{"id": "demo-card", "name": "Demo Card"}]}
@@ -167,6 +169,7 @@ def test_stream_emits_named_sse_events(client: TestClient, test_user_data: dict,
         if line.startswith("event: ")
     ]
     assert events == [
+        "conversation",
         "stage",
         "stage",
         "cards",

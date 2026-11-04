@@ -45,6 +45,7 @@ from src.db.models import CardProduct
 from src.models import CardProductSchema
 from src.services.conversation_service import ConversationService
 from src.services.retrieval_service import RetrievalService
+from src.services.vision_service import parse_receipt, analyze_screenshot
 
 # Plain (non-structured) Muse client for token-by-token streaming of the answer.
 reply_llm = get_chat_model(settings.RECOMMENDATION_MODEL, max_tokens=4096)
@@ -96,7 +97,12 @@ def _retrieval_query(query: str, preferences: str) -> str:
 
 
 def _messages(
-    query: str, preferences: str, cards: list[CardProduct], history: list[dict[str, str]]
+    query: str,
+    preferences: str,
+    cards: list[CardProduct],
+    history: list[dict[str, str]],
+    image_b64: str | None = None,
+    image_mime: str | None = None,
 ) -> list[Any]:
     system = RECOMMENDATION_SYSTEM_PROMPT.format(
         preferences=preferences,
@@ -104,7 +110,15 @@ def _messages(
     )
     messages: list[Any] = [SystemMessage(content=system)]
     messages.extend(history_messages({"history": history}))
-    messages.append(HumanMessage(content=query))
+    if image_b64:
+        mime = image_mime or "image/png"
+        content: list[dict[str, Any]] = [
+            {"type": "image_url", "image_url": {"url": f"data:{mime};base64,{image_b64}"}},
+            {"type": "text", "text": query},
+        ]
+        messages.append(HumanMessage(content=content))
+    else:
+        messages.append(HumanMessage(content=query))
     return messages
 
 
@@ -194,12 +208,50 @@ async def retrieve_node(state: AgentState, config: RunnableConfig) -> AgentState
 
 
 async def recommend_node(state: AgentState, config: RunnableConfig) -> AgentState:
-    """Stream a recommendation grounded strictly in the retrieved cards."""
+    """Stream a recommendation grounded strictly in the retrieved cards.
+
+    When an image is attached, it is pre-parsed into structured data
+    (receipt line items or screenshot context) and injected as text so the
+    LLM reasons over concrete numbers instead of raw pixels.
+    """
     writer = get_stream_writer()
     _session, user_id = config_values(config)
+
+    query = state.get("query", "")
+    image_b64 = state.get("image_b64")
+    image_mime = state.get("image_mime")
+
+    # Pre-parse the image into structured text context.
+    if image_b64:
+        writer({"kind": "stage", "stage": "parsing image"})
+        try:
+            receipt = await parse_receipt(image_b64, mime_type=image_mime or "image/png")
+            if receipt.items:
+                lines = [f"\n\n[Parsed from uploaded image — {len(receipt.items)} transactions, "
+                         f"total ${receipt.total_amount:.2f}]"]
+                for item in receipt.items:
+                    date_str = f" on {item.date}" if item.date else ""
+                    lines.append(f"  - {item.merchant}: ${item.amount:.2f} ({item.category}){date_str}")
+                query = query + "\n".join(lines)
+            else:
+                screenshot = await analyze_screenshot(image_b64, question=query, mime_type=image_mime or "image/png")
+                parts_ctx = []
+                if screenshot.merchant:
+                    parts_ctx.append(f"merchant: {screenshot.merchant}")
+                if screenshot.amount is not None:
+                    parts_ctx.append(f"amount: ${screenshot.amount:.2f}")
+                if screenshot.category:
+                    parts_ctx.append(f"category: {screenshot.category}")
+                if screenshot.description:
+                    parts_ctx.append(f"context: {screenshot.description}")
+                if parts_ctx:
+                    query = query + f"\n\n[From uploaded screenshot: {'; '.join(parts_ctx)}]"
+        except Exception:
+            pass  # Fall through — the LLM still gets the text query
+
     writer({"kind": "stage", "stage": "generating"})
     messages = _messages(
-        state.get("query", ""),
+        query,
         state.get("preferences", ""),
         state.get("cards", []),
         state.get("history") or [],

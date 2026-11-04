@@ -14,11 +14,14 @@ RUN npm install
 COPY apps/web/ ./
 COPY shared/ /app/shared/
 
+# Build the application
+RUN npm run build
+
 # Expose port
 EXPOSE 3000
 
 # Set API URL (can be overridden at runtime)
 ENV VITE_API_URL=http://localhost:8000
 
-# Run dev server with hot-reload
-CMD ["npm", "run", "dev"]
+# Run preview server
+CMD ["npm", "run", "preview"]

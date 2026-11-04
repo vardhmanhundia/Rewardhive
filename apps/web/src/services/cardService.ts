@@ -133,6 +133,8 @@ export interface CardRewardPick {
   effective_pct: number;
   est_annual_value: number | null;
   specific: boolean;
+  category_group?: string;
+  category_total?: number;
 }
 
 /** The resolved purchase plus the cards ranked best-first. */
@@ -147,6 +149,30 @@ export interface RewardResult {
 export interface FollowUpPrompt {
   action: 'offer_evaluate' | 'offer_add';
   card_ids: string[];
+}
+
+/** Receipt line item extracted from an uploaded image. */
+export interface ReceiptLineItem {
+  merchant: string;
+  amount: number;
+  category: string;
+  date: string | null;
+}
+
+/** Result of parsing a receipt or statement image. */
+export interface ReceiptParseResult {
+  items: ReceiptLineItem[];
+  total_amount: number;
+  currency: string;
+  statement_date: string | null;
+}
+
+/** Purchase context extracted from a screenshot. */
+export interface ScreenshotAnalysis {
+  merchant: string | null;
+  amount: number | null;
+  category: string | null;
+  description: string;
 }
 
 /** What the RAG endpoint returns: Muse prose, the cards it drew on, the memories
@@ -393,6 +419,8 @@ class CardService {
       question: string;
       card_ids?: string[];
       monthly_amount?: number;
+      image_b64?: string;
+      image_mime?: string;
     },
     handlers: {
       onPlan?: (note: string, category: string | null, merchant: string | null, owned: boolean) => void;
@@ -433,6 +461,55 @@ class CardService {
     }
   }
 
+  /** Upload a receipt or statement image and extract spend data. */
+  async parseReceipt(file: File): Promise<ReceiptParseResult> {
+    const form = new FormData();
+    form.append('file', file);
+    const res = await fetch(`${API_URL}/multimodal/parse-receipt`, {
+      method: 'POST',
+      headers: authHeaders(),
+      body: form,
+    });
+    if (!res.ok) throw new Error('Receipt parsing failed');
+    return res.json();
+  }
+
+  /** Upload a screenshot and get purchase context for the card advisor. */
+  async analyzeScreenshot(file: File, question?: string): Promise<ScreenshotAnalysis> {
+    const form = new FormData();
+    form.append('file', file);
+    if (question) form.append('question', question);
+    const res = await fetch(`${API_URL}/multimodal/analyze-screenshot`, {
+      method: 'POST',
+      headers: authHeaders(),
+      body: form,
+    });
+    if (!res.ok) throw new Error('Screenshot analysis failed');
+    return res.json();
+  }
+
+  /** Have Muse Spark rewrite an answer into casual spoken-word style. */
+  async rewriteForSpeech(text: string): Promise<string> {
+    const res = await fetch(`${API_URL}/multimodal/rewrite-for-speech`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      body: JSON.stringify({ text }),
+    });
+    if (!res.ok) return text;
+    const data = await res.json();
+    return data.spoken ?? text;
+  }
+
+  async speak(text: string): Promise<Blob> {
+    const res = await fetch(`${API_URL}/multimodal/speak`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      body: JSON.stringify({ text }),
+    });
+    if (!res.ok) throw new Error('Speech synthesis failed');
+    return res.blob();
+  }
+
   /**
    * Ask for a recommendation. In mock mode this does naive keyword scoring so
    * the workflow is demoable; the real version POSTs to the RAG endpoint, which
@@ -471,14 +548,25 @@ class CardService {
     handlers: RecStreamHandlers = {},
     history: RecMessage[] = [],
     conversationId?: string,
+    imageB64?: string,
+    imageMime?: string,
   ): Promise<RecommendationResult> {
     if (USE_MOCK) return mockRecommendStream(query, handlers);
 
     console.log('[RECOMMEND] starting stream fetch');
+    const body: Record<string, unknown> = {
+      query,
+      history,
+      conversation_id: conversationId ?? null,
+    };
+    if (imageB64) {
+      body.image_b64 = imageB64;
+      body.image_mime = imageMime ?? 'image/png';
+    }
     const res = await fetch(`${API_URL}/recommendations/stream`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...authHeaders() },
-      body: JSON.stringify({ query, history, conversation_id: conversationId ?? null }),
+      body: JSON.stringify(body),
       signal: handlers.signal,
     });
     console.log('[RECOMMEND] fetch status:', res.status, 'body:', !!res.body);

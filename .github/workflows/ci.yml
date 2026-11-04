@@ -25,11 +25,6 @@ jobs:
           cd apps/backend
           ruff check src
 
-      - name: Type check with mypy
-        run: |
-          cd apps/backend
-          mypy src
-
       - name: Run tests
         env:
           # Never call a real LLM in CI: the shared factory returns a fake

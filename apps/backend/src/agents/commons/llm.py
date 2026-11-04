@@ -121,7 +121,7 @@ def get_chat_model(
         model=model,
         base_url=settings.MUSE_BASE_URL or None,
         api_key=SecretStr(api_key),
-        max_completion_tokens=max_tokens,
+        max_completion_tokens=8192,
         reasoning_effort=reasoning_effort,
     )
     if structured is not None:

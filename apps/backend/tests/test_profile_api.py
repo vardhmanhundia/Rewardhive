@@ -38,7 +38,7 @@ def test_put_persists_scalar_and_list_fields(client: TestClient, test_user_data:
     payload = {
         "occupation": "Engineer",
         "company": "Acme Corp",
-        "relationship_status": "family",
+        "relationship_status": "married_with_kids",
         "family_size": 4,
         "location_state": "California",
         "location_country": "United States",

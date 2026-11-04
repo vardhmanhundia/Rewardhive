@@ -166,14 +166,12 @@ async def recommend_stream(
         # Tell the client which conversation this turn belongs to, so a fresh
         # session can adopt the new id (and update its URL) for follow-ups.
         yield _sse("conversation", {"id": str(conversation_id)})
-        print(f"[SSE DEBUG] starting stream_recommendation")
         try:
             async for event in stream_recommendation(
                 session, user_id, request.query, history=history, conversation_id=conversation_id,
                 image_b64=request.image_b64, image_mime=request.image_mime,
             ):
                 try:
-                    print(f"[SSE DEBUG] received event: {repr(event)[:200]}")
                     kind = event.get("kind") if isinstance(event, dict) else None
                     if not kind:
                         continue

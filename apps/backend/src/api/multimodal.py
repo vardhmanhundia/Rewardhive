@@ -13,7 +13,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.db.database import get_db
-from src.middleware.auth import get_current_user_id, verify_user_auth
+from src.middleware.auth import verify_user_auth
 from src.services.vision_service import (
     ReceiptParseResult,
     ScreenshotAnalysis,

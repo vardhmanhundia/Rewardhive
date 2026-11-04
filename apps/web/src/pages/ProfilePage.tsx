@@ -134,7 +134,7 @@ export const ProfilePage = () => {
   return (
     <div className="min-h-screen bg-glow text-foreground">
       <Navbar />
-      <main className="max-w-4xl mx-auto px-4 py-10 pb-20 sm:pb-10 space-y-6">
+      <main className="w-full px-8 py-10 pb-20 sm:pb-10 space-y-8">
         <div>
           <h1 className="font-display text-3xl font-bold tracking-tight">
             Your profile
@@ -146,7 +146,7 @@ export const ProfilePage = () => {
 
         {/* Account (read-only) */}
         <Section title="Account" description="From your login — not editable here.">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-6">
             <ReadOnly label="Name" value={`${user?.first_name ?? ''} ${user?.last_name ?? ''}`} />
             <ReadOnly label="Email" value={user?.email ?? ''} />
             <ReadOnly label="Status" value={user?.is_active ? 'Active' : 'Inactive'} />
@@ -156,7 +156,7 @@ export const ProfilePage = () => {
 
         {/* Lifestyle & finances */}
         <Section title="About you">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             <Field label="Occupation">
               <TextInput
                 value={form.occupation ?? ''}
@@ -253,7 +253,7 @@ export const ProfilePage = () => {
 
         {/* Travel */}
         <Section title="Travel preferences">
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
             <Field label="Travel style">
               <Select
                 value={form.travel_preference ?? ''}
@@ -261,18 +261,41 @@ export const ProfilePage = () => {
                 onChange={(v) => set('travel_preference', v || null)}
               />
             </Field>
+            <Field label="Hotel stay style">
+              <Select
+                value={form.hotel_stay_style ?? ''}
+                options={[{value: 'budget', label: 'Budget'}, {value: 'mid_range', label: 'Mid-range'}, {value: 'luxury', label: 'Luxury'}, {value: 'boutique', label: 'Boutique'}]}
+                onChange={(v) => set('hotel_stay_style', v || null)}
+              />
+            </Field>
           </div>
-          <div className="mt-4">
-            <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Airline ranking
-            </p>
-            <p className="mb-3 text-sm text-muted-foreground">
-              Add airlines in order of preference — most preferred at the top.
-            </p>
-            <AirlineRanking
-              ranking={form.airline_ranking}
-              onChange={(r) => set('airline_ranking', r)}
-            />
+          <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
+            <div>
+              <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Airline ranking
+              </p>
+              <p className="mb-3 text-sm text-muted-foreground">
+                Add airlines in order of preference — most preferred at the top.
+              </p>
+              <AirlineRanking
+                ranking={form.airline_ranking}
+                onChange={(r) => set('airline_ranking', r)}
+              />
+            </div>
+            <div>
+              <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Hotel ranking
+              </p>
+              <p className="mb-3 text-sm text-muted-foreground">
+                Add hotels in order of preference — most preferred at the top.
+              </p>
+              <RankedPicker
+                ranking={form.hotel_ranking}
+                options={['Marriott', 'Hilton', 'Hyatt', 'IHG', 'Wyndham', 'Best Western', 'Choice Hotels', 'Accor', 'Radisson', 'Four Seasons', 'Ritz-Carlton']}
+                placeholder="Search a hotel brand…"
+                onChange={(r) => set('hotel_ranking', r)}
+              />
+            </div>
           </div>
         </Section>
 
@@ -281,7 +304,7 @@ export const ProfilePage = () => {
           title="Shopping preferences"
           description="Rank where you shop most — most preferred at the top. Used to match store-specific card rewards."
         >
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
             <div>
               <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 Online shopping
@@ -295,7 +318,7 @@ export const ProfilePage = () => {
             </div>
             <div>
               <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Offline shopping
+                In-store shopping
               </p>
               <RankedPicker
                 ranking={form.offline_shopping_ranking}
@@ -308,30 +331,32 @@ export const ProfilePage = () => {
         </Section>
 
         {/* Banks / Goals / Loans */}
-        <Section title="Banks">
-          <BankPicker
-            selected={form.banks.map((b) => b.name)}
-            onChange={(names) => set('banks', names.map((name) => ({name})))}
-          />
-        </Section>
+        <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
+          <Section title="Banks">
+            <BankPicker
+              selected={form.banks.map((b) => b.name)}
+              onChange={(names) => set('banks', names.map((name) => ({name})))}
+            />
+          </Section>
 
-        <Section title="Goals">
-          <ChipList
-            items={form.goals.map((g) => g.text)}
-            placeholder="Add a goal…"
-            onAdd={(text) => set('goals', [...form.goals, {text}])}
-            onRemove={(i) => set('goals', form.goals.filter((_, idx) => idx !== i))}
-          />
-        </Section>
+          <Section title="Goals">
+            <ChipList
+              items={form.goals.map((g) => g.text)}
+              placeholder="Add a goal…"
+              onAdd={(text) => set('goals', [...form.goals, {text}])}
+              onRemove={(i) => set('goals', form.goals.filter((_, idx) => idx !== i))}
+            />
+          </Section>
 
-        <Section title="Loans">
-          <ChipList
-            items={form.loans.map((l) => l.loan_type)}
-            placeholder="Add a loan type (e.g. mortgage, auto, student)…"
-            onAdd={(loan_type) => set('loans', [...form.loans, {loan_type}])}
-            onRemove={(i) => set('loans', form.loans.filter((_, idx) => idx !== i))}
-          />
-        </Section>
+          <Section title="Loans">
+            <ChipList
+              items={form.loans.map((l) => l.loan_type)}
+              placeholder="Add a loan type (e.g. mortgage, auto, student)…"
+              onAdd={(loan_type) => set('loans', [...form.loans, {loan_type}])}
+              onRemove={(i) => set('loans', form.loans.filter((_, idx) => idx !== i))}
+            />
+          </Section>
+        </div>
 
         {/* Cards */}
         <Section
@@ -350,7 +375,7 @@ export const ProfilePage = () => {
       {/* Save bar */}
       {isDirty && (
         <div className="sticky bottom-0 z-20 border-t border-white/10 bg-background/80 backdrop-blur-md">
-          <div className="max-w-4xl mx-auto flex items-center justify-between gap-3 px-4 py-3">
+          <div className="w-full flex items-center justify-between gap-3 px-8 py-3">
             <p className="text-sm text-muted-foreground">
               {mutation.isError
                 ? `Error: ${(mutation.error as Error).message}`
@@ -396,19 +421,19 @@ const Section = ({
 }) => {
   const [open, setOpen] = useState(defaultOpen);
   return (
-    <section className="glass rounded-xl overflow-hidden">
+    <section className="glass rounded-xl overflow-hidden border-l-[3px] border-l-primary/40">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center justify-between gap-3 p-5 text-left transition-colors hover:bg-white/[0.02]"
+        className="flex w-full items-center justify-between gap-3 px-6 py-5 text-left transition-colors hover:bg-white/[0.03]"
       >
         <div>
           <h2 className="font-display text-lg font-semibold">{title}</h2>
-          {description && <p className="text-sm text-muted-foreground">{description}</p>}
+          {description && <p className="text-sm text-muted-foreground mt-0.5">{description}</p>}
         </div>
-        <ChevronDown className={`h-5 w-5 shrink-0 text-muted-foreground transition-transform ${open ? 'rotate-180' : ''}`} />
+        <ChevronDown className={`h-5 w-5 shrink-0 text-muted-foreground transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
       </button>
-      {open && <div className="px-5 pb-5">{children}</div>}
+      {open && <div className="px-6 pb-6">{children}</div>}
     </section>
   );
 };
@@ -423,18 +448,18 @@ const Field = ({label, children}: {label: string; children: React.ReactNode}) =>
 );
 
 const ReadOnly = ({label, value}: {label: string; value: string}) => (
-  <div>
-    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+  <div className="rounded-lg bg-secondary/30 px-4 py-3">
+    <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
       {label}
     </p>
-    <p className="mt-1 text-sm font-medium">{value || '—'}</p>
+    <p className="mt-1 text-sm font-medium truncate">{value || '—'}</p>
   </div>
 );
 
 /* ---------------------------------------------------------------- inputs */
 
 const inputClass =
-  'h-10 w-full rounded-md border border-input bg-background/60 px-3 text-sm outline-none focus:ring-2 focus:ring-ring';
+  'h-11 w-full rounded-xl border-[1.5px] border-border bg-card px-3.5 text-sm text-foreground outline-none transition-colors focus:border-primary/40';
 
 const TextInput = ({
   value,
@@ -1010,7 +1035,7 @@ const CardsEditor = ({
             <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               {cat}
             </h3>
-            <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
               {cards.map((h) => {
                 const product = h.custom || !h.card_id ? undefined : byId.get(h.card_id);
                 return (

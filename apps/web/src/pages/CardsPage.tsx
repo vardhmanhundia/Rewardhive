@@ -61,10 +61,10 @@ export const CardsPage = () => {
   }, [cards, search, issuer, tier, sort]);
 
   return (
-    <div className="min-h-screen bg-glow text-foreground">
+    <div className="flex h-screen flex-col bg-glow text-foreground">
       <Navbar />
-      <main className="max-w-7xl mx-auto px-4 py-10 pb-20 sm:pb-10">
-        <div className="mb-8">
+      <main className="flex w-full flex-1 flex-col overflow-hidden px-10 pt-10">
+        <div className="mb-8 shrink-0">
           <h1 className="font-display text-3xl font-bold tracking-tight">Available cards</h1>
           <p className="text-muted-foreground mt-1">
             Browse the catalog the assistant draws on when it makes a recommendation.
@@ -72,7 +72,7 @@ export const CardsPage = () => {
         </div>
 
         {/* Controls */}
-        <div className="glass mb-8 flex flex-col gap-3 rounded-xl p-3 sm:flex-row sm:items-center">
+        <div className="glass mb-4 flex shrink-0 flex-col gap-3 rounded-xl p-3 sm:flex-row sm:items-center">
           <div className="relative flex-1">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <input
@@ -118,36 +118,38 @@ export const CardsPage = () => {
           </select>
         </div>
 
-        {/* Grid */}
-        {isLoading && <SkeletonGrid />}
-        {isError && (
-          <p className="text-destructive">Couldn't load cards. Is the backend running?</p>
-        )}
-        {cards && (
-          <>
-            <p className="mb-4 text-sm text-muted-foreground">
-              {visible.length} {visible.length === 1 ? 'card' : 'cards'}
-            </p>
-            {visible.length === 0 ? (
-              <div className="glass rounded-2xl p-10 text-center text-muted-foreground">
-                No cards match those filters.
-              </div>
-            ) : (
-              <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-                {visible.map((card) => (
-                  <CardTile key={card.id} card={card} />
-                ))}
-              </div>
-            )}
-          </>
-        )}
+        {/* Grid — scrollable area */}
+        <div className="min-h-0 flex-1 overflow-y-auto pb-10 pr-1">
+          {isLoading && <SkeletonGrid />}
+          {isError && (
+            <p className="text-destructive">Couldn't load cards. Is the backend running?</p>
+          )}
+          {cards && (
+            <>
+              <p className="mb-4 text-sm text-muted-foreground">
+                {visible.length} {visible.length === 1 ? 'card' : 'cards'}
+              </p>
+              {visible.length === 0 ? (
+                <div className="glass rounded-2xl p-10 text-center text-muted-foreground">
+                  No cards match those filters.
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                  {visible.map((card) => (
+                    <CardTile key={card.id} card={card} />
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+        </div>
       </main>
     </div>
   );
 };
 
 const SkeletonGrid = () => (
-  <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+  <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
     {Array.from({ length: 6 }).map((_, i) => (
       <div key={i} className="glass h-72 animate-pulse rounded-2xl" />
     ))}

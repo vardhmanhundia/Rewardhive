@@ -14,7 +14,7 @@ from src.agents.user_profiling import set_checkpointer
 from src.api.auth import router as auth_router
 from src.api.profile import router as profile_router
 
-# from src.api.profiling import router as profiling_router
+from src.api.profiling import router as profiling_router
 from src.api.advisor import router as advisor_router
 from src.api.cards import router as cards_router
 from src.api.optimizer import router as optimizer_router
@@ -106,7 +106,7 @@ app.add_middleware(
 # Include routers
 app.include_router(auth_router)
 app.include_router(profile_router)
-# app.include_router(profiling_router)
+app.include_router(profiling_router)
 app.include_router(cards_router)
 app.include_router(optimizer_router)
 app.include_router(recommendations_router)

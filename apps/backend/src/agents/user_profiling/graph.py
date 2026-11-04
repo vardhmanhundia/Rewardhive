@@ -338,9 +338,13 @@ async def stream_profiling_turn(
         )
         await session.commit()
 
+        # 1b. Send the full updated profile so the frontend form stays in sync.
+        updated_profile = await load_profile(session, user_id)
+        yield {"type": "profile", "data": updated_profile.model_dump(mode="json")}
+
         # 2. Stream the personalized reply. Re-read the profile so anything
         #    stored this turn is reflected in the answer.
-        user_details = await format_profile(session, user_id)
+        user_details = render_profile(updated_profile)
         messages: list[Any] = [
             SystemMessage(
                 content=CHAT_SYSTEM_PROMPT.format(

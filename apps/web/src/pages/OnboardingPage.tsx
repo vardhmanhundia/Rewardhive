@@ -439,110 +439,44 @@ export const OnboardingPage = () => {
         })}
       </div>
 
-      {/* Body: form left + sidebar right */}
-      <div className="max-w-[1400px] mx-auto w-full px-4 pt-6 pb-6 grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-8 items-start lg:items-stretch lg:flex-1 lg:min-h-0">
-        {/* Left: step content */}
-        <div className="min-w-0 flex flex-col lg:min-h-0">
-          <h1 className="font-display font-bold text-[clamp(24px,3vw,32px)] mb-1">{step.title}</h1>
-          <p className="text-muted-foreground text-[15px] mb-5 max-w-[52ch]">{step.subtitle}</p>
+      {/* Body: full-width form */}
+      <div className="w-full px-8 pt-6 pb-6 flex flex-col flex-1 min-h-0">
+        <h1 className="font-display font-bold text-[clamp(24px,3vw,32px)] mb-1">{step.title}</h1>
+        <p className="text-muted-foreground text-[15px] mb-5 max-w-[52ch]">{step.subtitle}</p>
 
-          <div className="flex-1 rounded-lg border border-border bg-card shadow-sm p-6 lg:min-h-0 lg:overflow-y-auto">
-            <StepContent stepKey={step.key} form={form} set={set} />
-          </div>
-
-          {mutation.isError && (
-            <p className="text-destructive text-sm mt-3">
-              Couldn't save: {(mutation.error as Error).message}
-            </p>
-          )}
-
-          {/* Nav buttons */}
-          <div className="shrink-0 flex gap-2.5 mt-5">
-            <Button variant="outline" onClick={goBack} disabled={stepIndex === 0}>
-              ← Back
-            </Button>
-            {!isLast && (
-              <button
-                className="bg-transparent border-none text-muted-foreground text-sm font-semibold px-4 py-3 hover:text-foreground transition-colors"
-                onClick={goNext}
-              >
-                Skip
-              </button>
-            )}
-            {isLast ? (
-              <Button onClick={finish} disabled={mutation.isPending}>
-                {mutation.isPending ? 'Saving…' : '✓ Finish'}
-              </Button>
-            ) : (
-              <Button onClick={goNext}>
-                Continue →
-              </Button>
-            )}
-          </div>
+        <div className="flex-1 rounded-lg border border-border bg-card shadow-sm p-6 min-h-0 overflow-y-auto">
+          <StepContent stepKey={step.key} form={form} set={set} />
         </div>
 
-        {/* Right sidebar */}
-        <aside className="flex flex-col lg:min-h-0">
+        {mutation.isError && (
+          <p className="text-destructive text-sm mt-3">
+            Couldn't save: {(mutation.error as Error).message}
+          </p>
+        )}
 
-          {/* Chat panel */}
-          <Card className="flex flex-col overflow-hidden h-[60vh] lg:h-full">
-            <CardHeader className="shrink-0 flex flex-row items-center gap-2 px-4 py-3.5 border-b border-border">
-              <span className="w-[18px] h-[18px] text-primary"><ChatSvg /></span>
-              <span className="font-display font-semibold text-sm">Chat with CardPilot</span>
-            </CardHeader>
-            <div className="flex-1 min-h-0 overflow-y-auto p-3 px-4 flex flex-col gap-2.5">
-              {chatMessages.map((m, i) => (
-                <div
-                  key={i}
-                  className={`max-w-[85%] px-3.5 py-2.5 text-[13px] leading-snug ${
-                    m.role === 'user'
-                      ? 'self-end bg-primary text-primary-foreground rounded-[14px] rounded-br-[4px]'
-                      : 'self-start bg-muted text-foreground rounded-[14px] rounded-bl-[4px]'
-                  }`}
-                >
-                  {m.content
-                    ? m.role === 'assistant'
-                      ? <Markdown>{m.content}</Markdown>
-                      : m.content
-                    : chatLoading && i === chatMessages.length - 1
-                      ? '…'
-                      : ''}
-                </div>
-              ))}
-              <div ref={chatEndRef} />
-            </div>
-            {chatSuggestions.length > 0 && (
-              <div className="shrink-0 flex flex-wrap gap-1.5 px-4 pb-3">
-                {chatSuggestions.map((s) => (
-                  <button
-                    key={s}
-                    className="bg-muted border border-border rounded-full px-2.5 py-1 text-[11px] text-muted-foreground font-medium hover:border-primary/40 hover:text-foreground transition-colors"
-                    onClick={() => sendChat(s)}
-                  >
-                    {s}
-                  </button>
-                ))}
-              </div>
-            )}
-            <div className="shrink-0 flex gap-2 px-4 py-3 border-t border-border">
-              <input
-                value={chatInput}
-                onChange={(e) => setChatInput(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter') sendChat(chatInput); }}
-                placeholder="Tell me about yourself…"
-                disabled={chatLoading}
-                className="flex-1 h-10 rounded-[10px] border-[1.5px] border-border bg-muted px-3 text-[13px] text-foreground outline-none focus:border-primary/40 placeholder:text-muted-foreground"
-              />
-              <button
-                className="w-10 h-10 rounded-[10px] border-none bg-primary text-primary-foreground grid place-items-center shrink-0 hover:bg-primary/80 disabled:opacity-50 transition-colors"
-                onClick={() => sendChat(chatInput)}
-                disabled={chatLoading || !chatInput.trim()}
-              >
-                <span className="w-4 h-4"><SendSvg /></span>
-              </button>
-            </div>
-          </Card>
-        </aside>
+        {/* Nav buttons */}
+        <div className="shrink-0 flex gap-2.5 mt-5">
+          <Button variant="outline" onClick={goBack} disabled={stepIndex === 0}>
+            ← Back
+          </Button>
+          {!isLast && (
+            <button
+              className="bg-transparent border-none text-muted-foreground text-sm font-semibold px-4 py-3 hover:text-foreground transition-colors"
+              onClick={goNext}
+            >
+              Skip
+            </button>
+          )}
+          {isLast ? (
+            <Button onClick={finish} disabled={mutation.isPending}>
+              {mutation.isPending ? 'Saving…' : '✓ Finish'}
+            </Button>
+          ) : (
+            <Button onClick={goNext}>
+              Continue →
+            </Button>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -719,7 +653,7 @@ const MultiSelect = ({
     : placeholder;
 
   return (
-    <div ref={wrapRef} className="relative max-w-[560px]">
+    <div ref={wrapRef} className="relative w-full">
       <button
         ref={triggerRef}
         type="button"
@@ -883,7 +817,7 @@ const AboutStep = ({ form, set }: { form: FormState; set: SetFn }) => (
 const TravelStep = ({ form, set }: { form: FormState; set: SetFn }) => (
   <div>
     <FieldLabel>Travel style</FieldLabel>
-    <div className="grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-3">
+    <div className="grid grid-cols-3 gap-3">
       {TRAVEL_OPTIONS.map((o) => (
         <OptionCard
           key={o.value}
@@ -916,7 +850,7 @@ const STAY_EMOJI: Record<string, string> = {
 const HotelStep = ({ form, set }: { form: FormState; set: SetFn }) => (
   <div>
     <FieldLabel>Stay style</FieldLabel>
-    <div className="grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-3 mb-6">
+    <div className="grid grid-cols-4 gap-3 mb-6">
       {HOTEL_STAY_OPTIONS.map((o) => (
         <OptionCard
           key={o.value}
@@ -1063,7 +997,7 @@ const CardsStep = ({ form, set }: { form: FormState; set: SetFn }) => {
       )}
 
       <FieldLabel className="mt-6">Have one that's not listed?</FieldLabel>
-      <div className="flex gap-2 max-w-[440px]">
+      <div className="flex gap-2 w-full">
         <Input
           value={customName}
           onChange={(e) => setCustomName(e.target.value)}

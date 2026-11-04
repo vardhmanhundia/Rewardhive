@@ -92,7 +92,7 @@ export const EvaluatePage = () => {
   return (
     <div className="min-h-screen bg-glow text-foreground">
       <Navbar />
-      <main className="mx-auto w-full max-w-5xl px-4 py-10 sm:py-12 pb-20 sm:pb-12">
+      <main className="w-full px-8 py-10 sm:py-12 pb-20 sm:pb-12">
         <header className="mb-8">
           <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-medium text-muted-foreground">
             <Sparkles className="h-3.5 w-3.5 text-primary" />

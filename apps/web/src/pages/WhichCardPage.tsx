@@ -95,7 +95,7 @@ export const WhichCardPage = () => {
   return (
     <div className="flex min-h-screen flex-col bg-glow text-foreground">
       <Navbar />
-      <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col px-4">
+      <main className="flex w-full flex-1 flex-col px-8">
         {empty ? (
           <EmptyState onPick={ask} savedCount={savedCount} />
         ) : (
